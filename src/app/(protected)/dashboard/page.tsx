@@ -1,17 +1,11 @@
 "use client"
 
-import Link from "next/link"
+import AdminDashboardKPIs from "@/components/pages/HomePageAnalytics"
 
 export default function ProtectedPage() {
     return (
         <>
-            <div>Welcome to dashboard</div>
-            <Link href={"/dashboard/settings"}>
-                Go to settings
-            </Link>
-            <Link href={"/dashboard/bookslot"}>
-                book slot
-            </Link>
+            <AdminDashboardKPIs/>
         </>
     )
 }

@@ -10,8 +10,8 @@ import {
 
 const Loading = () => {
   return (
-    <div className="flex justify-center items-center h-screen">
-      <Card className="h-full w-full">
+    <div className="flex justify-center items-center h-[100vh]">
+      <Card className="h-full w-full"> 
         <CardHeader className="flex flex-row justify-start items-center gap-2">
           <div className="flex flex-col gap-2">
             <CardTitle>
