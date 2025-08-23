@@ -25,89 +25,27 @@ import {
   PaginationPrevious,
 } from "../ui/pagination";
 import { useGetAllAppointments } from "@/data/appointment/get-all-appointments";
+import { slotBookingZodType } from "@/type/schema";
 
 const ITEMS_PER_PAGE = 5;
 
-interface Appointment {
-  id: string;
-  doctorName: string;
-  doctorSpeciality: string;
-  patientName: string;
-  patientEmail: string;
-  patientPhone: string;
-  appointmentDate: string;
-  appointmentTime: string;
-  status: string;
-  createdBy: string;
+interface AppointmentDetailsTable extends slotBookingZodType {
+  _id:string,
 }
-
-const dummyAppointments: Appointment[] = [
-  {
-    id: "APT-1001",
-    doctorName: "Dr. Arjun Mehta",
-    doctorSpeciality: "Cardiologist",
-    patientName: "John Doe",
-    patientEmail: "john@example.com",
-    patientPhone: "+91 9876543210",
-    appointmentDate: "2025-08-15",
-    appointmentTime: "10:30 AM",
-    status: "Completed",
-    createdBy: "Admin",
-  },
-  {
-    id: "APT-1002",
-    doctorName: "Dr. Priya Sharma",
-    doctorSpeciality: "Dermatologist",
-    patientName: "Aditi Verma",
-    patientEmail: "aditi@example.com",
-    patientPhone: "+91 9123456780",
-    appointmentDate: "2025-08-16",
-    appointmentTime: "2:00 PM",
-    status: "Upcoming",
-    createdBy: "Receptionist",
-  },
-  {
-    id: "APT-1003",
-    doctorName: "Dr. Michael Lee",
-    doctorSpeciality: "Neurologist",
-    patientName: "Rahul Singh",
-    patientEmail: "rahul@example.com",
-    patientPhone: "+91 9012345678",
-    appointmentDate: "2025-08-17",
-    appointmentTime: "11:00 AM",
-    status: "Cancelled",
-    createdBy: "Admin",
-  },
-  {
-    id: "APT-1004",
-    doctorName: "Dr. Neha Kapoor",
-    doctorSpeciality: "Physiotherapist",
-    patientName: "Ananya Gupta",
-    patientEmail: "ananya@example.com",
-    patientPhone: "+91 9765432109",
-    appointmentDate: "2025-08-18",
-    appointmentTime: "5:15 PM",
-    status: "Upcoming",
-    createdBy: "Doctor",
-  },
-];
 
 const DashboardTable: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const {data:RecentAppointmentdata, isLoading,isError} = useGetAllAppointments();
   // console.log(RecentAppointmentdata?.data);
   
-  const totalAppointments = dummyAppointments.length;
+  const totalAppointments = RecentAppointmentdata?.data.length;
   const totalDoctors = 25;
   const totalPatients = 120;
-  const totalCompleted = dummyAppointments.filter(
-    (a) => a.status === "Completed"
-  ).length;
 
   const totalPages = Math.ceil(totalAppointments / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedAppointments = dummyAppointments.slice(startIndex, endIndex);
+  const paginatedAppointments = RecentAppointmentdata?.data.slice(startIndex, endIndex);
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -121,6 +59,20 @@ const DashboardTable: React.FC = () => {
         return "bg-gray-600 text-white";
     }
   };
+  if(isLoading){
+    return(
+      <>
+       Loading...
+      </>
+    )
+  }
+  if(isError){
+    return(
+      <>
+       Something went wrong
+      </>
+    )
+  }
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -166,7 +118,7 @@ const DashboardTable: React.FC = () => {
       </Pagination>
     );
   };
-
+console.log("Fetched Appointments:", RecentAppointmentdata?.data);
   return (
     <div className="w-full space-y-6">
       {/* Summary Cards */}
@@ -201,9 +153,6 @@ const DashboardTable: React.FC = () => {
           <div className="mb-4 flex items-center justify-between " >
             <h1 className="text-md font-medium text-muted-foreground" >Completed Appointments (This Month) </h1>
           </div>
-          <div className="text-3xl font-extrabold" >
-            {totalCompleted}
-          </div>
         </div>
       </div>
 
@@ -216,7 +165,7 @@ const DashboardTable: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 py-2">
-          {RecentAppointmentdata?.data.length > 0 ? (
+          {Array.isArray(RecentAppointmentdata?.data) && RecentAppointmentdata.data.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -225,33 +174,28 @@ const DashboardTable: React.FC = () => {
                   <TableHead>Patient</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Time</TableHead>
-                  {/* <TableHead>Status</TableHead> */}
-                  <TableHead>Created By</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {RecentAppointmentdata?.data.map((appt:Appointment) => (
-                  <TableRow key={appt.id}>
-                    <TableCell className="font-medium">{appt.id}</TableCell>
+                {RecentAppointmentdata?.data?.length > 0 && RecentAppointmentdata?.data.map((appt:AppointmentDetailsTable) => (
+                  <TableRow key={appt.phonenumber}>
+                    <TableCell className="font-medium">{appt._id}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium">{appt.doctorName}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {appt.appointmentDate}
-                        </span>
+                        <span className="font-medium text-xl">{appt.doctor}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium">{appt.patientName}</span>
+                        <span className="font-sm">{appt.name}</span>
                         <span className="text-sm text-muted-foreground">
-                          {appt.patientEmail}
+                          {appt.email}
                         </span>
-                        <span className="text-xs">{appt.patientPhone}</span>
+                        <span className="text-xs">{appt.phonenumber}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{appt.appointmentDate}</TableCell>
-                    <TableCell>{appt.appointmentTime}</TableCell>
+                    <TableCell>{`${new Date(appt.slot.date).getMonth()}-${new Date(appt.slot.date).getFullYear()}`}</TableCell>
+                    <TableCell>{appt.slot.time}</TableCell>
                     {/* <TableCell>
                       <Badge
                         className={`text-xs ${getStatusColor(appt.status)}`}
@@ -260,7 +204,7 @@ const DashboardTable: React.FC = () => {
                         {appt.status}
                       </Badge>
                     </TableCell> */}
-                    <TableCell>{appt.createdBy}</TableCell>
+                    {/* <TableCell>{appt.createdBy}</TableCell> */}
                   </TableRow>
                 ))}
               </TableBody>

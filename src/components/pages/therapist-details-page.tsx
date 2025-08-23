@@ -62,8 +62,8 @@ export default function TherapistDetailsPage({ data }: PharmacyDataype) {
                         className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mx-auto p-6 border rounded-lg shadow-sm"
                     >
                         <div className="flex flex-col space-y-2">
-                            <Label htmlFor="name">Doctor Id</Label>
-                            <Input id="name" placeholder="Name" {...register("doctorId")} />
+                            <Label htmlFor="name">Therapist Id</Label>
+                            <Input id="name" placeholder="Therapist Id" {...register("doctorId")} />
                         </div>
 
                         <div className="flex flex-col space-y-2">

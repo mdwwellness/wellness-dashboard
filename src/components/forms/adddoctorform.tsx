@@ -71,9 +71,9 @@ export default function AddDoctorForm() {
                                 name="doctorId"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Doctor ID </FormLabel>
+                                        <FormLabel>Therapist ID </FormLabel>
                                         <FormControl>
-                                            <Input placeholder="doctor Id" {...field} />
+                                            <Input placeholder="Therapist Id" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
