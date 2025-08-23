@@ -1,5 +1,5 @@
 "use react"
-import { DoctorsformType } from "@/type/schema"
+import { DoctorsformSchema, DoctorsformType } from "@/type/schema"
 import { useForm } from "react-hook-form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Button } from "../ui/button"
@@ -9,17 +9,21 @@ import { Input } from "../ui/input"
 import { Textarea } from "../ui/textarea"
 import useAddDoctor from "@/data/addDoctors/add-doctor"
 import { useState } from "react"
+import z from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 
 
 export default function AddDoctorForm() {
     const [isDialogOpen, setisDialogOpen] = useState<boolean>(false);
     const mutation = useAddDoctor();
-    const form = useForm({
+    const form = useForm<z.infer<typeof DoctorsformSchema>>({
+        resolver:zodResolver(DoctorsformSchema),
+        mode:"onChange",
         defaultValues: {
             name: "",
             doctorId: "",
-            phonenumber: 0,
+            phonenumber: undefined,
             email: "",
             specialization: "",
             bio: ""
@@ -112,7 +116,7 @@ export default function AddDoctorForm() {
                                     <FormItem>
                                         <FormLabel>Phone Number </FormLabel>
                                         <FormControl>
-                                            <Input placeholder="phone number" {...field} />
+                                            <Input type="number" placeholder="phone number" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

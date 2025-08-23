@@ -8,7 +8,7 @@ export function useDeleteTherapist () {
     return useMutation({
         mutationFn: async (id: string) =>  deleteTherapist(id),
         onSuccess: (data) => {
-            queryClient.invalidateQueries({queryKey:["getAllEmployee"]})
+            queryClient.invalidateQueries({queryKey:["getAllDoctors"]})
           console.log('Data posted successfully:', data);
         },
         onError: (error) => {

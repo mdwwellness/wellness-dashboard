@@ -77,14 +77,13 @@ export const slotBookingZodSchema = z.object({
 export type slotBookingZodType = z.infer<typeof slotBookingZodSchema>
 
 
-export const DoctorsformSchema = z.object({
-  name:z.string(),
-  doctorId:z.string(),
-  email:z.email(),
-  // password:z.string(),
-  phonenumber:z.number(),
-  specialization:z.string(),
-  bio:z.string()
-})
 
+export const DoctorsformSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  doctorId: z.string().min(1, "ID is required"),
+  email: z.string().email("Invalid email"),
+phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),
+  specialization: z.string().min(1, "Specialization is required"),
+  bio: z.string().optional(),
+});
 export type DoctorsformType = z.infer<typeof DoctorsformSchema>

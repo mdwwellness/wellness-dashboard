@@ -30,14 +30,14 @@ import { slotBookingZodType } from "@/type/schema";
 const ITEMS_PER_PAGE = 5;
 
 interface AppointmentDetailsTable extends slotBookingZodType {
-  _id:string,
+  _id: string,
 }
 
 const DashboardTable: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
-  const {data:RecentAppointmentdata, isLoading,isError} = useGetAllAppointments();
+  const { data: RecentAppointmentdata, isLoading, isError } = useGetAllAppointments();
   // console.log(RecentAppointmentdata?.data);
-  
+
   const totalAppointments = RecentAppointmentdata?.data.length;
   const totalDoctors = 25;
   const totalPatients = 120;
@@ -59,17 +59,17 @@ const DashboardTable: React.FC = () => {
         return "bg-gray-600 text-white";
     }
   };
-  if(isLoading){
-    return(
+  if (isLoading) {
+    return (
       <>
-       Loading...
+        Loading...
       </>
     )
   }
-  if(isError){
-    return(
+  if (isError) {
+    return (
       <>
-       Something went wrong
+        Something went wrong
       </>
     )
   }
@@ -118,7 +118,7 @@ const DashboardTable: React.FC = () => {
       </Pagination>
     );
   };
-console.log("Fetched Appointments:", RecentAppointmentdata?.data);
+  console.log("Fetched Appointments:", RecentAppointmentdata?.data);
   return (
     <div className="w-full space-y-6">
       {/* Summary Cards */}
@@ -132,7 +132,7 @@ console.log("Fetched Appointments:", RecentAppointmentdata?.data);
           </div>
         </div>
 
-         <div className="border border-gray-200 p-5 rounded-xl shadow h-28" >
+        <div className="border border-gray-200 p-5 rounded-xl shadow h-28" >
           <div className="mb-4 flex items-center justify-between " >
             <h1 className="text-md font-medium text-muted-foreground" >Total Patients (This Month)</h1>
           </div>
@@ -140,7 +140,7 @@ console.log("Fetched Appointments:", RecentAppointmentdata?.data);
             {totalPatients}
           </div>
         </div>
-         <div className="border border-gray-200 p-5 rounded-xl shadow h-28" >
+        <div className="border border-gray-200 p-5 rounded-xl shadow h-28" >
           <div className="mb-4 flex items-center justify-between " >
             <h1 className="text-md font-medium text-muted-foreground" >Total Appointments (This Month) </h1>
           </div>
@@ -149,7 +149,7 @@ console.log("Fetched Appointments:", RecentAppointmentdata?.data);
           </div>
         </div>
 
-         <div className="border border-gray-200 p-5 rounded-xl shadow h-28" >
+        <div className="border border-gray-200 p-5 rounded-xl shadow h-28" >
           <div className="mb-4 flex items-center justify-between " >
             <h1 className="text-md font-medium text-muted-foreground" >Completed Appointments (This Month) </h1>
           </div>
@@ -172,29 +172,33 @@ console.log("Fetched Appointments:", RecentAppointmentdata?.data);
                   <TableHead>Appointment ID</TableHead>
                   <TableHead>Doctor</TableHead>
                   <TableHead>Patient</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Mobile No</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {RecentAppointmentdata?.data?.length > 0 && RecentAppointmentdata?.data.map((appt:AppointmentDetailsTable) => (
+                {RecentAppointmentdata?.data?.length > 0 && RecentAppointmentdata?.data.map((appt: AppointmentDetailsTable) => (
                   <TableRow key={appt.phonenumber}>
                     <TableCell className="font-medium">{appt._id}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium text-xl">{appt.doctor}</span>
+                        <span className="font-medium text-sm">{appt.doctor}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-sm">{appt.name}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {appt.email}
-                        </span>
-                        <span className="text-xs">{appt.phonenumber}</span>
-                      </div>
+                      <span className="font-lg">{appt.name}</span>
                     </TableCell>
-                    <TableCell>{`${new Date(appt.slot.date).getMonth()}-${new Date(appt.slot.date).getFullYear()}`}</TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {appt.email}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs">{appt.phonenumber}</span>
+                    </TableCell>
+                    <TableCell>{`${new Date(appt.slot.date).getDate()}-${new Date(appt.slot.date).getMonth()}-${new Date(appt.slot.date).getFullYear()}`}</TableCell>
                     <TableCell>{appt.slot.time}</TableCell>
                     {/* <TableCell>
                       <Badge
