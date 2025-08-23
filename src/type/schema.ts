@@ -81,7 +81,7 @@ export const DoctorsformSchema = z.object({
   name:z.string(),
   doctorId:z.string(),
   email:z.email(),
-  password:z.string(),
+  // password:z.string(),
   phonenumber:z.number(),
   specialization:z.string(),
   bio:z.string()

@@ -89,7 +89,7 @@ export default function AppointmentBookingForm() {
                                     name="doctor"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Doctor</FormLabel>
+                                            <FormLabel>Therapist</FormLabel>
                                             <Select onValueChange={(selectedId) => {
                                                 const selectedDoctor = DoctorsList?.data.find(
                                                     (d: DoctorsformType) => d.name === selectedId
@@ -100,7 +100,7 @@ export default function AppointmentBookingForm() {
                                             }} defaultValue={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Select doctor" />
+                                                        <SelectValue placeholder="Select Therapist" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
@@ -109,7 +109,7 @@ export default function AppointmentBookingForm() {
                                                     ) : isError ? (
                                                         <div>Error loading doctors</div>
                                                     ) : (
-                                                        DoctorsList?.data.map((doctor: DoctorsformType) => (
+                                                        DoctorsList?.data?.map((doctor: DoctorsformType) => (
                                                             <SelectItem key={doctor.doctorId} value={doctor.name}>
                                                                 {doctor.name}
                                                             </SelectItem>
@@ -126,9 +126,9 @@ export default function AppointmentBookingForm() {
                                     name="doctorId"
                                     render={({ field }) => (
                                         <FormItem className="mt-2 md:mt-0" >
-                                            <FormLabel>Doctor Id</FormLabel>
+                                            <FormLabel>Therapist Id</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Doctor Id" readOnly {...field} />
+                                                <Input placeholder="Therapist Id" readOnly {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -179,7 +179,7 @@ export default function AppointmentBookingForm() {
                                         <Select onValueChange={field.onChange} defaultValue={field.value} >
                                             <FormControl>
                                                 <SelectTrigger className="w-full" >
-                                                    <SelectValue placeholder="select category" />
+                                                    <SelectValue placeholder="Select Time" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
@@ -192,6 +192,9 @@ export default function AppointmentBookingForm() {
                                                 <SelectItem value="15:30 " >15:30 </SelectItem>
                                                 <SelectItem value="16:30 " >16:30 </SelectItem>
                                                 <SelectItem value="17:30 " >17:30 </SelectItem>
+                                                <SelectItem value="18:30 " >18:30 </SelectItem>
+                                                <SelectItem value="19:30 " >19:30 </SelectItem>
+                                                <SelectItem value="20:30 " >20:30 </SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
@@ -253,11 +256,14 @@ export default function AppointmentBookingForm() {
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value={"category1"}>category1</SelectItem>
-                                                <SelectItem value={"category2"}>category2</SelectItem>
-                                                <SelectItem value={"category3"}>category3</SelectItem>
-                                                <SelectItem value={"category4"}>category4</SelectItem>
-                                                <SelectItem value={"category5"}>category5</SelectItem>
+                                                <SelectItem value="cardiologist">Cardiologist</SelectItem>
+                                                <SelectItem value="dermatologist">Dermatologist</SelectItem>
+                                                <SelectItem value="dentist">Dentist</SelectItem>
+                                                <SelectItem value="general-physician">General Physician</SelectItem>
+                                                <SelectItem value="neurologist">Neurologist</SelectItem>
+                                                <SelectItem value="orthopedic">Orthopedic</SelectItem>
+                                                <SelectItem value="pediatrician">Pediatrician</SelectItem>
+                                                <SelectItem value="psychiatrist">Psychiatrist</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />

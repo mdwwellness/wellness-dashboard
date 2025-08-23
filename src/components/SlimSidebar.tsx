@@ -46,19 +46,14 @@ const navLinks = [
     href: "/dashboard",
   },
   {
-    title: "Doctor",
-    icon: <Stethoscope className="h-5 w-5" />,
-    href: "/dashboard/doctor",
-  },
-  {
     title: "Book Slot",
     icon: <CalendarClock className="h-5 w-5" />,
-    href: "/dashboard/bookslot",
+    href: "/dashboard/appointments",
   },
   {
-    title: "Doctors List",
+    title: "Therapist List",
     icon: <UserPlus className="h-5 w-5" />,
-    href: "/dashboard/alldoctors",
+    href: "/dashboard/alltherapist",
   },
 ];
 

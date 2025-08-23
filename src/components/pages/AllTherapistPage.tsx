@@ -14,7 +14,7 @@ interface ColumnDataType<
 }
 
 
-export default function AllDoctorsPage({ columns }: ColumnDataType<DoctorsformType>) {
+export default function AllTherapistPage({ columns }: ColumnDataType<DoctorsformType>) {
   const {data: DoctorsDetail,isLoading,isError} = useGetAllDoctors();
   if(isLoading){
     return (
@@ -37,9 +37,9 @@ export default function AllDoctorsPage({ columns }: ColumnDataType<DoctorsformTy
       <Card>
         <CardHeader className="flex flex-row justify-start items-center gap-2">
           <div className="flex flex-col gap-2">
-            <CardTitle>Doctors List</CardTitle>
+            <CardTitle>Therapist List</CardTitle>
             <CardDescription>
-              Manage all your Doctors.
+              Manage all your Therapist.
             </CardDescription>
           </div>
           <div className="ml-auto flex items-center gap-2">

@@ -28,13 +28,13 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
   return (
-    <SessionProvider session={session} >
-      <html lang="en" suppressHydrationWarning>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable}`}
-        >
-          <ThemeProvider 
-           attribute="class"
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable}`}
+      >
+        <SessionProvider session={session} >
+          <ThemeProvider
+            attribute="class"
             defaultTheme="light"
             enableSystem
             disableTransitionOnChange
@@ -42,8 +42,8 @@ export default async function RootLayout({
             <Toaster position="top-center" richColors={true} />
             {children}
           </ThemeProvider>
-        </body>
-      </html>
-    </SessionProvider>
+        </SessionProvider>
+      </body>
+    </html>
   );
 }

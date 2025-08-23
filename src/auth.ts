@@ -17,7 +17,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   events: {
     async linkAccount({ user }) {
       const db = await getDB();
-      const usersCollection = db.collection("local");
+      const usersCollection = db.collection("test");
+      console.log("i am from link account",{user:user},usersCollection);
       await usersCollection.updateOne(
         { _id: new ObjectId(user.id) },
         { $set: { emailVerified: new Date() } }
@@ -28,12 +29,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ user, account }) {
 
-      // console.log({
-      //   user,
-      //   account,
-      // })
+      console.log({
+        user,
+        account,
+      })
 
       // Allow OAuth email without verification      
+      console.log("i am from signin",user,account);
       if (account?.provider !== "credentials") return true;
 
       // ignore this user.id type error, idk why its showing user as undifined while everything is ok
@@ -43,12 +45,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       //Prevent sign in without email verification
       if (!existingUser?.emailVerified) return false
 
-      // todo: add 2FA check
       return true
     },
 
     async session({ token, session }) {
-      // console.log({session: token})
+      // console.log("i am from session",session,token)
       if (token.sub && session.user) {
         session.user.id = token.sub
       }
@@ -68,6 +69,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     async jwt({ token }) {
+      // console.log("i am from jwt",token);
       if (!token.sub) return token
 
       // this one update the user role if changed user role changed with just a page relode
@@ -88,7 +90,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token
     }
   },
-  adapter: MongoDBAdapter(client),
+  adapter: MongoDBAdapter(Promise.resolve(client)),
   session: { strategy: "jwt" },
   ...authConfig,
 })

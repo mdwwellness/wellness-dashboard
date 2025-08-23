@@ -1,8 +1,8 @@
 import { getCollections }  from "@/lib/db"
 import { ObjectId } from "mongodb";
 
-const {users} = await getCollections(); 
 export const getUserByEmail = async (email: string) => {
+    const {users} = await getCollections(); 
     try {
         const user = await users.findOne({email:email});
 
@@ -13,6 +13,7 @@ export const getUserByEmail = async (email: string) => {
 }
 
 export const getUserById = async (id: string) => {
+    const {users} = await getCollections();
     try {
         const user = await users.findOne({ _id:new ObjectId(id)});
 

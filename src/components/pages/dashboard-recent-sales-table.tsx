@@ -24,6 +24,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "../ui/pagination";
+import { useGetAllAppointments } from "@/data/appointment/get-all-appointments";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -93,7 +94,9 @@ const dummyAppointments: Appointment[] = [
 
 const DashboardTable: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
-
+  const {data:RecentAppointmentdata, isLoading,isError} = useGetAllAppointments();
+  // console.log(RecentAppointmentdata?.data);
+  
   const totalAppointments = dummyAppointments.length;
   const totalDoctors = 25;
   const totalPatients = 120;
@@ -107,7 +110,7 @@ const DashboardTable: React.FC = () => {
   const paginatedAppointments = dummyAppointments.slice(startIndex, endIndex);
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "completed":
         return "bg-green-600 text-white";
       case "upcoming":
@@ -213,7 +216,7 @@ const DashboardTable: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 py-2">
-          {paginatedAppointments.length > 0 ? (
+          {RecentAppointmentdata?.data.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -222,19 +225,19 @@ const DashboardTable: React.FC = () => {
                   <TableHead>Patient</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Time</TableHead>
-                  <TableHead>Status</TableHead>
+                  {/* <TableHead>Status</TableHead> */}
                   <TableHead>Created By</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedAppointments.map((appt) => (
+                {RecentAppointmentdata?.data.map((appt:Appointment) => (
                   <TableRow key={appt.id}>
                     <TableCell className="font-medium">{appt.id}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium">{appt.doctorName}</span>
                         <span className="text-sm text-muted-foreground">
-                          {appt.doctorSpeciality}
+                          {appt.appointmentDate}
                         </span>
                       </div>
                     </TableCell>
@@ -249,14 +252,14 @@ const DashboardTable: React.FC = () => {
                     </TableCell>
                     <TableCell>{appt.appointmentDate}</TableCell>
                     <TableCell>{appt.appointmentTime}</TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       <Badge
                         className={`text-xs ${getStatusColor(appt.status)}`}
                         variant="secondary"
                       >
                         {appt.status}
                       </Badge>
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>{appt.createdBy}</TableCell>
                   </TableRow>
                 ))}

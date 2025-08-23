@@ -12,8 +12,8 @@ export default async function getAllDoctors() {
     }
 
     try {
-        const response = fetch(`${base_url}/api/adddoctor`, options).then(res => res.json());
-        const result = await response
+        const response = await fetch(`${base_url}/api/therapist`, options);
+        const result = await response.json()
         
         if (result.ok) {
             return {

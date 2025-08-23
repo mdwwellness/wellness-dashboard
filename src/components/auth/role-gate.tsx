@@ -13,6 +13,7 @@ type RoleGateProps = {
 
 export const RoleGate = ({ children, allowedUser }: RoleGateProps) => {
   const role = useCurrentRole();
+  console.log(role);  
   if (role) {
     if (!allowedUser.includes(role)) {
       return (

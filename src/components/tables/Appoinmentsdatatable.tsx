@@ -162,7 +162,7 @@ const CATEGORYES = [
     },
     {
         value: "Dermatologist",
-        label: "Dermatologist"
+        label: "Dermatologist",
     },
     {
         value: "Cardiologist",
@@ -175,5 +175,17 @@ const CATEGORYES = [
     {
         value: "Orthopedic",
         label: "Orthopedic",
+    },
+    {
+        value: "General Physician",
+        label: "General Physician",
+    },
+    {
+        value: "Neurologist",
+        label: "Neurologist",
+    },
+    {
+        value: "Psychiatrist",
+        label: "Psychiatrist",
     },
 ]

@@ -1,4 +1,4 @@
-import AllDoctorsPage from "@/components/pages/AllDoctorsPage";
+import AllDoctorsPage from "@/components/pages/AllTherapistPage";
 import { DoctorsListColumn } from "@/components/tables/doctorslisttable";
 
 

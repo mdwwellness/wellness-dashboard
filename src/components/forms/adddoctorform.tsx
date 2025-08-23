@@ -21,7 +21,6 @@ export default function AddDoctorForm() {
             doctorId: "",
             phonenumber: 0,
             email: "",
-            password: "",
             specialization: "",
             bio: ""
         }
@@ -44,13 +43,13 @@ export default function AddDoctorForm() {
                 <DialogTrigger>
                     <Button className="flex justify-center items-center gap-1">
                         <CirclePlus className="h-4 w-4" />
-                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Doctor</span>
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Therapist</span>
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="w-full max-w-3xl h-screen md:h-fit overflow-y-scroll ">
                     <DialogHeader className="font-bold text-xl" >
-                        Add Doctor
-                        <DialogTitle>Add Doctor with below required fields</DialogTitle>
+                        Add Therapist
+                        <DialogTitle>Add Therapist with below required fields</DialogTitle>
                     </DialogHeader>
                     <Form {...form} >
                         <form onSubmit={form.handleSubmit(onsubmit)} className="space-y-6 space-x-3 grid grid-cols-1 md:grid-cols-2 mt-5">
@@ -93,7 +92,7 @@ export default function AddDoctorForm() {
                                     </FormItem>
                                 )}
                             />
-                            <FormField
+                            {/* <FormField
                                 control={form.control}
                                 name="password"
                                 render={({ field }) => (
@@ -105,7 +104,7 @@ export default function AddDoctorForm() {
                                         <FormMessage />
                                     </FormItem>
                                 )}
-                            />
+                            /> */}
                             <FormField
                                 control={form.control}
                                 name="phonenumber"

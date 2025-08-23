@@ -12,7 +12,7 @@ export default async function getPersonalAppointments(id:string) {
     }
 
     try {
-        const response =await fetch(`${base_url}/api/adddoctor/${id}`, options);
+        const response =await fetch(`${base_url}/api/therapist/${id}`, options);
         const result = await response.json()
         
         if (result.ok) {
