@@ -26,8 +26,7 @@ import { useTransition, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
-import { UserRole } from "@/type/types";
-import { User } from "@/lib/db";
+import { User,UserRole } from "@prisma/client";
 
 const UserRoleUpdateForm = ({ user }: { user: User }) => {
   const { update } = useSession();
@@ -97,7 +96,7 @@ const UserRoleUpdateForm = ({ user }: { user: User }) => {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
+                    <SelectItem value={UserRole.DOCTOR}>DOCTOR</SelectItem>
                     <SelectItem value={UserRole.SUPER_ADMIN}>SUPER_ADMIN</SelectItem>
                   </SelectContent>
                 </Select>

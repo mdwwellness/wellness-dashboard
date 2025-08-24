@@ -1,10 +1,10 @@
-import { getCollections }  from "@/lib/db";
-import { ObjectId } from "mongodb";
+import { db } from "@/lib/db";
 
-export const getAccountByUserId = async (userId: ObjectId) => {
-    const {accounts} =await getCollections();
+export const getAccountByUserId = async (userId: string) => {
     try {
-        const account = await accounts.findOne({_id:userId})
+        const account = await db.account.findFirst({
+            where: { userId }
+        })
 
         return account;
     } catch {

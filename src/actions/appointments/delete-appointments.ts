@@ -1,7 +1,7 @@
 "use server"
 
 const base_url = process.env.BACKEND_BASE_URL
-export default async function deleteTherapist(id: string) {
+export default async function deleteAppointment(id: string) {
     const options: RequestInit = {
         method: "DELETE",
         headers: {
@@ -10,8 +10,8 @@ export default async function deleteTherapist(id: string) {
     }
 
     try {
-        const response = fetch(`${base_url}/api/therapist/${id}`, options).then(res => res.json());
-        const result = await response
+        const response = await fetch(`${base_url}/api/appointments/${id}`, options);
+        const result = await response.json()
 
         if (result.ok) {
             return {

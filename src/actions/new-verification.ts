@@ -1,12 +1,12 @@
 'use server'
+
+import { db } from "@/lib/db"
 import { getUserByEmail } from "@/data/user"
 import { getVerificationTokenByToken } from "@/data/verification-token"
-import { getCollections } from "@/lib/db";
 
 
 export const newVerification = async(token: string) => {
     const existingToken = await getVerificationTokenByToken(token);
-    const {users,verificationtoken} = await getCollections();
 
     if(!existingToken) {
         return { error: "Token does not exist!" };
@@ -18,24 +18,22 @@ export const newVerification = async(token: string) => {
         return { error: "Token has expired" }
     }
 
-    const existingUser = await getUserByEmail(existingToken.email as string);
+    const existingUser = await getUserByEmail(existingToken.email);
 
     if(!existingUser) {
         return { error: "Email does not exist!" }
     }
-    
-    await users.updateOne(
-         { _id: existingUser._id},
-        {
-           $set:{
+
+    await db.user.update({
+        where: { id: existingUser.id},
+        data: {
             emailVerified: new Date(),
             email: existingUser.email,
-        },
         }
-    );
+    });
 
-    await verificationtoken.deleteOne({
-       id: existingToken.id 
+    await db.verificationToken.delete({
+        where: { id: existingToken.id }
     });
 
     return { success: "Email verified!" }

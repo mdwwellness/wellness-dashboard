@@ -1,21 +1,22 @@
 "use server"
 
+import { userType } from "@/components/pages/TherapistPersonalAppointments";
+
 
 const base_url = process.env.BACKEND_BASE_URL
-export default async function getAllAppointments() {
+export default async function getAllAppointments(user?:userType) {
     const options: RequestInit = {
         method: "GET",
         headers: {
-            accept: "application/json"
+            accept: "application/json",
         },
-        cache: "no-cache"
     }
 
     try {
-        const response =await fetch(`${base_url}/api/appointments`, options);
+        const response =await fetch(`${base_url}/api/appointments?role=${user?.role}&id=${user?.id}&email=${user?.email}`, options);
         const result =await  response.json();
-        
-        if (result.ok) {
+        // console.log(result);        
+        if (!result.success) {
             return {
                 success: false,
                 message: "Something went wrong"

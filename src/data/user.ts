@@ -1,11 +1,9 @@
-import { getCollections }  from "@/lib/db"
-import { ObjectId } from "mongodb";
+import { db } from "@/lib/db"
+
 
 export const getUserByEmail = async (email: string) => {
-    const {users} = await getCollections(); 
     try {
-        const user = await users.findOne({email:email});
-
+        const user = await db.user.findUnique({ where: { email } });
         return user;
     } catch {
         return null;
@@ -13,9 +11,8 @@ export const getUserByEmail = async (email: string) => {
 }
 
 export const getUserById = async (id: string) => {
-    const {users} = await getCollections();
     try {
-        const user = await users.findOne({ _id:new ObjectId(id)});
+        const user = await db.user.findUnique({ where: { id } });
 
         return user;
     } catch {

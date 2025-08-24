@@ -1,6 +1,6 @@
 import { RoleGate } from "@/components/auth/role-gate";
-import { UserRole } from "@/type/types";
 import type { Metadata } from "next";
+import { UserRole } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Doctors Page",

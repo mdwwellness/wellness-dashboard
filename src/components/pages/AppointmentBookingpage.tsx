@@ -11,11 +11,14 @@ interface ColumnDataType<
   TData extends slotBookingZodType
 > {
   columns: ColumnDef<TData>[];
+    id:string | undefined,
+  role:string | undefined,
+  email:string | undefined | null,
 }
 
 
-export default function SlotBookingPage({ columns }: ColumnDataType<slotBookingZodType>) {
-  const {data: appointments,isLoading,isError} = useGetAllAppointments();
+export default function SlotBookingPage({ columns,id,role,email }: ColumnDataType<slotBookingZodType>) {
+  const {data: appointments,isLoading,isError} = useGetAllAppointments({id,role,email});
   if(isLoading){
     return (
       <>

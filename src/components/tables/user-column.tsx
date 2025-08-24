@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { User } from "@/lib/db";
+import { User } from "@prisma/client";
 import { MoreHorizontal } from "lucide-react";
 import UserRoleUpdateForm from "../forms/user-role-update-form";
 // import UserRoleUpdateForm from "@/forms/user-role-update-form";

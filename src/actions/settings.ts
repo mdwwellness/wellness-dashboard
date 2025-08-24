@@ -2,7 +2,7 @@
 
 import * as z from "zod"
 import { SettingsSchema } from "@/type/schema"
-import { getCollections }  from "@/lib/db"
+import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { getUserByEmail, getUserById } from "@/data/user"
 import { currentUser } from "@/lib/auth"
@@ -10,7 +10,7 @@ import { generateVerificationToken } from "@/lib/token"
 import { sendVerificationEmail } from "@/lib/mail"
 
 export const settings = async(values: z.infer<typeof SettingsSchema>) => {
-    const {users} = await getCollections();
+
     const user = await currentUser()
 
     if (!user) {
@@ -32,7 +32,7 @@ export const settings = async(values: z.infer<typeof SettingsSchema>) => {
     if(values.email && values.email !== user.email) {
         const existingUser = await getUserByEmail(values.email)
 
-        if(existingUser && existingUser._id.toString() !== user.id) {
+        if(existingUser && existingUser.id !== user.id) {
             return {error: "Email already in use"}
         }
 
@@ -56,14 +56,17 @@ export const settings = async(values: z.infer<typeof SettingsSchema>) => {
         }
 
         const hashedPassword = await bcrypt.hash(values.newPassword, 10)
+
         values.password = hashedPassword
         values.newPassword = undefined
     }
 
-    await users.updateOne(
-        {_id:dbUser._id},
-        {$set:{...values}}
-    )
+    await db.user.update({
+        where: {id: dbUser.id},
+        data: {
+            ...values,
+        }
+    })
 
     return {success: "Your profile Updated"}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCurrentRole } from "@/hooks/use-current-role";
-import { UserRole } from "@/type/types";
+import { UserRole } from "@prisma/client";
 
 type RoleGateProps = {
   children: React.ReactNode;

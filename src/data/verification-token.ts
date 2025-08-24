@@ -1,15 +1,14 @@
-import  { getCollections }  from '@/lib/db'
+import { db } from '@/lib/db'
 
 
-const {verificationtoken } =await getCollections();
+
 export const getVerificationTokenByEmail = async (
     email: string
 ) => {
-
     try {
-        const verifiedToken = await verificationtoken.findOne({email:email});
+        const verificationToken = await db.verificationToken.findFirst({ where: { email }} );
 
-        return verifiedToken;
+        return verificationToken;
     } catch {
         return null
     }
@@ -20,9 +19,9 @@ export const getVerificationTokenByToken = async (
     token: string
 ) => {
     try {
-        const verifiedToken = await verificationtoken.findOne({token:token});
+        const verificationToken = await db.verificationToken.findUnique({ where: { token }} );
 
-        return verifiedToken;
+        return verificationToken;
     } catch {
         return null
     }

@@ -1,5 +1,5 @@
 import z from "zod";
-import { UserRole } from "./types";
+import { UserRole } from "@prisma/client";
 
 
 export const SettingsSchema = z.object({
@@ -59,6 +59,7 @@ export const ResetSchema = z.object({
 });
 
 export const slotBookingZodSchema = z.object({
+  _id:z.string().optional(),
     name: z.string().min(2, "Name must be at least 2 characters"),
     location:z.string(),
     doctor:z.string(),

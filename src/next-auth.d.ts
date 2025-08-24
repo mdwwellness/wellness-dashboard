@@ -1,7 +1,6 @@
 import { User } from "@auth/core/types"
 import { JWT } from "@auth/core/jwt"
-import { UserRole } from "./type/types";
-
+import { UserRole } from "@prisma/client";
 
 declare module "@auth/core/types" {
     interface User {

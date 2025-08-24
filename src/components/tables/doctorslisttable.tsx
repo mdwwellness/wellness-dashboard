@@ -23,14 +23,17 @@ export const DoctorsListColumn: ColumnDef<DoctorsformType>[] = [
   },
   {
     accessorKey: "phonenumber",
+    header:"Phone Number",
     cell: ({ row }) => row.getValue("phonenumber"),
   },
   {
     accessorKey: "specialization",
+    header:"Specialization",
     cell: ({ row }) => row.getValue("specialization"),
   },
   {
     accessorKey: "bio",
+    header:"Bio",
     cell: ({ row }) => row.getValue("bio"),
   },
   {

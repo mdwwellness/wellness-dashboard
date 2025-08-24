@@ -1,14 +1,12 @@
 "use server"
 
 import * as z from "zod"
-import  { getCollections }  from "@/lib/db"
+import { db } from "@/lib/db"
 import { getUserByEmail } from "@/data/user"
 import { currentUser } from "@/lib/auth"
 import { UserRoleUpdateSchema } from "@/type/schema"
-import { UserRole } from "@/type/types"
+import { UserRole } from "@prisma/client"
 
-
-const {users} = await getCollections();
 export const updateUserRole = async (values: z.infer<typeof UserRoleUpdateSchema>) => {
 
     const user = await currentUser()
@@ -23,10 +21,12 @@ export const updateUserRole = async (values: z.infer<typeof UserRoleUpdateSchema
         return {error: "User Not found"}
     }
 
-    await users.updateOne(
-        {_id:dbUser._id},
-        {$set:{role:values.role}}
-        )
+    await db.user.update({
+        where: {id: dbUser.id},
+        data: {
+            role: values.role
+        }
+    })
 
     return {success: "User role updated successfully!"}
 }

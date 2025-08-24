@@ -1,5 +1,5 @@
 import { RoleGate } from "@/components/auth/role-gate";
-import { UserRole } from "@/type/types";
+import { UserRole } from "@prisma/client";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,5 +12,5 @@ export default async function DistributorLayout({
 }: {
   children: React.ReactNode;
 }) {
- return <RoleGate allowedUser={[UserRole.SUPER_ADMIN]}>{children}</RoleGate>;
+ return <RoleGate allowedUser={[UserRole.SUPER_ADMIN,UserRole.DOCTOR]}>{children}</RoleGate>;
 }

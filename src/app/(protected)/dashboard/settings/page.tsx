@@ -1,6 +1,6 @@
 import SettingsPageComponents from "@/components/pages/settings";
 import { userColumns } from "@/components/tables/user-column";
-import { UserRole } from "@/type/types";
+import { UserRole } from "@prisma/client";
 
 export default function SettingsPage(){
     return(
@@ -19,7 +19,7 @@ const users = [
     emailVerified: new Date("2025-08-01T10:15:00Z"),
     image: "https://randomuser.me/api/portraits/women/1.jpg",
     password: "hashed_password_1",
-    role: UserRole.ADMIN
+    role: UserRole.DOCTOR
   },
   {
     id: "2b3c4d5e6f",
@@ -46,7 +46,7 @@ const users = [
     emailVerified: new Date("2025-08-01T10:15:00Z"),
     image: "https://randomuser.me/api/portraits/women/1.jpg",
     password: "hashed_password_3",
-    role: UserRole.ADMIN
+    role: UserRole.DOCTOR
   },
   {
     id: "5e6f7g8h9i",
@@ -64,7 +64,7 @@ const users = [
     emailVerified: new Date("2025-06-12T14:45:00Z"),
     image: "https://randomuser.me/api/portraits/men/45.jpg",
     password: "hashed_password_5",
-    role: UserRole.ADMIN
+    role: UserRole.DOCTOR
   },
   {
     id: "7g8h9i0j1k",
@@ -82,7 +82,7 @@ const users = [
     emailVerified: new Date("2025-08-01T10:15:00Z"),
     image: "https://randomuser.me/api/portraits/women/1.jpg",
     password: "null",
-    role: UserRole.ADMIN
+    role: UserRole.DOCTOR
   },
   {
     id: "9i0j1k2l3m",
@@ -91,7 +91,7 @@ const users = [
     emailVerified: new Date("2025-08-01T10:15:00Z"),
     image: "https://randomuser.me/api/portraits/women/1.jpg",
     password: "null",
-    role: UserRole.ADMIN
+    role: UserRole.DOCTOR
   },
   {
     id: "0j1k2l3m4n",

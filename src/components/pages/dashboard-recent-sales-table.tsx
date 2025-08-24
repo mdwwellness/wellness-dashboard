@@ -15,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { Badge } from "../ui/badge";
 import {
   Pagination,
   PaginationContent,
@@ -26,6 +25,7 @@ import {
 } from "../ui/pagination";
 import { useGetAllAppointments } from "@/data/appointment/get-all-appointments";
 import { slotBookingZodType } from "@/type/schema";
+import { useSession } from "next-auth/react";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -34,31 +34,18 @@ interface AppointmentDetailsTable extends slotBookingZodType {
 }
 
 const DashboardTable: React.FC = () => {
+  const { data: session } = useSession();
+  const { role, id, email } = session?.user ?? {};
+
   const [currentPage, setCurrentPage] = useState(1);
-  const { data: RecentAppointmentdata, isLoading, isError } = useGetAllAppointments();
-  // console.log(RecentAppointmentdata?.data);
-
-  const totalAppointments = RecentAppointmentdata?.data.length;
-  const totalDoctors = 25;
-  const totalPatients = 120;
-
-  const totalPages = Math.ceil(totalAppointments / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedAppointments = RecentAppointmentdata?.data.slice(startIndex, endIndex);
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "completed":
-        return "bg-green-600 text-white";
-      case "upcoming":
-        return "bg-blue-600 text-white";
-      case "cancelled":
-        return "bg-red-600 text-white";
-      default:
-        return "bg-gray-600 text-white";
+  const { data: RecentAppointmentdata, isLoading, isError } = useGetAllAppointments(
+    {
+      role,
+      id,
+      email
     }
-  };
+  );
+  // console.log(RecentAppointmentdata?.data);
   if (isLoading) {
     return (
       <>
@@ -73,6 +60,28 @@ const DashboardTable: React.FC = () => {
       </>
     )
   }
+  const totalAppointments = RecentAppointmentdata?.data?.length || 0;
+  const totalDoctors = 25;
+  const totalPatients = 120;
+
+  const totalPages = Math.ceil(totalAppointments / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedAppointments = RecentAppointmentdata?.data?.slice(startIndex, endIndex) || 0;
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "completed":
+        return "bg-green-600 text-white";
+      case "upcoming":
+        return "bg-blue-600 text-white";
+      case "cancelled":
+        return "bg-red-600 text-white";
+      default:
+        return "bg-gray-600 text-white";
+    }
+  };
+
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -118,7 +127,7 @@ const DashboardTable: React.FC = () => {
       </Pagination>
     );
   };
-  console.log("Fetched Appointments:", RecentAppointmentdata?.data);
+  // console.log("Fetched Appointments:", RecentAppointmentdata?.data);
   return (
     <div className="w-full space-y-6">
       {/* Summary Cards */}

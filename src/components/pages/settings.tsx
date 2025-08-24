@@ -41,8 +41,7 @@ import { useSession } from "next-auth/react";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
 import { RoleGate2 } from "../auth/role-gate-2";
-import { User } from "@/lib/db";
-import { UserRole } from "@/type/types";
+import { User,UserRole } from "@prisma/client";
 
 interface ProductDataTableProps<TData extends User, TValue extends object> {
   columns: ColumnDef<TData, TValue>[];

@@ -3,7 +3,7 @@
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { FormError } from "../form-error";
 import { toast } from "sonner"
-import { UserRole } from "@/type/types";
+import { UserRole } from "@prisma/client";
 
 
 type RoleGateProps = {
@@ -13,7 +13,7 @@ type RoleGateProps = {
 
 export const RoleGate = ({ children, allowedUser }: RoleGateProps) => {
   const role = useCurrentRole();
-  console.log(role);  
+  // console.log(role);  
   if (role) {
     if (!allowedUser.includes(role)) {
       return (
