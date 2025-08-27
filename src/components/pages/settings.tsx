@@ -1,5 +1,4 @@
-"use client";
-
+"use client"
 import Image from "next/image";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
@@ -41,7 +40,8 @@ import { useSession } from "next-auth/react";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
 import { RoleGate2 } from "../auth/role-gate-2";
-import { User,UserRole } from "@prisma/client";
+import { User, UserRole } from "@prisma/client";
+import UserDialog from "../tables/AddUserForm";
 
 interface ProductDataTableProps<TData extends User, TValue extends object> {
   columns: ColumnDef<TData, TValue>[];
@@ -88,7 +88,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
       <div className="grid gap-10 grid-cols-1 md:grid-cols-3">
         {/* Profile Card */}
         <div>
-          <Card className="flex flex-col items-center w-[90%] self-center justify-self-end  ">
+          <Card className="flex flex-col items-center w-[90%] self-center justify-self-end">
             <CardHeader className="w-full text-center">
               <div className="flex flex-col items-center gap-4">
                 <Image
@@ -104,26 +104,23 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
             </CardHeader>
 
             <CardContent className="w-full flex justify-center py-4 items-center space-x-6">
-              <Badge variant="outline" className="px-3 py-2  bg-black text-white ">
+              <Badge variant="outline" className="px-3 py-2 bg-black text-white">
                 {user?.role}
               </Badge>
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="outline">Edit Profile</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[450px]">
+                <DialogContent className="sm:max-w-[450px] max-w-[400px] px-6 py-4 space-y-4 rounded-lg shadow-lg">
                   <DialogHeader>
-                    <DialogTitle>Edit profile</DialogTitle>
+                    <DialogTitle>Edit Profile</DialogTitle>
                     <DialogDescription>
-                      Make changes to your profile below. Click save when you&apos;re done.
+                      Make changes to your profile below. Click save when youre done.
                     </DialogDescription>
                   </DialogHeader>
 
                   <Form {...form}>
-                    <form
-                      className="space-y-4"
-                      onSubmit={form.handleSubmit(onSubmit)}
-                    >
+                    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
                       <FormField
                         control={form.control}
                         name="name"
@@ -135,6 +132,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                                 {...field}
                                 placeholder="John Doe"
                                 disabled={isPending}
+                                className="input"
                               />
                             </FormControl>
                             <FormMessage />
@@ -155,6 +153,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                                     {...field}
                                     placeholder="johndoe@example.com"
                                     disabled={isPending}
+                                    className="input"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -173,6 +172,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                                     type="password"
                                     placeholder="********"
                                     disabled={isPending}
+                                    className="input"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -191,6 +191,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                                     type="password"
                                     placeholder="********"
                                     disabled={isPending}
+                                    className="input"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -203,7 +204,11 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                       <FormError message={error} />
                       <FormSuccess message={success} />
                       <div className="pt-2">
-                        <Button disabled={isPending} type="submit" className="w-full">
+                        <Button
+                          disabled={isPending}
+                          type="submit"
+                          className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                        >
                           Save Changes
                         </Button>
                       </div>
@@ -215,14 +220,19 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
           </Card>
         </div>
 
-        {/* Detials of ADMIN and SUPER_ADMIN */}
+        {/* Admin/SuperAdmin Section */}
         <RoleGate2 allowedUser={[UserRole.SUPER_ADMIN]}>
-          <Card className="col-span-2" >
-            <CardHeader>
-              <CardTitle>Admin Members</CardTitle>
-              <CardDescription>
-                View or manage users with dashboard access.
-              </CardDescription>
+          <Card className="col-span-2">
+            <CardHeader className="flex flex-row justify-start items-center gap-2">
+              <div className="flex flex-col gap-2">
+                <CardTitle>Admin Members</CardTitle>
+                <CardDescription>
+                  View or manage users with dashboard access.
+                </CardDescription>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <UserDialog />
+              </div>
             </CardHeader>
             <CardContent>
               <UserDataTable columns={columns} data={data} />

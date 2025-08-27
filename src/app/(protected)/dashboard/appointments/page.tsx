@@ -1,21 +1,22 @@
-"use client"
-import SlotBookingPage from "@/components/pages/AppointmentBookingpage";
-import TherapistPersonalAppointments from "@/components/pages/TherapistPersonalAppointments";
-import { AppointmentBookingColumn } from "@/components/tables/appoitmentstable";
+"use client";
+
 import { useSession } from "next-auth/react";
+import SlotBookingPage from "@/components/pages/AppointmentBookingpage";
+import { AppointmentBookingColumn } from "@/components/tables/appoitmentstable";
 
 export default function Page() {
-  const session = useSession();
-  // console.log(session);
-  return(
-    <>
-    {
-      session.data?.user?.role === "SUPER_ADMIN" ? (
-        <SlotBookingPage columns={AppointmentBookingColumn} id={session.data?.user?.id} role={session.data?.user?.role} email={session.data?.user?.email} />
-      ):(
-        <TherapistPersonalAppointments columns={AppointmentBookingColumn} id={session.data?.user?.id} role={session.data?.user?.role} email={session.data?.user?.email}  />
-      )
-    }
-    </>
-    );
+  const { data: session } = useSession();
+
+  if (!session?.user) return null;
+
+  const { role, id, email } = session.user;
+
+  const commonProps = {
+    columns: AppointmentBookingColumn,
+    id,
+    role,
+    email,
+  };
+
+  return <SlotBookingPage {...commonProps} />
 }

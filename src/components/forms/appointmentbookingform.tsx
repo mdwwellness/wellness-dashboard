@@ -29,6 +29,7 @@ import { Textarea } from "../ui/textarea";
 import useBookAppointment from "@/data/appointment/book-appointment";
 import { useState } from "react";
 import { useGetAllDoctors } from "@/data/addDoctors/get-all-doctors";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "../ui/dropdown-menu";
 
 
 export default function AppointmentBookingForm() {
@@ -37,7 +38,7 @@ export default function AppointmentBookingForm() {
     const { data: DoctorsList, isLoading, isError } = useGetAllDoctors()
     const form = useForm<z.infer<typeof slotBookingZodSchema>>({
         resolver: zodResolver(slotBookingZodSchema),
-        mode:"onChange",
+        mode: "onChange",
         defaultValues: {
             name: "",
             location: "",
@@ -244,13 +245,14 @@ export default function AppointmentBookingForm() {
                                     </FormItem>
                                 )}
                             />
+                            {/* <CategoryDropDown /> */}
                             <FormField
                                 control={form.control}
                                 name="category"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Category</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value} >
+                                    <FormLabel>Category</FormLabel>
+                                        {/* <Select onValueChange={field.onChange} defaultValue={field.value} >
                                             <FormControl>
                                                 <SelectTrigger className="w-full" >
                                                     <SelectValue placeholder="select category" />
@@ -266,7 +268,8 @@ export default function AppointmentBookingForm() {
                                                 <SelectItem value="pediatrician">Pediatrician</SelectItem>
                                                 <SelectItem value="psychiatrist">Psychiatrist</SelectItem>
                                             </SelectContent>
-                                        </Select>
+                                            </Select> */}
+                                            <CategoryDropDown field={field}/>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -330,4 +333,243 @@ export default function AppointmentBookingForm() {
             </DialogContent>
         </Dialog>
     );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CategoryDropDown = ({ field }: { field: any }) => {
+    return (
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                        {field.value || "Select Category"}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-full" >
+                    <DropdownMenuGroup className="w-full" >
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>Therapists</DropdownMenuSubTrigger>
+                            <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Physical Therapy & Rehabilitation</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("Orthopedic Therapy")}>
+                                                    Orthopedic Therapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Neurological Therapy")}>
+                                                    Neurological Therapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Sports Therapy")}>
+                                                    Sports Therapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Post-Surgery Rehabilitation")}>
+                                                    Post-Surgery Rehabilitation
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Posture Correction")}>
+                                                    Posture Correction
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Massage therapy</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("Swedish Massage")}>
+                                                    Swedish Massage
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Deep Tissue Massage")}>
+                                                    Deep Tissue Massage
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Thai Massage")}>
+                                                    Thai Massage
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Aromatherapy Massage")}>
+                                                    Aromatherapy Massage
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Hot Stone Massage")}>
+                                                    Hot Stone Massage
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Head/Neck/Shoulder Massage")}>
+                                                    Head/Neck/Shoulder Massage
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Foot & Reflexology Massage")}>
+                                                    Foot & Reflexology Massage
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Pain Management Therapies</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("Electrotherapy")}>
+                                                    Electrotherapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Dry Needling/Trigger Point Therapy")}>
+                                                    Dry Needling/Trigger Point Therapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Myofascial Release")}>
+                                                    Myofascial Release
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("IASTM (Instrument Assisted Soft Tissue Mobilization)")}>
+                                                    IASTM (Instrument Assisted Soft Tissue Mobilization)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Active Release Therapy")}>
+                                                    Active Release Therapy
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Cupping & Alternate Therapies</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("Wet Cupping (Hijama, Detoxification)")}>
+                                                    Wet Cupping (Hijama, Detoxification)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Dry Cupping (Spot, Movement, Fire)")}>
+                                                    Dry Cupping (Spot, Movement, Fire)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Acupuncture")}>
+                                                    Acupuncture
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Yoga Therapy")}>
+                                                    Yoga Therapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Meditation & Mindfulness Therapy")}>
+                                                    Meditation & Mindfulness Therapy
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Wellness & Lifestyle Therapies</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("Stress Management Therapy")}>
+                                                    Stress Management Therapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Sleep Therapy")}>
+                                                    Sleep Therapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Weight Management Therapy")}>
+                                                    Weight Management Therapy
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Women's Health (Pre/Postnatal Therapy, PCOS Care)")}>
+                                                    Women&apos;s Health (Pre/Postnatal Therapy, PCOS Care)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Elderly Care/Geriatric Therapy")}>
+                                                    Elderly Care/Geriatric Therapy
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuPortal>
+                        </DropdownMenuSub>
+
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>Nutritionists</DropdownMenuSubTrigger>
+                            <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>General Nutritionist</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("Balanced Diet Planning")}>
+                                                    Balanced Diet Planning
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Weight Loss/Gain Diets")}>
+                                                    Weight Loss/Gain Diets
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Child Nutrition")}>
+                                                    Child Nutrition
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Clinical/Specialised Nutritionist</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("Diabetic Diet Planning")}>
+                                                    Diabetic Diet Planning
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Cardiac Diet Planning (Heart Health)")}>
+                                                    Cardiac Diet Planning (Heart Health)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Renal Diet (Kidney Patients)")}>
+                                                    Renal Diet (Kidney Patients)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Gastrointestinal Diet (IBS, Acidity, Digestion)")}>
+                                                    Gastrointestinal Diet (IBS, Acidity, Digestion)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Cancer Nutrition")}>
+                                                    Cancer Nutrition
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Pregnancy & Lactation Nutrition")}>
+                                                    Pregnancy & Lactation Nutrition
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Pediatric Nutrition (child-specific)")}>
+                                                    Pediatric Nutrition (child-specific)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Geriatric Nutrition (Elderly)")}>
+                                                    Geriatric Nutrition (Elderly)
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Sports & Performance Nutritionists</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("Athlete Performance Diet")}>
+                                                    Athlete Performance Diet
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Bodybuilding / Muscle Gain Nutrition")}>
+                                                    Bodybuilding / Muscle Gain Nutrition
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Endurance & Recovery Diet")}>
+                                                    Endurance & Recovery Diet
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Lifestyle & Preventive Nutritionists</DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem onClick={() => field.onChange("PCOS/PCOD Diet Plans")}>
+                                                    PCOS/PCOD Diet Plans
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Immunity-Boosting Diets")}>
+                                                    Immunity-Boosting Diets
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Stress & Anxiety Food Plans")}>
+                                                    Stress & Anxiety Food Plans
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => field.onChange("Skin & Hair Nutrition")}>
+                                                    Skin & Hair Nutrition
+                                                </DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                    </DropdownMenuGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </>
+    )
 }

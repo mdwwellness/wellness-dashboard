@@ -7,34 +7,40 @@ import { AppointmentDataTable } from "../tables/Appoinmentsdatatable";
 import { useGetAllAppointments } from "@/data/appointment/get-all-appointments";
 
 
+export type UserType ={
+    id: string | undefined,
+  role: string | undefined,
+  email: string | undefined | null,
+}
+
 interface ColumnDataType<
   TData extends slotBookingZodType
 > {
   columns: ColumnDef<TData>[];
-    id:string | undefined,
-  role:string | undefined,
-  email:string | undefined | null,
+  id: string | undefined,
+  role: string | undefined,
+  email: string | undefined | null,
 }
 
 
-export default function SlotBookingPage({ columns,id,role,email }: ColumnDataType<slotBookingZodType>) {
-  const {data: appointments,isLoading,isError} = useGetAllAppointments({id,role,email});
-  if(isLoading){
+export default function SlotBookingPage({ columns, id, role, email }: ColumnDataType<slotBookingZodType>) {
+  const { data: appointments, isLoading, isError } = useGetAllAppointments({ id, role, email });
+  if (isLoading) {
     return (
       <>
-       <div>Loading...</div>
+        <div>Loading...</div>
       </>
     )
   }
-  if(isError){
-    return(
+  if (isError) {
+    return (
       <>
-      <div>
-        Error
-      </div>
+        <div>
+          Error
+        </div>
       </>
     )
-  }  
+  }
   return (
     <>
       <Card>
@@ -45,9 +51,9 @@ export default function SlotBookingPage({ columns,id,role,email }: ColumnDataTyp
               Manage all your appointments.
             </CardDescription>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          {role === "SUPER_ADMIN" && <div className="ml-auto flex items-center gap-2">
             <AppointmentBookingForm />
-          </div>
+          </div>}
         </CardHeader>
         <CardContent>
           <AppointmentDataTable columns={columns} data={appointments?.data ?? []} />

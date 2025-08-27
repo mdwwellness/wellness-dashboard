@@ -26,13 +26,38 @@ import { useTransition, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
-import { User,UserRole } from "@prisma/client";
+import { User, UserRole } from "@prisma/client";
+import { useRouter } from "next/navigation";
+import DeleteUser from "@/actions/deleteUser";
 
 const UserRoleUpdateForm = ({ user }: { user: User }) => {
   const { update } = useSession();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | undefined>();
   const [success, setSuccess] = useState<string | undefined>();
+  
+  // Inside the component:
+  const router = useRouter();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteUser = async () => {
+    try {
+      setIsDeleting(true);
+      const res = await DeleteUser(user?.email ?? "");
+
+      if (res?.error) {
+        setError(res.error);
+      } else if (res?.success) {
+        setSuccess("User deleted successfully.");
+        router.refresh(); 
+      }
+    } catch (err) {
+      setError("Failed to delete user.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const form = useForm<z.infer<typeof UserRoleUpdateSchema>>({
     resolver: zodResolver(UserRoleUpdateSchema),
     defaultValues: {
@@ -52,6 +77,7 @@ const UserRoleUpdateForm = ({ user }: { user: User }) => {
           if (data.success) {
             update();
             setSuccess(data.success);
+            router.refresh()
           }
         })
         .catch(() => setError("Something went wrong!"));
@@ -107,9 +133,20 @@ const UserRoleUpdateForm = ({ user }: { user: User }) => {
         </div>
         <FormError message={error} />
         <FormSuccess message={success} />
-        <Button disabled={isPending} type="submit">
-          Save changes
-        </Button>
+        <div className="flex items-center justify-between" >
+          <Button disabled={isPending} type="submit">
+            Save changes
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isDeleting}
+            onClick={handleDeleteUser}
+          >
+            {isDeleting ? "Deleting..." : "Delete User"}
+          </Button>
+
+        </div>
       </form>
     </Form>
   );

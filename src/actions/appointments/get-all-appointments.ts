@@ -1,10 +1,9 @@
 "use server"
 
-import { userType } from "@/components/pages/TherapistPersonalAppointments";
-
+import { UserType } from "@/components/pages/AppointmentBookingpage";
 
 const base_url = process.env.BACKEND_BASE_URL
-export default async function getAllAppointments(user?:userType) {
+export default async function getAllAppointments(user:UserType) {
     const options: RequestInit = {
         method: "GET",
         headers: {

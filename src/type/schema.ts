@@ -38,6 +38,12 @@ export const SettingsSchema = z.object({
   })
 });
 
+export const AddUserBySuperAdmin = z.object({
+  username: z.string().min(1, { message: "Username required" }),
+  email: z.string().email(),
+  password:z.string(), // Enum validation
+  role:z.string()
+});
 
 export const RegisterSchema = z.object({
   username: z.string().min(1, {
