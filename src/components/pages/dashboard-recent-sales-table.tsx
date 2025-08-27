@@ -125,6 +125,7 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-md font-medium text-muted-foreground">Completed Appointments (This Month)</h1>
           </div>
+          <div className="text-3xl font-extrabold">0</div>
         </div>
       </div>
 
