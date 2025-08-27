@@ -26,6 +26,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import RecentSalesTable from "./dashboard-recent-sales-table";
 import DoctorCards from "../dashboard/revenue-card";
+import { AnalyticsType } from "@/type/schema";
 
 const formSchema = z.object({
   dateRange: z.object({
@@ -34,7 +35,7 @@ const formSchema = z.object({
   }),
 });
 
-const DasboardPageComponents = () => {
+const DasboardPageComponents = ({data}:{data:AnalyticsType}) => {
 
 
   // const [date, setDate] = React.useState<DateRange | undefined>({
@@ -73,7 +74,7 @@ const DasboardPageComponents = () => {
 
 
   return (
-    <div className="w-full flex flex-col justify-center items-center gap-6 px-8 pt-10">
+    <div className="w-full flex flex-col justify-center items-center gap-6 px-1 md:px-8 pt-10">
       <div className="flex justify-between items-center w-full">
         <h1 className="text-3xl md:text-4xl font-bold">Dashboard</h1>
         <div className="hidden md:flex justify-center items-center gap-6">
@@ -152,16 +153,16 @@ const DasboardPageComponents = () => {
 
       </div>
       <DoctorCards
-        totalDoctors={45}
-        activeDoctors={12}
-        totalPatients={1200}
-        totalAppointments={350}
+        totalDoctors={data.totalDoctors}
+        activeDoctors={data.activeDoctors}
+        totalPatients={data.totalPatients}
+        totalAppointments={data.totalAppointments}
       />
 
-      <div className="flex flex-col xl:flex-row gap-6 w-full">
+      <div className="flex flex-col xl:flex-row w-full">
         {/* <SalesPurchaseChart /> */}
         {/* <SalesVsPurchaseChart /> */}
-        <RecentSalesTable />
+        <RecentSalesTable data={data} />
         {/* {!pendingForExpiredProductData && !pendingForExpiringProductData && (
           <ExpiredProductsTable 
           expiredProducts={expiredProductsData}

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import Image from "next/image";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
@@ -84,11 +84,11 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
   };
 
   return (
-    <div className="w-full px-4 md:px-12 py-10">
-      <div className="grid gap-10 grid-cols-1 md:grid-cols-3">
+    <div className="w-full px-4 md:px-8 lg:px-12 py-10">
+      <div className="grid space-y-5 md:gap-10 grid-cols-1 lg:grid-cols-3 gap-y-10">
         {/* Profile Card */}
-        <div>
-          <Card className="flex flex-col items-center w-[90%] self-center justify-self-end">
+        <div className="w-full">
+          <Card className="flex flex-col items-center w-full md:w-[90%] self-center justify-self-end">
             <CardHeader className="w-full text-center">
               <div className="flex flex-col items-center gap-4">
                 <Image
@@ -103,19 +103,20 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
               </div>
             </CardHeader>
 
-            <CardContent className="w-full flex justify-center py-4 items-center space-x-6">
-              <Badge variant="outline" className="px-3 py-2 bg-black text-white">
+            <CardContent className="w-full grid md:grid-cols-2 grid-cols-1 justify-center py-4 items-center space-x-6 space-y-4">
+              <Badge variant="outline" className="px-3 py-2 bg-black text-white w-full md:w-auto">
                 {user?.role}
               </Badge>
+
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button variant="outline">Edit Profile</Button>
+                  <Button variant="outline" className="w-full sm:w-auto">Edit Profile</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[450px] max-w-[400px] px-6 py-4 space-y-4 rounded-lg shadow-lg">
+                <DialogContent className="sm:max-w-[450px] max-w-[400px] px-6 py-4 space-y-4 rounded-lg shadow-lg w-full">
                   <DialogHeader>
                     <DialogTitle>Edit Profile</DialogTitle>
                     <DialogDescription>
-                      Make changes to your profile below. Click save when youre done.
+                      Make changes to your profile below. Click save when you&apos;re done.
                     </DialogDescription>
                   </DialogHeader>
 
@@ -132,7 +133,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                                 {...field}
                                 placeholder="John Doe"
                                 disabled={isPending}
-                                className="input"
+                                className="input w-full"
                               />
                             </FormControl>
                             <FormMessage />
@@ -153,7 +154,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                                     {...field}
                                     placeholder="johndoe@example.com"
                                     disabled={isPending}
-                                    className="input"
+                                    className="input w-full"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -172,7 +173,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                                     type="password"
                                     placeholder="********"
                                     disabled={isPending}
-                                    className="input"
+                                    className="input w-full"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -191,7 +192,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                                     type="password"
                                     placeholder="********"
                                     disabled={isPending}
-                                    className="input"
+                                    className="input w-full"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -220,9 +221,10 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
           </Card>
         </div>
 
+
         {/* Admin/SuperAdmin Section */}
         <RoleGate2 allowedUser={[UserRole.SUPER_ADMIN]}>
-          <Card className="col-span-2">
+          <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row justify-start items-center gap-2">
               <div className="flex flex-col gap-2">
                 <CardTitle>Admin Members</CardTitle>

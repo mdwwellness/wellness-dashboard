@@ -16,6 +16,7 @@ interface ColumnDataType<
 
 export default function AllTherapistPage({ columns }: ColumnDataType<DoctorsformType>) {
   const {data: DoctorsDetail,isLoading,isError} = useGetAllDoctors();
+  // console.log(DoctorsDetail);
   if(isLoading){
     return (
       <>

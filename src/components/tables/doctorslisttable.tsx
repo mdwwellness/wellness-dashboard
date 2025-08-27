@@ -37,6 +37,16 @@ export const DoctorsListColumn: ColumnDef<DoctorsformType>[] = [
     cell: ({ row }) => row.getValue("bio"),
   },
   {
+    accessorKey: "isActive",
+    header:"Is Active",
+    cell: ({ row }) => {
+      const state = row.getValue("isActive");
+      return (
+        state ? <span className="bg-green-600 px-2 py-1 rounded-sm text-white font-semibold" >Active</span> : <span className="bg-red-600 px-2 py-1 rounded-sm text-white font-semibold" >Not Active</span>
+      )
+    },
+  },
+  {
     id: "action",
     cell: ({ row }) => {
       const details = row.original;

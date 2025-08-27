@@ -12,10 +12,16 @@ import z from 'zod';
 import { FormError } from '../form-error';
 import { FormSuccess } from '../form-success';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function UserDialog() {
   const [error, setError] = useState<string | undefined>("");
   const [success, setSuccess] = useState<string | undefined>("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
   const router = useRouter()
 
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
@@ -35,7 +41,7 @@ export default function UserDialog() {
       // console.log(values)
       AddUser(values)
         .then((data) => {
-          if(data.success){
+          if (data.success) {
             router.refresh()
           }
           setError(data.error);
@@ -68,16 +74,28 @@ export default function UserDialog() {
           />
           {errors.email && <p className="text-red-500">{errors.email.message}</p>}
 
-          <Input
-            type="password"
-            placeholder="Enter password"
-            {...register('password', { required: 'Password is required' })}
-          />
-          {errors.password && <p className="text-red-500">{errors.password.message}</p>}
+          <div className="relative w-full">
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Enter password"
+              className="w-full"
+            />
+            <button
+              type="button"
+              onClick={togglePasswordVisibility}
+              className="absolute top-1/2 right-3 transform -translate-y-1/2"
+            >
+              {showPassword ? (
+                <EyeOff/>
+              ) : (
+                <Eye/>
+              )}
+            </button>
+          </div>
 
           {/* Use Select for the role */}
           <Select
-          onValueChange={(value: string)=>setValue('role',value)}
+            onValueChange={(value: string) => setValue('role', value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select a Role" />

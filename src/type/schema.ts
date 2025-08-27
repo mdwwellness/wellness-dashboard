@@ -1,6 +1,16 @@
 import z from "zod";
 import { UserRole } from "@prisma/client";
 
+export const AnalyticsSchema = z.object({
+  totalDoctors: z.number(),
+  activeDoctors: z.number(),
+  totalPatients: z.number(),
+  totalAppointments: z.number(),
+  patientsInCurrentMonth: z.number(),
+  appointmentsInCurrentMonth: z.number()
+})
+
+export type AnalyticsType = z.infer<typeof AnalyticsSchema>
 
 export const SettingsSchema = z.object({
   name: z.optional(z.string()),
@@ -31,7 +41,7 @@ export const SettingsSchema = z.object({
   })
 
 
-  export const LoginSchema = z.object({
+export const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6, {
     message: "Password must be atleast 6 character long"
@@ -41,8 +51,8 @@ export const SettingsSchema = z.object({
 export const AddUserBySuperAdmin = z.object({
   username: z.string().min(1, { message: "Username required" }),
   email: z.string().email(),
-  password:z.string(), // Enum validation
-  role:z.string()
+  password: z.string(), // Enum validation
+  role: z.string()
 });
 
 export const RegisterSchema = z.object({
@@ -65,20 +75,20 @@ export const ResetSchema = z.object({
 });
 
 export const slotBookingZodSchema = z.object({
-  _id:z.string().optional(),
-    name: z.string().min(2, "Name must be at least 2 characters"),
-    location:z.string(),
-    doctor:z.string(),
-    doctorId:z.string(),
-    category:z.string(),
-    age:z.number(),
-    slot:z.object({
-      date:z.date(),
-      time:z.string(),
-    }),
-    phonenumber:z.number(),
-    note:z.string(),
-    email: z.string().email("Invalid email address"),
+  _id: z.string().optional(),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  location: z.string(),
+  doctor: z.string(),
+  doctorId: z.string(),
+  category: z.string(),
+  age: z.number(),
+  slot: z.object({
+    date: z.date(),
+    time: z.string(),
+  }),
+  phonenumber: z.number(),
+  note: z.string(),
+  email: z.string().email("Invalid email address"),
 });
 
 export type slotBookingZodType = z.infer<typeof slotBookingZodSchema>
@@ -89,8 +99,9 @@ export const DoctorsformSchema = z.object({
   name: z.string().min(1, "Name is required"),
   doctorId: z.string().min(1, "ID is required"),
   email: z.string().email("Invalid email"),
-phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),
+  phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),
   specialization: z.string().min(1, "Specialization is required"),
   bio: z.string().optional(),
+  isActive: z.boolean().default(true).optional()
 });
 export type DoctorsformType = z.infer<typeof DoctorsformSchema>

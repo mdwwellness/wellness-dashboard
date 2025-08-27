@@ -1,11 +1,12 @@
-"use client"
-
+import getAnalyticsData from "@/actions/get-analytics"
 import AdminDashboardKPIs from "@/components/pages/HomePageAnalytics"
 
-export default function ProtectedPage() {
+export default async function ProtectedPage() {
+    const data =await getAnalyticsData();
+    // console.log(data);    
     return (
         <>
-            <AdminDashboardKPIs/>
+            <AdminDashboardKPIs data={data.data} />
         </>
     )
 }
