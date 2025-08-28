@@ -19,7 +19,7 @@ const TherapistDetailsActionPage = ({
         <DialogTrigger asChild>
           {children}
         </DialogTrigger>
-        <DialogContent className="max-w-xl" >
+        <DialogContent className="max-w-xl h-[92vh] md:h-fit overflow-y-scroll" >
         <DialogTitle>Theraipst Details</DialogTitle>
           <DialogDescription>
             To update with new details please change the respective fields and click on update details

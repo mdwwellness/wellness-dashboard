@@ -27,7 +27,7 @@ import { useGetAllAppointments } from "@/data/appointment/get-all-appointments";
 import { AnalyticsType, slotBookingZodType } from "@/type/schema";
 import { useSession } from "next-auth/react";
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 interface AppointmentDetailsTable extends slotBookingZodType {
   _id: string;
@@ -54,8 +54,6 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
   }
 
   const totalAppointments = RecentAppointmentdata?.data?.length || 0;
-  const totalDoctors = 25;
-  const totalPatients = 120;
 
   const totalPages = Math.ceil(totalAppointments / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -100,7 +98,7 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
   return (
     <div className="w-full space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
         <div className="border border-gray-200 p-5 rounded-xl shadow h-28">
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-md font-medium text-muted-foreground">Total Doctors</h1>
@@ -125,7 +123,7 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-md font-medium text-muted-foreground">Completed Appointments (This Month)</h1>
           </div>
-          <div className="text-3xl font-extrabold">0</div>
+          <div className="text-3xl font-extrabold">{data.completedAppointments}</div>
         </div>
       </div>
 
@@ -148,6 +146,7 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
                     <TableHead>Mobile No</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Time</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -172,6 +171,7 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
                         {`${new Date(appt.slot.date).getDate()}-${new Date(appt.slot.date).getMonth()}-${new Date(appt.slot.date).getFullYear()}`}
                       </TableCell>
                       <TableCell>{appt.slot.time}</TableCell>
+                      <TableCell>{appt.status}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

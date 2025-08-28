@@ -29,11 +29,11 @@ import { Textarea } from "../ui/textarea";
 import useBookAppointment from "@/data/appointment/book-appointment";
 import { useState } from "react";
 import { useGetAllDoctors } from "@/data/addDoctors/get-all-doctors";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "../ui/dropdown-menu";
 
 
 export default function AppointmentBookingForm() {
     const [isDialogOpen, setisDialogOpen] = useState<boolean>(false);
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const mutation = useBookAppointment();
     const { data: DoctorsList, isLoading, isError } = useGetAllDoctors()
     const form = useForm<z.infer<typeof slotBookingZodSchema>>({
@@ -53,6 +53,7 @@ export default function AppointmentBookingForm() {
             email: "",
             doctor: "",
             doctorId: "",
+            status: "scheduled"
         },
     });
     const onSubmit = (values: slotBookingZodType) => {
@@ -76,7 +77,7 @@ export default function AppointmentBookingForm() {
                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Book Appointment</span>
                 </Button>
             </DialogTrigger>
-            <DialogContent className="w-full max-w-3xl h-screen md:h-fit overflow-y-scroll " >
+            <DialogContent className="w-full max-w-3xl h-[92vh] md:h-fit overflow-y-scroll " >
                 <DialogHeader className="font-bold text-xl">
                     Book an Appointment
                     <DialogTitle className="font-medium text-sm" >Book an appointment from below dates</DialogTitle>
@@ -143,7 +144,7 @@ export default function AppointmentBookingForm() {
                                 render={({ field }) => (
                                     <FormItem className="flex flex-col">
                                         <FormLabel>Select Date</FormLabel>
-                                        <Popover>
+                                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                             <PopoverTrigger asChild>
                                                 <FormControl>
                                                     <Button
@@ -161,7 +162,10 @@ export default function AppointmentBookingForm() {
                                                 <Calendar
                                                     mode="single"
                                                     selected={field.value}
-                                                    onSelect={field.onChange}
+                                                    onSelect={(date) => {
+                                                        field.onChange(date);
+                                                        setIsCalendarOpen(false);
+                                                    }}
                                                     disabled={(date) => date < new Date()}
                                                 />
                                             </PopoverContent>
@@ -251,7 +255,7 @@ export default function AppointmentBookingForm() {
                                 name="category"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Category</FormLabel>
+                                        <FormLabel>Category</FormLabel>
                                         {/* <Select onValueChange={field.onChange} defaultValue={field.value} >
                                             <FormControl>
                                                 <SelectTrigger className="w-full" >
@@ -269,7 +273,7 @@ export default function AppointmentBookingForm() {
                                                 <SelectItem value="psychiatrist">Psychiatrist</SelectItem>
                                             </SelectContent>
                                             </Select> */}
-                                            <CategoryDropDown field={field}/>
+                                        <CategoryDropDown field={field} />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -350,7 +354,7 @@ const CategoryDropDown = ({ field }: { field: any }) => {
         "Therapists": {
             "Physical Therapy & Rehabilitation": [
                 "Orthopedic Therapy",
-                "Neurological Therapy", 
+                "Neurological Therapy",
                 "Sports Therapy",
                 "Post-Surgery Rehabilitation",
                 "Posture Correction"
@@ -389,7 +393,7 @@ const CategoryDropDown = ({ field }: { field: any }) => {
         "Nutritionists": {
             "General Nutritionist": [
                 "Balanced Diet Planning",
-                "Weight Loss/Gain Diets", 
+                "Weight Loss/Gain Diets",
                 "Child Nutrition"
             ],
             "Clinical/Specialized Nutritionist": [
@@ -436,16 +440,16 @@ const CategoryDropDown = ({ field }: { field: any }) => {
 
     return (
         <div className="relative">
-            <Button 
+            <Button
                 type="button"
-                variant="outline" 
+                variant="outline"
                 className="w-full justify-between h-10 px-3 py-2 text-sm"
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <span className="truncate">{field.value || "Select Category"}</span>
                 <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
             </Button>
-            
+
             {isOpen && (
                 <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border rounded-md shadow-lg max-h-[300px] overflow-y-auto">
                     {!selectedCategory ? (
@@ -509,11 +513,11 @@ const CategoryDropDown = ({ field }: { field: any }) => {
                     )}
                 </div>
             )}
-            
+
             {/* Overlay to close dropdown */}
             {isOpen && (
-                <div 
-                    className="fixed inset-0 z-40" 
+                <div
+                    className="fixed inset-0 z-40"
                     onClick={() => {
                         setIsOpen(false);
                         setSelectedCategory("");

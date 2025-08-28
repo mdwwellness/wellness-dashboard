@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 export function useGetAllAppointments(user: UserType){
     return useQuery({
         queryKey:["getAllAppointments",user],
-        queryFn:async () => await getAllAppointments(user)
+        queryFn:async () => await getAllAppointments(user),
+        refetchInterval:5*60*1000,
+        retry:3
     })
 }

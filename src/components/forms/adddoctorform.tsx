@@ -50,7 +50,7 @@ export default function AddDoctorForm() {
                         <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Therapist</span>
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="w-full max-w-3xl h-screen md:h-fit overflow-y-scroll ">
+                <DialogContent className="w-full max-w-3xl h-[92vh] md:h-fit overflow-y-scroll ">
                     <DialogHeader className="font-bold text-xl" >
                         Add Therapist
                         <DialogTitle>Add Therapist with below required fields</DialogTitle>

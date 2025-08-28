@@ -38,7 +38,7 @@ export default function TherapistDetailsPage({ data }: PharmacyDataype) {
                     className="grid grid-cols-1"
                     onSubmit={handleSubmit(onSubmit)}
                 >
-                    <div className="hidden items-center gap-2 md:ml-auto md:flex float-right mb-3">
+                    <div className="items-center justify-between flex gap-2 md:ml-auto md:float-right mb-3">
                         <DialogClose asChild>
                             <Button
                                 type="button"

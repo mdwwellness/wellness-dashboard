@@ -103,7 +103,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
               </div>
             </CardHeader>
 
-            <CardContent className="w-full grid md:grid-cols-2 grid-cols-1 justify-center py-4 items-center space-x-6 space-y-4">
+            <CardContent className="w-full grid md:grid-cols-2 grid-cols-1 justify-center py-4 items-center space-x-6 space-y-4 md:space-y-0  ">
               <Badge variant="outline" className="px-3 py-2 bg-black text-white w-full md:w-auto">
                 {user?.role}
               </Badge>
@@ -208,7 +208,7 @@ const SettingsPageComponents = <TData extends User, TValue extends object>({
                         <Button
                           disabled={isPending}
                           type="submit"
-                          className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                          className="w-full hover:bg-gray-800"
                         >
                           Save Changes
                         </Button>

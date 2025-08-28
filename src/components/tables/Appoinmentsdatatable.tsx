@@ -67,14 +67,14 @@ export function AppointmentDataTable<TData, TValue>(
         <>
             <div className="flex flex-col gap-6 p-3">
                 <div>
-                    <div className="flex items-center py-4">
+                    <div className="flex items-center py-4 flex-wrap">
                         <Input
                             placeholder="Filter names..."
                             value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
                             onChange={(event) =>
                                 table.getColumn("name")?.setFilterValue(event.target.value)
                             }
-                            className="max-w-sm"
+                            className="max-w-sm mb-2 md:mb-0"
                         />
                         {table.getColumn("category") && (
                             <DataTableFacetedFilter

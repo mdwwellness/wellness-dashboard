@@ -66,6 +66,25 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
     cell: ({ row }) => row.getValue("note"),
   },
   {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) =>{
+      const status = row.getValue("status")
+      switch (status) {
+        case "scheduled":
+            return <span className="bg-yellow-600 px-2 py-1 rounded-sm text-white font-semibold" >Scheduled</span>;
+        case "ongoing":
+          return <span className="bg-blue-600 px-2 py-1 rounded-sm text-white font-semibold" >Ongoing</span>;
+        case "cancelled":
+          return <span className="bg-red-600 px-2 py-1 rounded-sm text-white font-semibold" >Cancelled</span>;
+        case "completed":
+          return <span className="bg-green-600 px-2 py-1 rounded-sm text-white font-semibold" >Completed</span>;
+        default:
+          return "N/A";
+      }
+    },
+  },
+  {
     id: "action",
     cell: ({ row }) => {
       const details = row.original;
