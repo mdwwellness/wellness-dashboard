@@ -103,27 +103,27 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-md font-medium text-muted-foreground">Total Doctors</h1>
           </div>
-          <div className="text-3xl font-extrabold">{data.totalDoctors}</div>
+          <div className="text-3xl font-extrabold">{data?.totalDoctors}</div>
         </div>
 
         <div className="border border-gray-200 p-5 rounded-xl shadow h-28">
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-md font-medium text-muted-foreground">Total Patients (This Month)</h1>
           </div>
-          <div className="text-3xl font-extrabold">{data.patientsInCurrentMonth}</div>
+          <div className="text-3xl font-extrabold">{data?.patientsInCurrentMonth}</div>
         </div>
         <div className="border border-gray-200 p-5 rounded-xl shadow h-28">
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-md font-medium text-muted-foreground">Total Appointments (This Month)</h1>
           </div>
-          <div className="text-3xl font-extrabold">{data.appointmentsInCurrentMonth}</div>
+          <div className="text-3xl font-extrabold">{data?.appointmentsInCurrentMonth}</div>
         </div>
 
         <div className="border border-gray-200 p-5 rounded-xl shadow h-28">
           <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-md font-medium text-muted-foreground">Completed Appointments (This Month)</h1>
+            <h1 className="text-sm md:text-md font-medium text-muted-foreground">Completed Appointments (This Month)</h1>
           </div>
-          <div className="text-3xl font-extrabold">{data.completedAppointments}</div>
+          <div className="text-3xl font-extrabold">{data?.completedAppointments}</div>
         </div>
       </div>
 

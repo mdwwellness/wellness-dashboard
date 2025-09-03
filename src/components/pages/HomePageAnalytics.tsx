@@ -153,10 +153,10 @@ const DasboardPageComponents = ({data}:{data:AnalyticsType}) => {
 
       </div>
       <DoctorCards
-        totalDoctors={data.totalDoctors}
-        activeDoctors={data.activeDoctors}
-        totalPatients={data.totalPatients}
-        totalAppointments={data.totalAppointments}
+        totalDoctors={data?.totalDoctors}
+        activeDoctors={data?.activeDoctors}
+        totalPatients={data?.totalPatients}
+        totalAppointments={data?.totalAppointments}
       />
 
       <div className="flex flex-col xl:flex-row w-full">
