@@ -27,15 +27,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import useBookAppointment from "@/data/appointment/book-appointment";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGetAllDoctors } from "@/data/addDoctors/get-all-doctors";
 
 
 export default function AppointmentBookingForm() {
     const [isDialogOpen, setisDialogOpen] = useState<boolean>(false);
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+    const [doctorsCategory, setDocotrsCategroy] = useState<string[]>();
     const mutation = useBookAppointment();
     const { data: DoctorsList, isLoading, isError } = useGetAllDoctors()
+    const [doctorsList, setDoctorsList] = useState<DoctorsformType[]>(DoctorsList?.data);
     const form = useForm<z.infer<typeof slotBookingZodSchema>>({
         resolver: zodResolver(slotBookingZodSchema),
         mode: "onChange",
@@ -56,6 +58,20 @@ export default function AppointmentBookingForm() {
             status: "scheduled"
         },
     });
+    const { watch } = form;
+    const watchcategoryChange = watch("category")
+    const watchDoctorId = watch("doctorId")
+    useEffect(() => {
+        if (watchDoctorId !== "") {
+            setDocotrsCategroy(DoctorsList?.data.find((doc: DoctorsformType) => doc.doctorId === watchDoctorId).specialization)
+        }
+        if (watchDoctorId === "" && watchcategoryChange !== "") {
+            const list = DoctorsList?.data.filter((doc: DoctorsformType)=>{
+                return doc.specialization.find((sp)=> sp === watchcategoryChange)
+            })
+            setDoctorsList(list);
+        }
+    }, [watchcategoryChange, watchDoctorId])
     const onSubmit = (values: slotBookingZodType) => {
         // console.log("Booking Data:", values);
         mutation.mutate(values, {
@@ -70,6 +86,7 @@ export default function AppointmentBookingForm() {
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setisDialogOpen(open);
             form.reset()
+            setDocotrsCategroy([])
         }}>
             <DialogTrigger>
                 <Button className="flex justify-center items-center gap-1">
@@ -94,7 +111,7 @@ export default function AppointmentBookingForm() {
                                         <FormItem>
                                             <FormLabel>Therapist</FormLabel>
                                             <Select onValueChange={(selectedId) => {
-                                                const selectedDoctor = DoctorsList?.data.find(
+                                                const selectedDoctor =(doctorsList || DoctorsList?.data).find(
                                                     (d: DoctorsformType) => d.name === selectedId
                                                 )
                                                 form.setValue("doctor", selectedDoctor?.name || "")
@@ -112,7 +129,7 @@ export default function AppointmentBookingForm() {
                                                     ) : isError ? (
                                                         <div>Error loading doctors</div>
                                                     ) : (
-                                                        DoctorsList?.data?.map((doctor: DoctorsformType) => (
+                                                        (doctorsList || DoctorsList?.data)?.map((doctor: DoctorsformType) => (
                                                             <SelectItem key={doctor.doctorId} value={doctor.name}>
                                                                 {doctor.name}
                                                             </SelectItem>
@@ -256,24 +273,25 @@ export default function AppointmentBookingForm() {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Category</FormLabel>
-                                        {/* <Select onValueChange={field.onChange} defaultValue={field.value} >
+                                        {Array.isArray(doctorsCategory) && doctorsCategory.length > 0 ? <Select onValueChange={field.onChange} defaultValue={field.value} >
                                             <FormControl>
                                                 <SelectTrigger className="w-full" >
                                                     <SelectValue placeholder="select category" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="cardiologist">Cardiologist</SelectItem>
-                                                <SelectItem value="dermatologist">Dermatologist</SelectItem>
-                                                <SelectItem value="dentist">Dentist</SelectItem>
-                                                <SelectItem value="general-physician">General Physician</SelectItem>
-                                                <SelectItem value="neurologist">Neurologist</SelectItem>
-                                                <SelectItem value="orthopedic">Orthopedic</SelectItem>
-                                                <SelectItem value="pediatrician">Pediatrician</SelectItem>
-                                                <SelectItem value="psychiatrist">Psychiatrist</SelectItem>
+                                                {
+                                                    doctorsCategory?.map((cat) => {
+                                                        return (
+                                                            <>
+                                                                <SelectItem value={cat}>{cat}</SelectItem>
+                                                            </>
+                                                        )
+                                                    })
+                                                }
                                             </SelectContent>
-                                            </Select> */}
-                                        <CategoryDropDown field={field} />
+                                        </Select> :
+                                            <CategoryDropDown field={field} />}
                                         <FormMessage />
                                     </FormItem>
                                 )}

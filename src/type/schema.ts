@@ -102,7 +102,7 @@ export const DoctorsformSchema = z.object({
   doctorId: z.string().min(1, "ID is required"),
   email: z.string().email("Invalid email"),
   phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),
-  specialization: z.string().min(1, "Specialization is required"),
+  specialization: z.string().array(),
   bio: z.string().optional(),
   isActive: z.boolean().default(true).optional()
 });

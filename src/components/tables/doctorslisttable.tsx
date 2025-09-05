@@ -29,7 +29,20 @@ export const DoctorsListColumn: ColumnDef<DoctorsformType>[] = [
   {
     accessorKey: "specialization",
     header:"Specialization",
-    cell: ({ row }) => row.getValue("specialization"),
+    cell: ({ row }) =>{
+      const list =  row.getValue("specialization") as []
+      return(
+        <>
+         {list?.map((val,index)=>{
+            return(
+              <div key={index}>
+                  <span>{val}</span>
+              </div>
+            )
+         })}
+        </>
+      )
+      },
   },
   {
     accessorKey: "bio",
