@@ -51,8 +51,8 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
       return <DataTableColumnHeader column={column} title="Date" />
     },
     cell: ({ row }) => {
-      const date: Date = row.original.slot.date;
-      return new Date(date).toLocaleDateString();
+      const date: string = row.original.slot.date;
+      return date;
     },
   },
   {

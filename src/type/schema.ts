@@ -8,7 +8,7 @@ export const AnalyticsSchema = z.object({
   totalAppointments: z.number(),
   patientsInCurrentMonth: z.number(),
   appointmentsInCurrentMonth: z.number(),
-  completedAppointments:z.number()
+  completedAppointments: z.number()
 })
 
 export type AnalyticsType = z.infer<typeof AnalyticsSchema>
@@ -84,13 +84,15 @@ export const slotBookingZodSchema = z.object({
   category: z.string(),
   age: z.number(),
   slot: z.object({
-    date: z.date(),
+    date: z.string(),
     time: z.string(),
   }),
   phonenumber: z.number(),
   note: z.string(),
+  therapyStartTime: z.string().optional(),
+  therapyEndTime: z.string().optional(),
   email: z.string().email("Invalid email address"),
-  status:z.enum(["completed","ongoing","cancelled","scheduled"]).default("scheduled").optional()
+  status: z.enum(["completed", "ongoing", "cancelled", "scheduled"]).default("scheduled").optional()
 });
 
 export type slotBookingZodType = z.infer<typeof slotBookingZodSchema>

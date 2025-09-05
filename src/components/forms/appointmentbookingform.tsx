@@ -46,7 +46,7 @@ export default function AppointmentBookingForm() {
             location: "",
             category: "",
             slot: {
-                date: new Date(),
+                date: "",
                 time: "",
             },
             note: "",
@@ -54,6 +54,8 @@ export default function AppointmentBookingForm() {
             phonenumber: 0,
             email: "",
             doctor: "",
+            therapyEndTime:"",
+            therapyStartTime:"",
             doctorId: "",
             status: "scheduled"
         },
@@ -102,7 +104,6 @@ export default function AppointmentBookingForm() {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-5">
                         <div className="w-full space-y-5" >
-                            {/* Date Picker */}
                             <span className="grid grid-cols-1 md:grid-cols-2 space-x-2" >
                                 <FormField
                                     control={form.control}
@@ -171,16 +172,17 @@ export default function AppointmentBookingForm() {
                                                         )}
                                                     >
                                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                        {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
                                                     </Button>
                                                 </FormControl>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-auto p-0" align="start">
                                                 <Calendar
                                                     mode="single"
-                                                    selected={field.value}
+                                                    selected={field.value ? new Date(field.value) : undefined}
                                                     onSelect={(date) => {
-                                                        field.onChange(date);
+                                                        // Convert Date to ISO string format for consistency
+                                                        field.onChange(date ? format(date, "yyyy-MM-dd") : "");
                                                         setIsCalendarOpen(false);
                                                     }}
                                                     disabled={(date) => date < new Date()}
@@ -192,7 +194,6 @@ export default function AppointmentBookingForm() {
                                 )}
                             />
 
-                            {/* Time Slot Picker */}
                             <FormField
                                 control={form.control}
                                 name="slot.time"
@@ -266,7 +267,6 @@ export default function AppointmentBookingForm() {
                                     </FormItem>
                                 )}
                             />
-                            {/* <CategoryDropDown /> */}
                             <FormField
                                 control={form.control}
                                 name="category"
@@ -362,6 +362,7 @@ type CategoryData = {
         [key: string]: string[];
     };
 };
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CategoryDropDown = ({ field }: { field: any }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -445,12 +446,10 @@ const CategoryDropDown = ({ field }: { field: any }) => {
         setSelectedSubCategory("");
     };
 
-    // Helper function to get subcategories safely
     const getSubCategories = (categoryKey: string) => {
         return categories[categoryKey] || {};
     };
 
-    // Helper function to get final options safely
     const getFinalOptions = (categoryKey: string, subCategoryKey: string) => {
         const subCategories = getSubCategories(categoryKey);
         return subCategories[subCategoryKey] || [];
@@ -471,7 +470,6 @@ const CategoryDropDown = ({ field }: { field: any }) => {
             {isOpen && (
                 <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border rounded-md shadow-lg max-h-[300px] overflow-y-auto">
                     {!selectedCategory ? (
-                        // Main categories
                         <div className="p-1">
                             {Object.keys(categories).map((category) => (
                                 <button
@@ -486,7 +484,6 @@ const CategoryDropDown = ({ field }: { field: any }) => {
                             ))}
                         </div>
                     ) : !selectedSubCategory ? (
-                        // Sub categories
                         <div className="p-1">
                             <button
                                 type="button"
@@ -508,7 +505,6 @@ const CategoryDropDown = ({ field }: { field: any }) => {
                             ))}
                         </div>
                     ) : (
-                        // Final options
                         <div className="p-1">
                             <button
                                 type="button"
@@ -532,7 +528,6 @@ const CategoryDropDown = ({ field }: { field: any }) => {
                 </div>
             )}
 
-            {/* Overlay to close dropdown */}
             {isOpen && (
                 <div
                     className="fixed inset-0 z-40"
