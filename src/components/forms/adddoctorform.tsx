@@ -236,7 +236,7 @@ export default function AddDoctorForm() {
                                                         {categoryValue.map((val, i) => (
                                                             <div
                                                                 key={i}
-                                                                className="flex items-center gap-1 px-3 py-1 rounded-sm border bg-blue-100 text-sm font-medium text-blue-800"
+                                                                className="flex items-center gap-1 px-3 py-1 rounded-sm border bg-blue-100 text-sm font-medium text-blue-500"
                                                             >
                                                                 <span className="whitespace-nowrap">
                                                                     {

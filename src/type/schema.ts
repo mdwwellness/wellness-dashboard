@@ -6,6 +6,7 @@ export const AnalyticsSchema = z.object({
   activeDoctors: z.number(),
   totalPatients: z.number(),
   totalAppointments: z.number(),
+  totalActiveDoctors:z.number(),
   patientsInCurrentMonth: z.number(),
   appointmentsInCurrentMonth: z.number(),
   completedAppointments: z.number()
@@ -84,7 +85,7 @@ export const slotBookingZodSchema = z.object({
   category: z.string(),
   age: z.number(),
   slot: z.object({
-    date: z.string(),
+    date: z.coerce.date(),
     time: z.string(),
   }),
   phonenumber: z.number(),

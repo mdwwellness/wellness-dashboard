@@ -46,15 +46,24 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
     cell: ({ row }) => row.original.slot.time,
   },
   {
-    accessorKey: "date",
-    header: ({ column }) => {
-      return <DataTableColumnHeader column={column} title="Date" />
-    },
-    cell: ({ row }) => {
-      const date: string = row.original.slot.date;
-      return date;
-    },
+  accessorKey: "date",
+  header: ({ column }) => {
+    return <DataTableColumnHeader column={column} title="Date" />;
   },
+  cell: ({ row }) => {
+    const dateString: Date = row.original.slot.date;
+    let formattedDate = "Invalid Date";
+
+    if (dateString && !isNaN(new Date(dateString).getTime())) {
+      formattedDate = new Date(dateString).toISOString().split("T")[0]; 
+    } else {
+      console.error(`Invalid date value: ${dateString}`);
+    }
+
+    return formattedDate;
+  },
+},
+
   {
     accessorKey: "email",
     header: "Email",

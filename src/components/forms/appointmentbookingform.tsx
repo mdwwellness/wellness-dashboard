@@ -39,14 +39,13 @@ export default function AppointmentBookingForm() {
     const { data: DoctorsList, isLoading, isError } = useGetAllDoctors()
     const [doctorsList, setDoctorsList] = useState<DoctorsformType[]>(DoctorsList?.data);
     const form = useForm<z.infer<typeof slotBookingZodSchema>>({
-        resolver: zodResolver(slotBookingZodSchema),
         mode: "onChange",
         defaultValues: {
             name: "",
             location: "",
             category: "",
             slot: {
-                date: "",
+                date: new Date(),
                 time: "",
             },
             note: "",

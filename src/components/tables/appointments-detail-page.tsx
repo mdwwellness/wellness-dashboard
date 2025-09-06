@@ -1,8 +1,7 @@
 'use client'
 import React from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "../ui/dialog";
-import { DoctorsformType, slotBookingZodType } from "@/type/schema";
-import TherapistDetailsPage from "../pages/therapist-details-page";
+import {  slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "../pages/appointments-details-page";
 
 type AppointmentsDetailsDialogProps = {

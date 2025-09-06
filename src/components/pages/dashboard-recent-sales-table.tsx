@@ -101,9 +101,9 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
         <div className="border border-gray-200 p-5 rounded-xl shadow h-28">
           <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-md font-medium text-muted-foreground">Total Doctors</h1>
+            <h1 className="text-md font-medium text-muted-foreground">Total Active Doctors</h1>
           </div>
-          <div className="text-3xl font-extrabold">{data?.totalDoctors}</div>
+          <div className="text-3xl font-extrabold">{data?.totalActiveDoctors}</div>
         </div>
 
         <div className="border border-gray-200 p-5 rounded-xl shadow h-28">
@@ -168,7 +168,7 @@ const DashboardTable = ({data}:{data:AnalyticsType}) => {
                         <span className="text-xs">{appt.phonenumber}</span>
                       </TableCell>
                       <TableCell>
-                        {`${new Date(appt.slot.date).getDate()}-${new Date(appt.slot.date).getMonth()}-${new Date(appt.slot.date).getFullYear()}`}
+                        {`${new Date(appt.slot.date).getDate()}-${new Date(appt.slot.date).getMonth()+1}-${new Date(appt.slot.date).getFullYear()}`}
                       </TableCell>
                       <TableCell>{appt.slot.time}</TableCell>
                       <TableCell>{appt.status}</TableCell>
