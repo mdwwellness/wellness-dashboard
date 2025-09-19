@@ -84,6 +84,7 @@ export const slotBookingZodSchema = z.object({
   doctorId: z.string(),
   category: z.string(),
   age: z.number(),
+  type: z.enum(["consultant","appointment"]) ,
   slot: z.object({
     date: z.coerce.date(),
     time: z.string(),
@@ -103,6 +104,7 @@ export type slotBookingZodType = z.infer<typeof slotBookingZodSchema>
 export const DoctorsformSchema = z.object({
   name: z.string().min(1, "Name is required"),
   doctorId: z.string().min(1, "ID is required"),
+  gender:z.enum(["male","female"]),
   email: z.string().email("Invalid email"),
   phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),
   specialization: z.string().array(),

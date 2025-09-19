@@ -114,8 +114,7 @@ export default function AppointmentDetailsPage({ data }: AppointmentDataType) {
 
                         <div className="flex flex-col space-y-2">
                             <Label htmlFor="date">Date</Label>
-                            <Input id="date" placeholder="Date" {...register("slot.date")} value={getValues("slot.date") ? new Date(getValues("slot.date")).toLocaleDateString() : ""}
-/>
+                            <Input id="date" placeholder="Date" {...register("slot.date")} value={getValues("slot.date") ? new Date(getValues("slot.date")).toLocaleDateString() : ""}/>
                         </div>
 
                         <div className="flex flex-col space-y-2">

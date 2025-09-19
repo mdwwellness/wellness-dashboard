@@ -156,7 +156,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
                     <BreadcrumbLink asChild>
                       <Link
                         href={
-                          index > 0
+                          index > 1
                             ? `${PATH_NAMES[index - 1]}/${PATH_NAMES[index]}`
                             : PATH_NAMES[index]
                         }

@@ -37,6 +37,7 @@ import {
     CommandItem,
     CommandList,
 } from "@/components/ui/command";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "../ui/select";
 
 export default function AddDoctorForm() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -51,6 +52,7 @@ export default function AddDoctorForm() {
         defaultValues: {
             name: "",
             doctorId: "",
+            gender: "male",
             phonenumber: undefined,
             email: "",
             specialization: [],
@@ -84,7 +86,7 @@ export default function AddDoctorForm() {
             specialization: categoryValue,
         };
         console.log(formData);
-        
+
         mutation.mutate(formData, {
             onSuccess: () => {
                 setIsDialogOpen(false);
@@ -183,6 +185,29 @@ export default function AddDoctorForm() {
                                         <FormControl>
                                             <Input type="tel" placeholder="Phone number" {...field} />
                                         </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            
+                            {/* Gender */}
+                            <FormField
+                                control={form.control}
+                                name="gender"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Gender</FormLabel>
+                                        <Select onValueChange={field.onChange}>
+                                            <FormControl>
+                                                <SelectTrigger className="w-full" >
+                                                    <SelectValue placeholder="Gender" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="male">Male</SelectItem>
+                                                <SelectItem value="female">Female</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                         <FormMessage />
                                     </FormItem>
                                 )}

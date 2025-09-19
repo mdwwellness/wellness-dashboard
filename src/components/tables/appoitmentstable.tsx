@@ -5,6 +5,7 @@ import { DataTableColumnHeader } from "./data-table-column-header";
 import AppointmentsDetailsPage from "./appointments-detail-page";
 import { Button } from "../ui/button";
 import { MoreHorizontal } from "lucide-react";
+import { Badge } from "../ui/badge";
 
 export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
   {
@@ -33,10 +34,11 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
   },
   {
     accessorKey: "category",
-    header: ({ column }) => {
-      return <DataTableColumnHeader column={column} title="Category" />
+    header: "Category",
+    cell: ({ row }) =>{
+    const category =   row.getValue("category");
+    return category ? category : "--"
     },
-    cell: ({ row }) => row.getValue("category"),
   },
   {
     accessorKey: "time",
@@ -44,6 +46,15 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
       return <DataTableColumnHeader column={column} title="Time" />
     },
     cell: ({ row }) => row.original.slot.time,
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ row }) =>{
+      const typeOfBooking:string = row.original.type;
+      console.log(typeOfBooking);      
+      return typeOfBooking ? <Badge variant={typeOfBooking === "appointment" ? "secondary":"default"}>{typeOfBooking}</Badge> :"--"
+    }
   },
   {
   accessorKey: "date",

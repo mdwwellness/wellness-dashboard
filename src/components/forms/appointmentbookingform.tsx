@@ -44,6 +44,7 @@ export default function AppointmentBookingForm() {
             name: "",
             location: "",
             category: "",
+            type:"appointment",
             slot: {
                 date: new Date(),
                 time: "",
@@ -72,7 +73,7 @@ export default function AppointmentBookingForm() {
             })
             setDoctorsList(list);
         }
-    }, [watchcategoryChange, watchDoctorId])
+    }, [watchcategoryChange, watchDoctorId, DoctorsList?.data])
     const onSubmit = (values: slotBookingZodType) => {
         // console.log("Booking Data:", values);
         mutation.mutate(values, {
@@ -88,6 +89,7 @@ export default function AppointmentBookingForm() {
             setisDialogOpen(open);
             form.reset()
             setDocotrsCategroy([])
+            setDoctorsList(DoctorsList?.data)
         }}>
             <DialogTrigger>
                 <Button className="flex justify-center items-center gap-1">

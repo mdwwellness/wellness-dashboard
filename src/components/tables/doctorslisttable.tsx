@@ -22,6 +22,14 @@ export const DoctorsListColumn: ColumnDef<DoctorsformType>[] = [
     cell: ({ row }) => row.getValue("email"),
   },
   {
+    accessorKey: "gender",
+    header: "Gender",
+    cell: ({ row }) => {
+      const gender = row.getValue("gender")
+      return gender !== undefined ? gender : "--"
+    },
+  },
+  {
     accessorKey: "phonenumber",
     header:"Phone Number",
     cell: ({ row }) => row.getValue("phonenumber"),
