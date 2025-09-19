@@ -22,21 +22,18 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
-import { DoctorsformType, slotBookingZodSchema, slotBookingZodType } from "@/type/schema";
+import { slotBookingZodSchema, slotBookingZodType } from "@/type/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import useBookAppointment from "@/data/appointment/book-appointment";
 import { useState } from "react";
-import { useGetAllDoctors } from "@/data/addDoctors/get-all-doctors";
 
 
 export default function ConsultationForm() {
     const [isDialogOpen, setisDialogOpen] = useState<boolean>(false);
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const mutation = useBookAppointment();
-    const { data: DoctorsList, isLoading, isError } = useGetAllDoctors()
-    const [doctorsList, setDoctorsList] = useState<DoctorsformType[]>(DoctorsList?.data);
     const form = useForm<z.infer<typeof slotBookingZodSchema>>({
         mode: "onChange",
         defaultValues: {
@@ -52,10 +49,8 @@ export default function ConsultationForm() {
             age: 0,
             phonenumber: 0,
             email: "",
-            doctor: "",
             therapyEndTime:"",
             therapyStartTime:"",
-            doctorId: "",
             status: "scheduled"
         },
     });
@@ -73,7 +68,6 @@ export default function ConsultationForm() {
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setisDialogOpen(open);
             form.reset()
-            setDoctorsList(DoctorsList?.data)
         }}>
             <DialogTrigger>
                 <Button className="flex justify-center items-center gap-1">
@@ -88,59 +82,7 @@ export default function ConsultationForm() {
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-5">
-                        <div className="w-full space-y-5" >
-                            <span className="grid grid-cols-1 md:grid-cols-2 space-x-2" >
-                                <FormField
-                                    control={form.control}
-                                    name="doctor"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Therapist</FormLabel>
-                                            <Select onValueChange={(selectedId) => {
-                                                const selectedDoctor =(doctorsList || DoctorsList?.data).find(
-                                                    (d: DoctorsformType) => d.name === selectedId
-                                                )
-                                                form.setValue("doctor", selectedDoctor?.name || "")
-                                                form.setValue("doctorId", selectedDoctor?.doctorId || "")
-                                                field.onChange(selectedDoctor?.name || "")
-                                            }} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Select Therapist" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {isLoading ? (
-                                                        <div>Loading...</div>
-                                                    ) : isError ? (
-                                                        <div>Error loading doctors</div>
-                                                    ) : (
-                                                        (doctorsList || DoctorsList?.data)?.map((doctor: DoctorsformType) => (
-                                                            <SelectItem key={doctor.doctorId} value={doctor.name}>
-                                                                {doctor.name}
-                                                            </SelectItem>
-                                                        ))
-                                                    )}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="doctorId"
-                                    render={({ field }) => (
-                                        <FormItem className="mt-2 md:mt-0" >
-                                            <FormLabel>Therapist Id</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Therapist Id" readOnly {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </span>
+                        <div className="w-full space-y-5" >                                
                             <FormField
                                 control={form.control}
                                 name="slot.date"

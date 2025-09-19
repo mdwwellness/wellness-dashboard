@@ -47,7 +47,7 @@ export default function AppointmentDetailsPage({ data }: AppointmentDataType) {
         },
     });
 
-    const { register, handleSubmit, control,getValues } = form;
+    const { register, handleSubmit, control, getValues } = form;
 
     function onSubmit(values: slotBookingZodType) {
         updateDetails.mutate(values);
@@ -87,15 +87,19 @@ export default function AppointmentDetailsPage({ data }: AppointmentDataType) {
                             <Input id="location" placeholder="Location" {...register("location")} />
                         </div>
 
-                        <div className="flex flex-col space-y-2">
-                            <Label htmlFor="doctor">Doctor</Label>
-                            <Input id="doctor" placeholder="Doctor" {...register("doctor")} />
-                        </div>
+                        {data.doctor && data.doctorId && (
+                            <>
+                                <div className="flex flex-col space-y-2">
+                                    <Label htmlFor="doctor">Therapist</Label>
+                                    <Input id="doctor" placeholder="Doctor" {...register("doctor")} />
+                                </div>
 
-                        <div className="flex flex-col space-y-2">
-                            <Label htmlFor="doctorid">Doctor ID</Label>
-                            <Input id="doctorid" placeholder="Doctor ID" {...register("doctorId")} />
-                        </div>
+                                <div className="flex flex-col space-y-2">
+                                    <Label htmlFor="doctorid">Therapist ID</Label>
+                                    <Input id="doctorid" placeholder="Doctor ID" {...register("doctorId")} />
+                                </div>
+                            </>
+                        )}
 
                         <div className="flex flex-col space-y-2">
                             <Label htmlFor="age">Age</Label>
@@ -114,7 +118,7 @@ export default function AppointmentDetailsPage({ data }: AppointmentDataType) {
 
                         <div className="flex flex-col space-y-2">
                             <Label htmlFor="date">Date</Label>
-                            <Input id="date" placeholder="Date" {...register("slot.date")} value={getValues("slot.date") ? new Date(getValues("slot.date")).toLocaleDateString() : ""}/>
+                            <Input id="date" placeholder="Date" {...register("slot.date")} value={getValues("slot.date") ? new Date(getValues("slot.date")).toLocaleDateString() : ""} />
                         </div>
 
                         <div className="flex flex-col space-y-2">
