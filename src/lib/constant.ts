@@ -3,7 +3,7 @@ export const THERAPY_CATEGORYES = [
     { value: "Active Release Therapy", label: "Active Release Therapy" },
     { value: "Acupuncture", label: "Acupuncture" },
     { value: "Athlete Performance Diet", label: "Athlete Performance Diet" },
-    { value: "Bodybuilding Nutrition", label: "Bodybuilding / Muscle Gain Nutrition" },
+    { value: "Bodybuilding / Muscle Gain Nutrition", label: "Bodybuilding / Muscle Gain Nutrition" },
     { value: "Balanced Diet", label: "Balanced Diet Planning" },
     { value: "Cardiac Diet", label: "Cardiac Diet Planning (Heart Health)" },
     { value: "Cancer Nutrition", label: "Cancer Nutrition" },
