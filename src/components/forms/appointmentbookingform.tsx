@@ -30,14 +30,18 @@ import useBookAppointment from "@/data/appointment/book-appointment";
 import { useEffect, useState } from "react";
 import { useGetAllDoctors } from "@/data/addDoctors/get-all-doctors";
 
+// Add gender type
+type GenderType = "All" | "Male" | "Female";
 
 export default function AppointmentBookingForm() {
     const [isDialogOpen, setisDialogOpen] = useState<boolean>(false);
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [doctorsCategory, setDocotrsCategroy] = useState<string[]>();
+    const [selectedGender, setSelectedGender] = useState<GenderType>("All");
     const mutation = useBookAppointment();
     const { data: DoctorsList, isLoading, isError } = useGetAllDoctors()
     const [doctorsList, setDoctorsList] = useState<DoctorsformType[]>(DoctorsList?.data);
+    
     const form = useForm<z.infer<typeof slotBookingZodSchema>>({
         mode: "onChange",
         defaultValues: {
@@ -60,20 +64,57 @@ export default function AppointmentBookingForm() {
             status: "scheduled"
         },
     });
+    
     const { watch } = form;
     const watchcategoryChange = watch("category")
     const watchDoctorId = watch("doctorId")
+    
+    // Function to filter doctors based on gender and category
+    const filterDoctors = (gender: GenderType, category: string = "") => {
+        if (!DoctorsList?.data) return [];
+        
+        let filtered = DoctorsList.data;
+        
+        if (gender !== "All") {
+            filtered = filtered.filter((doc: DoctorsformType) => 
+                doc.gender?.toLowerCase() === gender.toLowerCase()
+            );
+        }
+        
+        if (category) {
+            filtered = filtered.filter((doc: DoctorsformType) =>
+                doc.specialization.find((sp) => sp === category)
+            );
+        }
+        
+        return filtered;
+    };
+    
     useEffect(() => {
         if (watchDoctorId !== "") {
             setDocotrsCategroy(DoctorsList?.data.find((doc: DoctorsformType) => doc.doctorId === watchDoctorId).specialization)
         }
         if (watchDoctorId === "" && watchcategoryChange !== "") {
-            const list = DoctorsList?.data.filter((doc: DoctorsformType)=>{
-                return doc.specialization.find((sp)=> sp === watchcategoryChange)
-            })
-            setDoctorsList(list);
+            const filteredByCategory = filterDoctors(selectedGender, watchcategoryChange);
+            setDoctorsList(filteredByCategory);
+        } else if (watchDoctorId === "" && watchcategoryChange === "") {
+            const filteredByGender = filterDoctors(selectedGender);
+            setDoctorsList(filteredByGender);
         }
-    }, [watchcategoryChange, watchDoctorId, DoctorsList?.data])
+    }, [watchcategoryChange, watchDoctorId, DoctorsList?.data, selectedGender])
+    
+    // Handle gender change
+    const handleGenderChange = (gender: GenderType) => {
+        setSelectedGender(gender);
+        // Clear selected doctor when gender changes
+        form.setValue("doctor", "");
+        form.setValue("doctorId", "");
+        
+        const currentCategory = form.getValues("category");
+        const filteredDoctors = filterDoctors(gender, currentCategory);
+        setDoctorsList(filteredDoctors);
+    };
+    
     const onSubmit = (values: slotBookingZodType) => {
         // console.log("Booking Data:", values);
         mutation.mutate(values, {
@@ -89,6 +130,7 @@ export default function AppointmentBookingForm() {
             setisDialogOpen(open);
             form.reset()
             setDocotrsCategroy([])
+            setSelectedGender("All")
             setDoctorsList(DoctorsList?.data)
         }}>
             <DialogTrigger>
@@ -105,6 +147,23 @@ export default function AppointmentBookingForm() {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-5">
                         <div className="w-full space-y-5" >
+                            {/* Gender Filter Dropdown */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    Therapist Gender
+                                </label>
+                                <Select onValueChange={(value: GenderType) => handleGenderChange(value)} value={selectedGender}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select Gender" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All Genders</SelectItem>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
                             <span className="grid grid-cols-1 md:grid-cols-2 space-x-2" >
                                 <FormField
                                     control={form.control}
@@ -119,7 +178,7 @@ export default function AppointmentBookingForm() {
                                                 form.setValue("doctor", selectedDoctor?.name || "")
                                                 form.setValue("doctorId", selectedDoctor?.doctorId || "")
                                                 field.onChange(selectedDoctor?.name || "")
-                                            }} defaultValue={field.value}>
+                                            }} value={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Select Therapist" />
@@ -127,15 +186,21 @@ export default function AppointmentBookingForm() {
                                                 </FormControl>
                                                 <SelectContent>
                                                     {isLoading ? (
-                                                        <div>Loading...</div>
+                                                        <div className="p-2">Loading...</div>
                                                     ) : isError ? (
-                                                        <div>Error loading doctors</div>
-                                                    ) : (
-                                                        (doctorsList || DoctorsList?.data)?.map((doctor: DoctorsformType) => (
+                                                        <div className="p-2">Error loading doctors</div>
+                                                    ) : doctorsList && doctorsList.length > 0 ? (
+                                                        doctorsList.map((doctor: DoctorsformType) => (
                                                             <SelectItem key={doctor.doctorId} value={doctor.name}>
-                                                                {doctor.name}
+                                                                <div className="flex flex-col">
+                                                                    <span>{doctor.name}</span>
+                                                                </div>
                                                             </SelectItem>
                                                         ))
+                                                    ) : (
+                                                        <div className="p-2 text-sm text-gray-500">
+                                                            No therapists found for selected gender
+                                                        </div>
                                                     )}
                                                 </SelectContent>
                                             </Select>
@@ -284,9 +349,7 @@ export default function AppointmentBookingForm() {
                                                 {
                                                     doctorsCategory?.map((cat) => {
                                                         return (
-                                                            <>
-                                                                <SelectItem value={cat}>{cat}</SelectItem>
-                                                            </>
+                                                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                                                         )
                                                     })
                                                 }
