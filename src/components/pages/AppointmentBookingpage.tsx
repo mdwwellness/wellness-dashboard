@@ -5,7 +5,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { AppointmentDataTable } from "../tables/Appoinmentsdatatable";
 import { useGetAllAppointments } from "@/data/appointment/get-all-appointments";
-import ConsultationForm from "../forms/consultantform";
+// import ConsultationForm from "../forms/consultantform";
 
 
 export type UserType ={
@@ -54,7 +54,7 @@ export default function SlotBookingPage({ columns, id, role, email }: ColumnData
           </div>
           {role === "SUPER_ADMIN" && <div className="ml-auto flex items-center gap-2">
             <AppointmentBookingForm />
-            <ConsultationForm/>
+            {/* <ConsultationForm/> */}
           </div>}
         </CardHeader>
         <CardContent>

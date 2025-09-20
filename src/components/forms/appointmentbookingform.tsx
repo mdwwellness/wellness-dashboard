@@ -41,14 +41,14 @@ export default function AppointmentBookingForm() {
     const mutation = useBookAppointment();
     const { data: DoctorsList, isLoading, isError } = useGetAllDoctors()
     const [doctorsList, setDoctorsList] = useState<DoctorsformType[]>(DoctorsList?.data);
-    
+
     const form = useForm<z.infer<typeof slotBookingZodSchema>>({
         mode: "onChange",
         defaultValues: {
             name: "",
             location: "",
             category: "",
-            type:"appointment",
+            typeOfappointment: "appointment",
             slot: {
                 date: new Date(),
                 time: "",
@@ -58,38 +58,38 @@ export default function AppointmentBookingForm() {
             phonenumber: 0,
             email: "",
             doctor: "",
-            therapyEndTime:"",
-            therapyStartTime:"",
+            therapyEndTime: "",
+            therapyStartTime: "",
             doctorId: "",
             status: "scheduled"
         },
     });
-    
+
     const { watch } = form;
     const watchcategoryChange = watch("category")
     const watchDoctorId = watch("doctorId")
-    
+
     // Function to filter doctors based on gender and category
     const filterDoctors = (gender: GenderType, category: string = "") => {
         if (!DoctorsList?.data) return [];
-        
+
         let filtered = DoctorsList.data;
-        
+
         if (gender !== "All") {
-            filtered = filtered.filter((doc: DoctorsformType) => 
+            filtered = filtered.filter((doc: DoctorsformType) =>
                 doc.gender?.toLowerCase() === gender.toLowerCase()
             );
         }
-        
+
         if (category) {
             filtered = filtered.filter((doc: DoctorsformType) =>
                 doc.specialization.find((sp) => sp === category)
             );
         }
-        
+
         return filtered;
     };
-    
+
     useEffect(() => {
         if (watchDoctorId !== "") {
             setDocotrsCategroy(DoctorsList?.data.find((doc: DoctorsformType) => doc.doctorId === watchDoctorId).specialization)
@@ -102,19 +102,19 @@ export default function AppointmentBookingForm() {
             setDoctorsList(filteredByGender);
         }
     }, [watchcategoryChange, watchDoctorId, DoctorsList?.data, selectedGender])
-    
+
     // Handle gender change
     const handleGenderChange = (gender: GenderType) => {
         setSelectedGender(gender);
         // Clear selected doctor when gender changes
         form.setValue("doctor", "");
         form.setValue("doctorId", "");
-        
+
         const currentCategory = form.getValues("category");
         const filteredDoctors = filterDoctors(gender, currentCategory);
         setDoctorsList(filteredDoctors);
     };
-    
+
     const onSubmit = (values: slotBookingZodType) => {
         // console.log("Booking Data:", values);
         mutation.mutate(values, {
@@ -147,23 +147,48 @@ export default function AppointmentBookingForm() {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-5">
                         <div className="w-full space-y-5" >
+                            <div className="grid grid-cols-1 md:grid-cols-2 space-x-2" >
                             {/* Gender Filter Dropdown */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    Therapist Gender
-                                </label>
-                                <Select onValueChange={(value: GenderType) => handleGenderChange(value)} value={selectedGender}>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select Gender" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="All">All Genders</SelectItem>
-                                        <SelectItem value="Male">Male</SelectItem>
-                                        <SelectItem value="Female">Female</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        Therapist Gender
+                                    </label>
+                                    <Select onValueChange={(value: GenderType) => handleGenderChange(value)} value={selectedGender}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select Gender" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="All">All Genders</SelectItem>
+                                            <SelectItem value="Male">Male</SelectItem>
+                                            <SelectItem value="Female">Female</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
+                                <div className="space-y-2">
+                                    <FormField
+                                        control={form.control}
+                                        name="typeOfappointment"
+                                        render={({ field }) => (
+                                            <FormItem className="mt-2 md:mt-0" >
+                                                <FormLabel>Type of appointment</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value} >
+                                                    <FormControl>
+                                                        <SelectTrigger className="w-full">
+                                                            <SelectValue placeholder="Appointment Type" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="appointment" >Appointment</SelectItem>
+                                                        <SelectItem value="consultant" >Consultant</SelectItem>
+                                                    </SelectContent>
+                                                    <FormMessage />
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                            </div>
                             <span className="grid grid-cols-1 md:grid-cols-2 space-x-2" >
                                 <FormField
                                     control={form.control}
@@ -172,7 +197,7 @@ export default function AppointmentBookingForm() {
                                         <FormItem>
                                             <FormLabel>Therapist</FormLabel>
                                             <Select onValueChange={(selectedId) => {
-                                                const selectedDoctor =(doctorsList || DoctorsList?.data).find(
+                                                const selectedDoctor = (doctorsList || DoctorsList?.data).find(
                                                     (d: DoctorsformType) => d.name === selectedId
                                                 )
                                                 form.setValue("doctor", selectedDoctor?.name || "")

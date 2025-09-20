@@ -84,7 +84,7 @@ export const slotBookingZodSchema = z.object({
   doctorId: z.string().optional(),
   category: z.string(),
   age: z.number(),
-  type: z.enum(["consultant","appointment"]) ,
+  typeOfappointment: z.enum(["consultant","appointment"]) ,
   slot: z.object({
     date: z.coerce.date(),
     time: z.string(),

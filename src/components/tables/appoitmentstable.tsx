@@ -48,10 +48,10 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
     cell: ({ row }) => row.original.slot.time,
   },
   {
-    accessorKey: "type",
+    accessorKey: "typeOfappointment",
     header: "Type",
     cell: ({ row }) =>{
-      const typeOfBooking:string = row.original.type;
+      const typeOfBooking:string = row.original.typeOfappointment;
       console.log(typeOfBooking);      
       return typeOfBooking ? <Badge variant={typeOfBooking === "appointment" ? "secondary":"default"}>{typeOfBooking}</Badge> :"--"
     }
