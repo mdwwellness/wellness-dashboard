@@ -23,6 +23,7 @@ export default function TherapistDetailsPage({ data }: PharmacyDataype) {
             email: data.email,
             isActive: data.isActive,
             specialization: data.specialization,
+            gender:data.gender,
             bio: data.bio,
         }
     });
@@ -75,6 +76,11 @@ export default function TherapistDetailsPage({ data }: PharmacyDataype) {
                         <div className="flex flex-col space-y-2">
                             <Label htmlFor="phonenumber">Phone Number</Label>
                             <Input id="phonenumber" placeholder="Phone Number" {...register("phonenumber")} />
+                        </div>
+
+                        <div className="flex flex-col space-y-2">
+                            <Label htmlFor="gender">Gender</Label>
+                            <Input id="gender" placeholder="Gender" {...register("gender")} readOnly />
                         </div>
 
                         <div className="flex flex-col space-y-2">
