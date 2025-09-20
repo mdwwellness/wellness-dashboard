@@ -40,7 +40,7 @@ export default function ConsultationForm() {
             name: "",
             location: "",
             category: "",
-            typeOfappointment:"consultant",
+            typeOfappointment:"consultation",
             slot: {
                 date: new Date(),
                 time: "",

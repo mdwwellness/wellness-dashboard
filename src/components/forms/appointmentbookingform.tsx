@@ -180,7 +180,7 @@ export default function AppointmentBookingForm() {
                                                     </FormControl>
                                                     <SelectContent>
                                                         <SelectItem value="appointment" >Appointment</SelectItem>
-                                                        <SelectItem value="consultant" >Consultant</SelectItem>
+                                                        <SelectItem value="consultation" >Consultation</SelectItem>
                                                     </SelectContent>
                                                     <FormMessage />
                                                 </Select>
