@@ -1,0 +1,176 @@
+"use client";
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Badge } from "@/components/ui/badge";
+import { useGetAllAppointments } from "@/data/appointment/appointment";
+import { AnalyticsType, slotBookingZodType } from "@/type/schema";
+import { useAuthStore } from "@/providers/permission-provider";
+import { QueryWrapper } from "@/components/query-wrapper";
+
+const ITEMS_PER_PAGE = 10;
+
+interface AppointmentDetailsTable extends slotBookingZodType {
+  _id: string;
+}
+
+function StatusBadge({ status }: { status: string | undefined }) {
+  switch (status) {
+    case "scheduled":
+      return <Badge variant="outline" className="border-yellow-600 text-yellow-600">Scheduled</Badge>;
+    case "ongoing":
+      return <Badge variant="outline" className="border-blue-600 text-blue-600">Ongoing</Badge>;
+    case "cancelled":
+      return <Badge variant="destructive">Cancelled</Badge>;
+    case "completed":
+      return <Badge variant="outline" className="border-green-600 text-green-600">Completed</Badge>;
+    default:
+      return <span className="text-muted-foreground">--</span>;
+  }
+}
+
+function AppointmentTableSkeleton() {
+  return (
+    <div className="space-y-2 p-4">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex gap-4">
+          {Array.from({ length: 8 }).map((_, j) => (
+            <div key={j} className="h-8 flex-1 rounded bg-muted animate-pulse" />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const DashboardTable = ({ data }: { data: AnalyticsType }) => {
+  const { user } = useAuthStore();
+  const { role, id, userEmail } = user || {};
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const {
+    data: appointmentData,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useGetAllAppointments({ role, id, userEmail });
+
+  const totalAppointments = appointmentData?.length ?? 0;
+  const totalPages = Math.ceil(totalAppointments / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedAppointments = appointmentData?.slice(startIndex, startIndex + ITEMS_PER_PAGE) ?? [];
+
+  return (
+    <div className="w-full space-y-6">
+
+      {/* stats cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+        {[
+          { label: "Total Active Doctors", value: data?.totalActiveDoctors },
+          { label: "Total Patients (This Month)", value: data?.patientsInCurrentMonth },
+          { label: "Total Appointments (This Month)", value: data?.appointmentsInCurrentMonth },
+          { label: "Completed Appointments (This Month)", value: data?.completedAppointments },
+        ].map(({ label, value }) => (
+          <div key={label} className="border border-border p-5 rounded-xl h-28">
+            <p className="text-sm font-medium text-muted-foreground mb-4">{label}</p>
+            <p className="text-3xl font-extrabold">{value ?? "--"}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* appointments table */}
+      <QueryWrapper
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        skeleton={<AppointmentTableSkeleton />}
+      >
+        <Card className="w-full border border-border shadow-sm bg-transparent">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-lg">Recent Appointments</CardTitle>
+            <CardDescription className="text-sm">
+              Tracking upcoming and past appointments
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-4 py-2">
+            {(appointmentData?.length ?? 0) > 0 ? (
+              <div className="overflow-x-auto">
+                <Table className="min-w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Appointment ID</TableHead>
+                      <TableHead>Doctor</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Mobile No</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedAppointments.map((appt: AppointmentDetailsTable) => (
+                      <TableRow key={appt._id}>
+                        <TableCell className="font-medium">{appt._id}</TableCell>
+                        <TableCell>{appt.doctor}</TableCell>
+                        <TableCell>{appt.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{appt.email}</TableCell>
+                        <TableCell className="text-xs">{appt.phonenumber}</TableCell>
+                        <TableCell>
+                          {new Date(appt.slot.date).toLocaleDateString("en-GB")} {/* ← one call */}
+                        </TableCell>
+                        <TableCell>{appt.slot.time}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={appt.status} /> {/* ← consistent badge */}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No appointments found
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <Pagination className="mt-4 w-full">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <PaginationItem key={i}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(i + 1)}
+                        isActive={currentPage === i + 1}
+                        className="cursor-pointer"
+                      >
+                        {i + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </CardContent>
+        </Card>
+      </QueryWrapper>
+    </div>
+  );
+};
+
+export default DashboardTable;

@@ -1,58 +1,71 @@
+import { NextRequest, NextResponse } from "next/server";
+import { jwtDecode } from "jwt-decode";
+import { base_url } from "./constant";
 
-import authConfig from "@/auth.config";
-import NextAuth from "next-auth";
-import {
-  DEFAULT_LOGIN_ROUTE,
-  apiAuthPrefix,
-  authRoutes,
-  publicRoutes
-} from '@/route'
+function isTokenExpired(token: string): boolean {
+  try {
+    const decoded = jwtDecode<{ exp: number }>(token);
+    return decoded.exp * 1000 < Date.now() + 10 * 1000;
+  } catch {
+    return true; 
+  }
+}
 
-const { auth } = NextAuth(authConfig);
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const refreshToken = request.cookies.get("refreshToken")?.value;
+  const accessToken = request.cookies.get("accessToken")?.value;
+  const isAuthPage = pathname.startsWith("/auth");
 
+  if (
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/static') || 
+    pathname.includes('.') ||   
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
+  }
+  if (!refreshToken && !isAuthPage) {
+    return NextResponse.redirect(new URL("/auth/login", request.url));
+  }
 
-export default auth((req) => {
-    const { nextUrl } = req;
-    const isLoggedIn = !!req.auth;
+  if (refreshToken && isAuthPage) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
 
-    const isApiAuthRoute = nextUrl.pathname.startsWith(apiAuthPrefix);
-    const isPublicRoute = publicRoutes.includes(nextUrl.pathname);
-    const isAuthRoute = authRoutes.includes(nextUrl.pathname);
+  if (!refreshToken || isAuthPage) {
+    return NextResponse.next();
+  }
 
-    if (isApiAuthRoute) {
-      return;
-    }
+  if (accessToken && !isTokenExpired(accessToken)) {
+    return NextResponse.next();
+  }
+   
+  const refreshRes = await fetch(`${base_url}/api/users/refresh-token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `refreshToken=${refreshToken}`,
+    },
+    cache: "no-store",
+  });
 
-    if (isAuthRoute) {
-      if (isLoggedIn) {
-        return Response.redirect(new URL(DEFAULT_LOGIN_ROUTE, nextUrl));
-      }
+  if (!refreshRes.ok) {
+    const response = NextResponse.redirect(new URL("/auth/login", request.url));
+    response.cookies.delete("accessToken");
+    response.cookies.delete("refreshToken");
+    return response;
+  }
 
-      return;
-    }
+  const data = await refreshRes.json();
+  const response = NextResponse.next();
+  response.cookies.set("accessToken", data.accessToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 15 * 60,
+  });
 
-    if (!isLoggedIn && !isPublicRoute) {
-
-      let callbackUrl = nextUrl.pathname ;
-      if(nextUrl.search) {
-        callbackUrl += nextUrl.search
-      }
-
-      const encodeCallbackUrl = encodeURIComponent(callbackUrl)
-      return Response.redirect(new URL(
-        `/auth/login?callbackUrl=${encodeCallbackUrl}`,
-        nextUrl
-      ));
-    }
-
-    return;
-})
-
-export const config = {
-    matcher: [
-      // Skip Next.js internals and all static files, unless found in search params
-      '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-      // Always run for API routes
-      '/(api|trpc)(.*)',
-    ],
-  };
+  return response;
+}

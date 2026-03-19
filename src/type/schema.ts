@@ -1,5 +1,6 @@
 import z from "zod";
 import { UserRole } from "@prisma/client";
+import { ROLES } from "@/constant";
 
 export const AnalyticsSchema = z.object({
   totalDoctors: z.number(),
@@ -15,32 +16,17 @@ export const AnalyticsSchema = z.object({
 export type AnalyticsType = z.infer<typeof AnalyticsSchema>
 
 export const SettingsSchema = z.object({
-  name: z.optional(z.string()),
-  role: z.nativeEnum(UserRole),
-  email: z.optional(z.string().email()),
-  password: z.optional(z.string().min(6, { message: "password must contains 6 charecter" })),
-  newPassword: z.optional(z.string().min(6, { message: "New password must contains 6 charecter" })),
-})
-  .refine((data) => {
-    if (data.password && !data.newPassword) {
-      return false
-    }
+  userfName: z.optional(z.string()),
+  userlName: z.optional(z.string()),
+  userEmail: z.optional(z.string().email()),
+  userPassword: z.optional(
+    z.string().min(6, { message: "password must contains 6 charecter" }),
+  ),
+  userPhone: z.string().optional(),
+  gender: z.string().optional(),
+  dob: z.string().optional(),
+});
 
-    return true
-  }, {
-    message: "New password is required",
-    path: ["newPassword"]
-  })
-  .refine((data) => {
-    if (data.newPassword && !data.password) {
-      return false
-    }
-
-    return true
-  }, {
-    message: "Password is required",
-    path: ["password"]
-  })
 
 
 export const LoginSchema = z.object({
@@ -86,7 +72,7 @@ export const slotBookingZodSchema = z.object({
   age: z.number(),
   typeOfappointment: z.enum(["consultation","appointment"]) ,
   slot: z.object({
-    date: z.coerce.date(),
+    date: z.string(),
     time: z.string(),
   }),
   phonenumber: z.number(),
@@ -101,7 +87,7 @@ export type slotBookingZodType = z.infer<typeof slotBookingZodSchema>
 
 
 
-export const DoctorsformSchema = z.object({
+export const TherapistformSchema = z.object({
   name: z.string().min(1, "Name is required"),
   doctorId: z.string().min(1, "ID is required"),
   gender:z.enum(["male","female"]),
@@ -111,4 +97,10 @@ export const DoctorsformSchema = z.object({
   bio: z.string().optional(),
   isActive: z.boolean().default(true).optional()
 });
-export type DoctorsformType = z.infer<typeof DoctorsformSchema>
+export type TherapistformType = z.infer<typeof TherapistformSchema>
+
+export type UserType = {
+  id: string | undefined;
+  role: string | undefined;
+  userEmail: string | undefined | null;
+};

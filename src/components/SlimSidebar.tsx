@@ -8,7 +8,6 @@ import {
   Home,
   PanelLeft,
   Settings,
-  Stethoscope,
   UserPlus,
 } from "lucide-react";
 import {
@@ -36,8 +35,8 @@ import {
 } from "@/components/ui/tooltip";
 import { ModeToggle } from "./theme-mode/mode-toggle";
 import { usePathname } from "next/navigation";
-import { useCurrentUser } from "@/hooks/use-current-user";
-import { logout } from '@/actions/logout';
+import { LogoutButton } from './auth/logout-button';
+import { useAuthStore } from '@/providers/permission-provider';
 
 const navLinks = [
   {
@@ -58,9 +57,8 @@ const navLinks = [
 ];
 
 const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
-  const user = useCurrentUser();
   const pathname = usePathname();
-
+  const {user} = useAuthStore();
   /**
    * Array of all pathname variables, example: if pathname is "/dashboard/orders" then PATH_NAME will be ["dashboard", "orders"]
    * it is to help show the user location with breadcrums
@@ -186,23 +184,13 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
                 size="icon"
                 className="overflow-hidden rounded-full"
               >
-                {user?.image ? (
-                  <Image
-                    src={user?.image}
-                    width={36}
-                    height={36}
-                    alt="Avatar"
-                    className="overflow-hidden rounded-full"
-                  />
-                ) : (
                   <Image
                     src={Avatar}
                     width={36}
                     height={36}
                     alt="Avatar"
                     className="overflow-hidden rounded-full bg-muted"
-                  />
-                )}
+                  />   
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -215,8 +203,8 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
                 </Link>
               <DropdownMenuItem className=' cursor-not-allowed'>Support</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className=' cursor-pointer' onClick={() => logout()}>
-                Logout
+              <DropdownMenuItem className=' cursor-pointer'>
+                <LogoutButton/>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

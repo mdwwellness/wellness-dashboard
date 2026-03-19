@@ -1,5 +1,5 @@
-import AllDoctorsPage from "@/components/pages/AllTherapistPage";
-import { DoctorsListColumn } from "@/components/tables/doctorslisttable";
+import AllDoctorsPage from "@/components/pages/therapist/AllTherapistPage";
+import { DoctorsListColumn } from "@/components/pages/therapist/doctorslisttable";
 
 
 export default function AllDoctors(){
