@@ -1,5 +1,4 @@
 import z from "zod";
-import { UserRole } from "@prisma/client";
 import { ROLES } from "@/constant";
 
 export const AnalyticsSchema = z.object({
@@ -55,7 +54,7 @@ export const RegisterSchema = z.object({
 
 export const UserRoleUpdateSchema = z.object({
   email: z.string().email(),
-  role: z.nativeEnum(UserRole),
+  role: z.enum(ROLES),
 });
 
 export const ResetSchema = z.object({
