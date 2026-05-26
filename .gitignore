@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI coding workspace — local-only, not pushed to remote
+.superpowers/
+docs/superpowers/
+CLAUDE.md
+AGENTS.md
+.claude/
