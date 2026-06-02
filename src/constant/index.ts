@@ -1,6 +1,11 @@
 export const PERMISSIONS = {
   DASHBOARD_VIEW: "dashboard.view",
 
+  ENQUIRY_VIEW: "enquiry.view",
+  ENQUIRY_CREATE: "enquiry.create",
+  ENQUIRY_EDIT: "enquiry.edit",
+  ENQUIRY_DELETE: "enquiry.delete",
+
   APPOINTMENT_VIEW: "appointment.view",
   APPOINTMENT_CREATE: "appointment.create",
   APPOINTMENT_EDIT: "appointment.edit",

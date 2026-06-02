@@ -61,10 +61,10 @@ export default function AppointmentDetailsPage({
       location: data.location,
       category: data.category,
       slot: {
-      date: data.slot.date
+      date: data.slot?.date
         ? new Date(data.slot.date).toISOString().split("T")[0]
         : "",
-      time: data.slot.time,
+      time: data.slot?.time ?? "",
     },
       note: data.note,
       age: data.age,

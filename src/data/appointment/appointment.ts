@@ -9,11 +9,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 export const appointmentsQueryOptions = (user: UserType) => ({
-  queryKey: ["appointments", user], 
+  queryKey: ["appointments", user],
   queryFn: async () => {
     const result = await getAllAppointments(user);
     if (!result.success) throw new Error(result.message);
-    return result.data;
+    // Hide enquiry-stage records — they live on /dashboard/enquiries.
+    const records = (result.data ?? []) as slotBookingZodType[];
+    return records.filter((r) => r.status !== "enquiry");
   },
   staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
@@ -23,6 +25,14 @@ export const appointmentsQueryOptions = (user: UserType) => ({
 
 export function useGetAllAppointments(user: UserType) {
   return useQuery(appointmentsQueryOptions(user));
+}
+
+// Appointments and enquiries are the same backend collection, so any
+// mutation must invalidate both query keys — otherwise edits made from
+// the enquiries drawer won't refresh the enquiries page (and vice versa).
+function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ["appointments"] });
+  queryClient.invalidateQueries({ queryKey: ["enquiries"] });
 }
 
 export function useBookAppointment() {
@@ -36,7 +46,7 @@ export function useBookAppointment() {
     },
     onSuccess: (result) => {
       toast.success("Appointment booked", { description: result.message });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      invalidateAppointmentAndEnquiryQueries(queryClient);
     },
   });
 }
@@ -52,7 +62,7 @@ export function useDeleteAppointment() {
     },
     onSuccess: (result) => {
       toast.success("Appointment cancelled", { description: result.message });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      invalidateAppointmentAndEnquiryQueries(queryClient);
     },
   });
 }
@@ -68,7 +78,7 @@ export function useUpdateAppointment() {
     },
     onSuccess: (result) => {
       toast.success("Appointment updated", { description: result.message });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      invalidateAppointmentAndEnquiryQueries(queryClient);
     },
   });
 }

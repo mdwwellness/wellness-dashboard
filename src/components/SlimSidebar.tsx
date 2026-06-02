@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   CalendarClock,
   Home,
+  Inbox,
   PanelLeft,
   Settings,
   UserPlus,
@@ -43,6 +44,11 @@ const navLinks = [
     title: "Dasboard",
     icon: <Home className="h-5 w-5" />,
     href: "/dashboard",
+  },
+  {
+    title: "Enquiries",
+    icon: <Inbox className="h-5 w-5" />,
+    href: "/dashboard/enquiries",
   },
   {
     title: "Book Slot",

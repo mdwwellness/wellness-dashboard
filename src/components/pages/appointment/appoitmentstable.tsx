@@ -45,13 +45,13 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
     header: ({ column }) => {
       return <DataTableColumnHeader column={column} title="Time" />;
     },
-    cell: ({ row }) => row.original.slot.time,
+    cell: ({ row }) => row.original.slot?.time ?? "--",
   },
   {
     accessorKey: "typeOfappointment",
     header: "Type",
     cell: ({ row }) => {
-      const typeOfBooking: string = row.original.typeOfappointment;
+      const typeOfBooking: string | undefined = row.original.typeOfappointment;
       return typeOfBooking ? (
         <Badge
           variant={typeOfBooking === "appointment" ? "secondary" : "default"}
@@ -69,7 +69,7 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
       <DataTableColumnHeader column={column} title="Date" />
     ),
     cell: ({ row }) => {
-      const dateString: string = row.original.slot.date;
+      const dateString: string | undefined = row.original.slot?.date;
 
       if (!dateString) return "--";
 

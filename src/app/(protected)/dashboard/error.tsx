@@ -1,28 +1,82 @@
-'use client' // Error components must be Client Components
- 
-import { useEffect } from 'react'
-import { Button } from '@/components/ui/button'
- 
-export default function Error({
-  error
-}: {
-  error: Error & { digest?: string }
-}) {
-  useEffect(() => {
-    // Log the error to an error reporting service
-    console.error(error)
-  }, [error])
- 
-  return (
+"use client"; // Error components must be Client Components
 
-    <div className='flex flex-col justify-center items-center gap-8 h-screen'>
-        <h1 className='font-semibold text-3xl text-red-700'>Oops! Something went wrong....</h1>
-      <Button
-        variant='default'
-        onClick={() => window.location.reload()} // Reloads the entire page 
-      >
-        Try again
-      </Button>
+import { useEffect } from "react";
+import { CloudOff, RefreshCw, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+
+/**
+ * Friendly fallback when a dashboard route throws.
+ *
+ * Tone goal: reassuring, not alarming. Owners and back-office staff are not
+ * developers — a red wall of text reads like the system is broken when in
+ * practice the page usually recovers on a refresh.
+ */
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset?: () => void;
+}) {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Surface to dev tools so engineers can debug;
+    // user only sees the friendly message.
+    console.error("[dashboard error boundary]", error);
+  }, [error]);
+
+  // Show error digest only in non-production builds so staff don't see noise.
+  const showDetail = process.env.NODE_ENV !== "production";
+
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-6 p-6 text-center">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+        <CloudOff className="h-10 w-10 text-muted-foreground" aria-hidden />
+      </div>
+
+      <div className="max-w-md space-y-2">
+        <h1 className="text-2xl font-semibold text-foreground">
+          We hit a small hiccup
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          The page couldn&rsquo;t load this time. Usually a refresh fixes it.
+          If it keeps happening, let your developer know.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <Button
+          variant="default"
+          onClick={() => {
+            if (reset) {
+              reset();
+            } else {
+              window.location.reload();
+            }
+          }}
+        >
+          <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+          Try again
+        </Button>
+        <Button variant="outline" onClick={() => router.push("/dashboard")}>
+          <ArrowLeft className="mr-2 h-4 w-4" aria-hidden />
+          Back to dashboard
+        </Button>
+      </div>
+
+      {showDetail && (
+        <details className="mt-4 max-w-xl text-left">
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+            Show technical details
+          </summary>
+          <pre className="mt-2 overflow-auto rounded-md bg-muted p-3 text-xs">
+            {error.message}
+            {error.digest ? `\n\nDigest: ${error.digest}` : ""}
+          </pre>
+        </details>
+      )}
     </div>
-  )
+  );
 }

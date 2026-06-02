@@ -5,15 +5,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { useGetAllAppointments } from "@/data/appointment/appointment";
-import { AnalyticsType, slotBookingZodType } from "@/type/schema";
+import { AnalyticsType } from "@/type/schema";
 import { useAuthStore } from "@/providers/permission-provider";
 import { QueryWrapper } from "@/components/query-wrapper";
 
 const ITEMS_PER_PAGE = 10;
-
-interface AppointmentDetailsTable extends slotBookingZodType {
-  _id: string;
-}
 
 function StatusBadge({ status }: { status: string | undefined }) {
   switch (status) {
@@ -112,7 +108,7 @@ const DashboardTable = ({ data }: { data: AnalyticsType }) => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedAppointments.map((appt: AppointmentDetailsTable) => (
+                    {paginatedAppointments.map((appt) => (
                       <TableRow key={appt._id}>
                         <TableCell className="font-medium">{appt._id}</TableCell>
                         <TableCell>{appt.doctor}</TableCell>
@@ -120,9 +116,11 @@ const DashboardTable = ({ data }: { data: AnalyticsType }) => {
                         <TableCell className="text-muted-foreground text-sm">{appt.email}</TableCell>
                         <TableCell className="text-xs">{appt.phonenumber}</TableCell>
                         <TableCell>
-                          {new Date(appt.slot.date).toLocaleDateString("en-GB")} {/* ← one call */}
+                          {appt.slot?.date
+                            ? new Date(appt.slot.date).toLocaleDateString("en-GB")
+                            : "--"}
                         </TableCell>
-                        <TableCell>{appt.slot.time}</TableCell>
+                        <TableCell>{appt.slot?.time ?? "--"}</TableCell>
                         <TableCell>
                           <StatusBadge status={appt.status} /> {/* ← consistent badge */}
                         </TableCell>
