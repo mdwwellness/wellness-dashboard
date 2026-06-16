@@ -67,7 +67,7 @@ export function useDeleteAppointment() {
   });
 }
 
-export function useUpdateAppointment() {
+export function useUpdateAppointment(opts?: { silent?: boolean }) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -77,8 +77,15 @@ export function useUpdateAppointment() {
       return result;
     },
     onSuccess: (result) => {
-      toast.success("Appointment updated", { description: result.message });
+      // Auto-save callers (e.g. the enquiry drawer) pass silent:true and show
+      // an inline "Saved" indicator instead of a toast on every blur/toggle.
+      if (!opts?.silent) {
+        toast.success("Appointment updated", { description: result.message });
+      }
       invalidateAppointmentAndEnquiryQueries(queryClient);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Update failed");
     },
   });
 }

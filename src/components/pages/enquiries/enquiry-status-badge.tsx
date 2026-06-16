@@ -15,6 +15,8 @@ const STAGE_CLASSES: Record<FunnelStage, string> = {
   consult_done: "border-emerald-600 text-emerald-700 bg-emerald-50",
   physio_booked: "border-pink-600 text-pink-700 bg-pink-50",
   assigned: "border-green-700 text-green-800 bg-green-100",
+  ongoing: "border-indigo-600 text-indigo-700 bg-indigo-50",
+  completed: "border-emerald-700 text-emerald-800 bg-emerald-200",
   cancelled: "border-red-600 text-red-700 bg-red-50",
 };
 
