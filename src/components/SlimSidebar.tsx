@@ -8,8 +8,10 @@ import {
   Home,
   Inbox,
   PanelLeft,
+  Package,
   Settings,
   UserPlus,
+  Users,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -49,6 +51,16 @@ const navLinks = [
     title: "Enquiries",
     icon: <Inbox className="h-5 w-5" />,
     href: "/dashboard/enquiries",
+  },
+  {
+    title: "Customers",
+    icon: <Users className="h-5 w-5" />,
+    href: "/dashboard/customers",
+  },
+  {
+    title: "Services",
+    icon: <Package className="h-5 w-5" />,
+    href: "/dashboard/services",
   },
   {
     title: "Book Slot",

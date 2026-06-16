@@ -1,4 +1,16 @@
 
+// ── Service catalog categories ───────────────────────────────────────────────
+// PLACEHOLDER. Replace these with the real categories the owner provides.
+// Shape matches the {value,label} pattern used by THERAPY_CATEGORYES.
+export const SERVICE_CATEGORIES = [
+    { value: "Physiotherapy", label: "Physiotherapy" },
+    { value: "Massage Therapy", label: "Massage Therapy" },
+    { value: "Diet & Nutrition", label: "Diet & Nutrition" },
+    { value: "Consultation", label: "Consultation" },
+    { value: "Rehabilitation", label: "Rehabilitation" },
+    { value: "Wellness Package", label: "Wellness Package" },
+];
+
 export const THERAPY_CATEGORYES = [
     { value: "Active Release Therapy", label: "Active Release Therapy" },
     { value: "Acupuncture", label: "Acupuncture" },
