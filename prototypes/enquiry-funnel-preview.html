@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Enquiry funnel preview — Payment → Ongoing → Completed</title>
+<style>
+  :root{
+    --bg:#0b0b0c; --panel:#161618; --panel2:#1c1c1f; --border:#2a2a2e;
+    --text:#fafafa; --muted:#a1a1aa; --muted2:#71717a;
+    --blue:#3b82f6; --blueBg:#172554; --blueText:#93c5fd;
+    --green:#22c55e; --greenText:#86efac;
+    --amber:#f59e0b; --amberText:#fcd34d;
+    --red:#ef4444; --redBg:#3f1d1d; --redText:#fca5a5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    display:flex;justify-content:center;padding:24px;}
+  .note{max-width:620px;margin:0 auto 14px;color:var(--muted);font-size:13px;line-height:1.6}
+  .note b{color:var(--text);font-weight:600}
+  .drawer{width:620px;max-width:100%;background:var(--panel);border:1px solid var(--border);
+    border-radius:14px;overflow:hidden}
+  .hd{padding:16px 18px;border-bottom:1px solid var(--border)}
+  .hd .row{display:flex;align-items:center;gap:10px}
+  .id{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--muted2)}
+  .name{font-size:16px;font-weight:600}
+  .x{margin-left:auto;color:var(--muted2);cursor:pointer;font-size:18px;line-height:1}
+  .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px}
+  .b-blue{background:var(--blueBg);color:var(--blueText)}
+  .b-green{background:#14361f;color:var(--greenText)}
+  .b-red{background:var(--redBg);color:var(--redText)}
+  .sub{color:var(--muted);font-size:13px;margin-top:6px}
+  .saved{display:flex;align-items:center;gap:6px;color:var(--green);font-size:12px;margin-top:6px}
+  .body{padding:18px;display:flex;flex-direction:column;gap:22px}
+  /* stepper */
+  .stepper{display:flex;align-items:flex-start}
+  .step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;width:84px;cursor:pointer}
+  .dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    border:2px solid var(--muted2);color:var(--muted2);font-size:13px;background:transparent}
+  .dot.done{background:var(--green);border-color:var(--green);color:#06210f}
+  .dot.cur{border-color:var(--amber);color:var(--amber)}
+  .step .lbl{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.2}
+  .step.cur .lbl{color:var(--text);font-weight:600}
+  .conn{flex:1;height:2px;background:var(--border);margin-top:13px}
+  .conn.done{background:var(--green)}
+  /* sections */
+  .sec{border-top:1px solid var(--border);padding-top:16px}
+  .sec:first-child{border-top:none;padding-top:0}
+  h3{font-size:13.5px;font-weight:600;margin:0 0 10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label.fld{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
+  input[type=text],input[type=number],select,textarea{width:100%;background:var(--panel2);
+    border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px}
+  textarea{min-height:60px;resize:vertical}
+  .check{display:flex;align-items:center;gap:9px;font-size:13px;margin-top:10px;cursor:pointer}
+  .check input{width:16px;height:16px;accent-color:var(--blue)}
+  .check.disabled{opacity:.45;cursor:not-allowed}
+  .stamp{color:var(--muted);font-size:11px;margin-top:6px}
+  .newtag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--amberText);
+    background:#3a2a08;padding:2px 7px;border-radius:999px;margin-left:8px;vertical-align:middle}
+  .pay-wrap{background:var(--panel2);border:1px dashed var(--border);border-radius:10px;padding:14px}
+  .log{max-height:120px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+  .log .e{border-left:2px solid var(--border);padding-left:10px;font-size:12px}
+  .log .e .a{color:var(--text)}
+  .log .e .m{color:var(--muted);font-size:11px}
+  .ft{display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:14px}
+  .btn{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;
+    padding:9px 14px;font-size:13px;cursor:pointer}
+  .btn.danger{color:#fff;background:var(--red);border-color:var(--red)}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div>
+  <p class="note">Preview only — interactive mock of the redesigned enquiry drawer. Tick
+  <b>Payment received</b> to watch it auto-advance to <b>Ongoing</b> and unlock
+  <b>Mark completed</b>. Nothing here is wired to real data.</p>
+
+  <div class="drawer">
+    <div class="hd">
+      <div class="row">
+        <span class="id">ENQ-0001</span>
+        <span class="name">Michael D.</span>
+        <span class="badge b-blue" id="stageBadge">Assigned</span>
+        <span class="x">&times;</span>
+      </div>
+      <div class="sub">Advance the lead through the funnel. All changes save on click.</div>
+      <div class="saved">&#10003; All changes saved</div>
+    </div>
+
+    <div class="body">
+      <!-- STEPPER -->
+      <div class="stepper" id="stepper">
+        <div class="step" data-k="reached"><div class="dot done">&#10003;</div><div class="lbl">Reached</div></div>
+        <div class="conn done"></div>
+        <div class="step" data-k="consulted"><div class="dot done">&#10003;</div><div class="lbl">Consulted</div></div>
+        <div class="conn done"></div>
+        <div class="step" data-k="physio"><div class="dot done">&#10003;</div><div class="lbl">Physio set</div></div>
+        <div class="conn" id="c-paid"></div>
+        <div class="step cur" data-k="paid"><div class="dot cur" id="d-paid">&#9679;</div><div class="lbl">Paid</div></div>
+        <div class="conn" id="c-done"></div>
+        <div class="step" data-k="completed"><div class="dot" id="d-done">&#9675;</div><div class="lbl">Completed</div></div>
+      </div>
+
+      <!-- 1 reach-out -->
+      <div class="sec">
+        <h3>1. Executive reach-out</h3>
+        <label class="check"><input type="checkbox" checked disabled /> Mark as reached out</label>
+        <div class="stamp">Reached out at 6/9/2026, 9:00 PM</div>
+      </div>
+
+      <!-- 2 consultation -->
+      <div class="sec">
+        <h3>2. Online consultation</h3>
+        <div class="grid">
+          <div><label class="fld">Consultation slot date</label><input type="text" value="May 12th, 2026" readonly /></div>
+          <div><label class="fld">Time</label><input type="text" value="13:30" readonly /></div>
+        </div>
+        <label class="check"><input type="checkbox" checked disabled /> Mark consultation done</label>
+      </div>
+
+      <!-- 3 physio -->
+      <div class="sec">
+        <h3>3. Physiotherapist assignment</h3>
+        <div class="grid">
+          <div><label class="fld">Physio slot date</label><input type="text" value="June 18th, 2026" readonly /></div>
+          <div><label class="fld">Time</label><input type="text" value="16:30" readonly /></div>
+        </div>
+        <div style="margin-top:10px"><label class="fld">Therapist</label><input type="text" value="Rohan" readonly /></div>
+        <label class="check"><input type="checkbox" checked disabled /> Confirm assignment (therapist is available)</label>
+      </div>
+
+      <!-- 4 PAYMENT (new) -->
+      <div class="sec">
+        <h3>4. Payment <span class="newtag">NEW</span></h3>
+        <div class="pay-wrap">
+          <div class="grid">
+            <div><label class="fld">Amount (&#8377;)</label><input type="number" id="amount" value="2500" /></div>
+            <div><label class="fld">Method</label>
+              <select id="method">
+                <option>Cash</option><option selected>UPI</option><option>Card</option><option>Bank</option><option>Other</option>
+              </select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="paid" /> Payment received</label>
+          <div class="stamp hide" id="paidStamp"></div>
+        </div>
+      </div>
+
+      <!-- 5 COMPLETION (new) -->
+      <div class="sec">
+        <h3>5. Completion <span class="newtag">NEW</span></h3>
+        <label class="check disabled" id="doneLabel"><input type="checkbox" id="completed" disabled /> Mark completed</label>
+        <div class="stamp" id="doneHint">Record payment first to enable.</div>
+      </div>
+
+      <!-- activity -->
+      <div class="sec">
+        <h3>Activity</h3>
+        <div class="sub" style="margin-bottom:8px">Handled by <b>Manjeet Sharma</b></div>
+        <div class="log" id="log">
+          <div class="e"><div class="a">Reached out to lead</div><div class="m">Manjeet Sharma · 6/9, 9:00 PM</div></div>
+          <div class="e"><div class="a">Confirmed assignment (Rohan)</div><div class="m">Manjeet Sharma · 6/9, 9:02 PM</div></div>
+        </div>
+      </div>
+
+      <!-- status override -->
+      <div class="sec">
+        <h3>Status override</h3>
+        <select id="statusSel">
+          <option>Enquiry</option><option>Scheduled</option>
+          <option selected id="optStage">Assigned</option>
+          <option>Cancelled</option>
+        </select>
+      </div>
+
+      <div class="ft">
+        <button class="btn danger">Delete enquiry</button>
+        <button class="btn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var paid=document.getElementById('paid'), completed=document.getElementById('completed');
+  var badge=document.getElementById('stageBadge'), log=document.getElementById('log');
+  function setNode(id,cls,ch){var e=document.getElementById(id);e.className='dot'+(cls?' '+cls:'');e.innerHTML=ch;}
+  function addLog(a){var d=document.createElement('div');d.className='e';
+    d.innerHTML='<div class="a">'+a+'</div><div class="m">Manjeet Sharma · just now</div>';log.appendChild(d);}
+  function render(){
+    var p=paid.checked, c=completed.checked;
+    // stepper paid
+    document.getElementById('c-paid').className='conn'+(p?' done':'');
+    setNode('d-paid', p?'done':'cur', p?'&#10003;':'&#9679;');
+    // completion enable
+    completed.disabled=!p;
+    document.getElementById('doneLabel').className='check'+(p?'':' disabled');
+    document.getElementById('doneHint').textContent=p?(c?'Completed on 6/16/2026':'Treatment in progress — mark when finished.'):'Record payment first to enable.';
+    // stepper completed + connector + current highlight
+    document.getElementById('c-done').className='conn'+(c?' done':'');
+    setNode('d-done', c?'done':(p?'cur':''), c?'&#10003;':(p?'&#9679;':'&#9675;'));
+    // badge
+    if(c){badge.textContent='Completed';badge.className='badge b-green';document.getElementById('optStage').textContent='Completed';}
+    else if(p){badge.textContent='Ongoing';badge.className='badge b-blue';document.getElementById('optStage').textContent='Ongoing';}
+    else{badge.textContent='Assigned';badge.className='badge b-blue';document.getElementById('optStage').textContent='Assigned';}
+    // current label class on steps
+    document.querySelectorAll('.step').forEach(function(s){s.classList.remove('cur');});
+    var curKey = c? null : (p? 'completed':'paid');
+    if(curKey) document.querySelector('.step[data-k="'+curKey+'"]').classList.add('cur');
+  }
+  paid.addEventListener('change',function(){
+    if(paid.checked){var amt=document.getElementById('amount').value,m=document.getElementById('method').value;
+      var s=document.getElementById('paidStamp');s.className='stamp';s.textContent='Received ₹'+amt+' via '+m+' on 6/16/2026';
+      addLog('Payment received ₹'+amt+' ('+m+')');}
+    else{document.getElementById('paidStamp').className='stamp hide';if(completed.checked)completed.checked=false;}
+    render();
+  });
+  completed.addEventListener('change',function(){if(completed.checked)addLog('Marked completed');render();});
+  render();
+</script>
+</body>
+</html>
