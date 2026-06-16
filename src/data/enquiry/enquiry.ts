@@ -55,6 +55,7 @@ export function useCreateEnquiry() {
       toast.success("Enquiry created", { description: result.message });
       queryClient.invalidateQueries({ queryKey: ["enquiries"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 }
