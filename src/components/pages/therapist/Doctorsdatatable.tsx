@@ -31,10 +31,11 @@ import { X } from 'lucide-react';
 interface AppointmentDataType<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
+    onRowClick?: (row: TData) => void;
 }
 
 export function DoctorsDataTable<TData, TValue>(
-    { columns, data }: AppointmentDataType<TData, TValue>
+    { columns, data, onRowClick }: AppointmentDataType<TData, TValue>
 ) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -121,6 +122,12 @@ export function DoctorsDataTable<TData, TValue>(
                                         <TableRow
                                             key={row.id}
                                             data-state={row.getIsSelected() && "selected"}
+                                            className={onRowClick ? "cursor-pointer" : undefined}
+                                            onClick={
+                                                onRowClick
+                                                    ? () => onRowClick(row.original)
+                                                    : undefined
+                                            }
                                         >
                                             {row.getVisibleCells().map((cell) => (
                                                 <TableCell key={cell.id}>

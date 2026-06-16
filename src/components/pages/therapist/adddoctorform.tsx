@@ -6,12 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
 import { THERAPY_CATEGORYES } from "@/lib/constant";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { CirclePlus, X, Loader2 } from "lucide-react";
 import {
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Command,
   CommandEmpty,
@@ -40,6 +41,16 @@ import {
 } from "@/components/ui/select";
 import { useAddTherapist } from "@/data/therapist/therapist";
 import { TherapistformSchema, TherapistformType } from "@/type/schema";
+import { ProfilePicUploader } from "./profile-pic-uploader";
+import { CertificatesSection } from "./certificates-section";
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      {children}
+    </h3>
+  );
+}
 
 export default function AddDoctorForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -57,12 +68,15 @@ export default function AddDoctorForm() {
       gender: "male",
       phonenumber: undefined,
       email: "",
-      specialization: [], // ← managed inside form now
+      specialization: [],
       bio: "",
+      profileImage: "",
+      certificates: [],
     },
   });
 
-  const specialization = form.watch("specialization"); // ← watch form value directly
+  const specialization = form.watch("specialization");
+  const watchedName = form.watch("name");
 
   const filteredTherapies = useMemo(() => {
     return THERAPY_CATEGORYES.filter(
@@ -112,228 +126,296 @@ export default function AddDoctorForm() {
   }
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-      <DialogTrigger asChild>
+    <Sheet open={isDialogOpen} onOpenChange={handleDialogChange}>
+      <SheetTrigger asChild>
         <Button className="flex justify-center items-center gap-1">
           <CirclePlus className="h-4 w-4" />
           <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
             Add Therapist
           </span>
         </Button>
-      </DialogTrigger>
+      </SheetTrigger>
 
-      <DialogContent className="w-full max-w-3xl h-[92vh] md:h-fit overflow-y-scroll">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Add Therapist</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Add a therapist with the required fields below
-          </p>
-        </DialogHeader>
+      <SheetContent className="w-full sm:max-w-2xl p-0 gap-0 flex flex-col">
+        <SheetTitle className="sr-only">Add Therapist</SheetTitle>
+        <SheetDescription className="sr-only">
+          Add a therapist with profile picture, details and certificates.
+        </SheetDescription>
 
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-5"
+            className="flex flex-col h-full"
           >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* ── Header ───────────────────────────────────────── */}
+            <div className="px-5 sm:px-6 pt-6 pb-5 border-b">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5 pr-8">
+                <FormField
+                  control={form.control}
+                  name="profileImage"
+                  render={({ field }) => (
+                    <ProfilePicUploader
+                      value={field.value}
+                      onChange={field.onChange}
+                      name={watchedName}
+                      size="lg"
+                    />
+                  )}
+                />
+                <div className="min-w-0 text-center sm:text-left sm:pt-1">
+                  <h2 className="text-xl font-bold tracking-tight">
+                    {watchedName || "New Therapist"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Fill in the details below to add a therapist.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-            <FormField
-              control={form.control}
-              name="doctorId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Therapist ID</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Therapist ID" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Email" type="email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="phonenumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
-                  <FormControl>
-                    <Input type="tel" placeholder="Phone number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="gender"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Gender</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value} // ← shows "male" by default
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* specialization — fully controlled by form */}
-            <FormField
-              control={form.control}
-              name="specialization"
-              render={() => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Specialization</FormLabel>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Input
-                        placeholder="Search and select specializations..."
-                        value={searchValue}
-                        onChange={(e) => {
-                          setSearchValue(e.target.value);
-                          setIsDropdownOpen(true);
-                        }}
-                        onFocus={() => setIsDropdownOpen(true)}
-                      />
-
-                      {isDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border border-border rounded-md shadow-md max-h-52 overflow-y-auto">
-                          <Command>
-                            <CommandList>
-                              <CommandEmpty>
-                                No specialization found.
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {filteredTherapies.map((therapy) => (
-                                  <CommandItem
-                                    key={therapy.value}
-                                    onSelect={() =>
-                                      handleAddSpecialization(therapy.value)
-                                    }
-                                    className="cursor-pointer"
-                                  >
-                                    {therapy.label}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* selected tags */}
-                    {specialization.length > 0 && (
-                      <div className="border border-border rounded-md p-2 bg-muted/30">
-                        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-                          {specialization.map((val: any) => (
-                            <div
-                              key={val}
-                              className="flex items-center gap-1 px-3 py-1 rounded-md border border-border bg-secondary text-secondary-foreground text-sm font-medium"
-                            >
-                              <span className="whitespace-nowrap">
-                                {THERAPY_CATEGORYES.find((t) => t.value === val)
-                                  ?.label ?? val}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSpecialization(val)}
-                                className="ml-1 hover:bg-muted rounded-full p-0.5"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+            {/* ── Scrollable body ──────────────────────────────── */}
+            <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-6">
+              {/* Basic info */}
+              <section className="space-y-3">
+                <SectionTitle>Basic information</SectionTitle>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  />
+                  <FormField
+                    control={form.control}
+                    name="doctorId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Therapist ID</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Therapist ID" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Email" type="email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phonenumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input type="tel" placeholder="Phone number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="gender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gender</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </section>
 
-            <FormField
-              control={form.control}
-              name="bio"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Bio</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Bio" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Specialization */}
+              <section className="space-y-3">
+                <SectionTitle>Specialization</SectionTitle>
+                <FormField
+                  control={form.control}
+                  name="specialization"
+                  render={() => (
+                    <FormItem>
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Input
+                            placeholder="Search and select specializations..."
+                            value={searchValue}
+                            onChange={(e) => {
+                              setSearchValue(e.target.value);
+                              setIsDropdownOpen(true);
+                            }}
+                            onFocus={() => setIsDropdownOpen(true)}
+                          />
+                          {isDropdownOpen && (
+                            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border border-border rounded-md shadow-md max-h-52 overflow-y-auto">
+                              <Command>
+                                <CommandList>
+                                  <CommandEmpty>
+                                    No specialization found.
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {filteredTherapies.map((therapy) => (
+                                      <CommandItem
+                                        key={therapy.value}
+                                        onSelect={() =>
+                                          handleAddSpecialization(therapy.value)
+                                        }
+                                        className="cursor-pointer"
+                                      >
+                                        {therapy.label}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </div>
+                          )}
+                        </div>
 
-            <Button
-              type="submit"
-              className="md:col-start-2 col-start-1"
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Adding...
-                </>
-              ) : (
-                "Add Therapist"
-              )}
-            </Button>
+                        {specialization.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {specialization.map((val: string) => (
+                              <Badge
+                                key={val}
+                                variant="secondary"
+                                className="gap-1 py-1 pl-3 pr-1.5"
+                              >
+                                <span className="whitespace-nowrap">
+                                  {THERAPY_CATEGORYES.find((t) => t.value === val)
+                                    ?.label ?? val}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSpecialization(val)}
+                                  aria-label={`Remove ${val}`}
+                                  className="rounded-full p-0.5 hover:bg-background/60 cursor-pointer"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </section>
+
+              {/* Bio */}
+              <section className="space-y-3">
+                <SectionTitle>Bio</SectionTitle>
+                <FormField
+                  control={form.control}
+                  name="bio"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Short professional bio…"
+                          rows={3}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </section>
+
+              {/* Certificates */}
+              <section className="space-y-3">
+                <SectionTitle>Certificates</SectionTitle>
+                <FormField
+                  control={form.control}
+                  name="certificates"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <CertificatesSection
+                          value={field.value ?? []}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </section>
+            </div>
+
+            {/* ── Sticky footer ────────────────────────────────── */}
+            <div className="px-5 sm:px-6 py-3.5 border-t bg-background flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDialogChange(false)}
+                disabled={mutation.isPending}
+                className="h-11 sm:h-10"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={mutation.isPending}
+                className="h-11 sm:h-10"
+              >
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Adding…
+                  </>
+                ) : (
+                  "Add Therapist"
+                )}
+              </Button>
+            </div>
           </form>
         </Form>
-      </DialogContent>
 
-      {/* close dropdown when clicking outside */}
-      {isDropdownOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => {
-            setIsDropdownOpen(false);
-            setSearchValue("");
-          }}
-        />
-      )}
-    </Dialog>
+        {/* close dropdown when clicking outside */}
+        {isDropdownOpen && (
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => {
+              setIsDropdownOpen(false);
+              setSearchValue("");
+            }}
+          />
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }
