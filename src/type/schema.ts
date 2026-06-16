@@ -116,6 +116,18 @@ export const enquirySchema = z.object({
   physioAssignmentConfirmed: z.boolean().optional(),
   physioAssignmentConfirmedAt: z.string().datetime().optional(),
 
+  // ── Checkpoint: payment (patient → clinic) ──
+  // Recording payment auto-advances status to "ongoing". Fields persist only
+  // once the backend model accepts them (see FUNNEL_COMPLETION_BACKEND_PATCH.md).
+  paymentReceived: z.boolean().optional(),
+  paymentAmount: z.number().nonnegative().optional(),
+  paymentMethod: z.enum(["cash", "upi", "card", "bank", "other"]).optional(),
+  paymentReceivedAt: z.string().datetime().optional(),
+
+  // ── Checkpoint: completion ──
+  // Manual; gated behind paymentReceived. Sets status "completed".
+  completedAt: z.string().datetime().optional(),
+
   // ── Sequential enquiry ID (assigned by backend on creation) ──
   // Human-readable, e.g. "ENQ-0001". Optional because pre-backfill records
   // may not have one.
@@ -141,11 +153,36 @@ export const enquirySchema = z.object({
     })
     .optional(),
 
+  // ── Activity log: append-only audit of who did what, when. ──
+  // Persisted by the backend once it supports the field (see
+  // scripts/ENQUIRY_BACKEND_PATCH.md). Until then it's session-only; the UI
+  // also derives a read-only timeline from the timestamp fields above.
+  activityLog: z
+    .array(
+      z.object({
+        at: z.string(),
+        userId: z.string().optional(),
+        name: z.string(),
+        action: z.string(),
+      }),
+    )
+    .optional(),
+
+  // ── Reason captured when a status is manually overridden. ──
+  statusNote: z.string().optional(),
+
   // ── Legacy fields preserved for back-compat with existing appointment records ──
   slot: z.object({ date: z.string(), time: z.string() }).optional(),
   therapyStartTime: z.string().optional(),
   therapyEndTime: z.string().optional(),
 });
+
+export type ActivityEntry = {
+  at: string;
+  userId?: string;
+  name: string;
+  action: string;
+};
 
 export type EnquiryType = z.infer<typeof enquirySchema>;
 
@@ -156,6 +193,12 @@ export type slotBookingZodType = EnquiryType;
 
 
 
+export const certificateSchema = z.object({
+  label: z.string().min(1, "Label required"),
+  url: z.string().url("Invalid URL"),
+});
+export type Certificate = z.infer<typeof certificateSchema>;
+
 export const TherapistformSchema = z.object({
   name: z.string().min(1, "Name is required"),
   doctorId: z.string().min(1, "ID is required"),
@@ -164,9 +207,33 @@ export const TherapistformSchema = z.object({
   phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),
   specialization: z.string().array(),
   bio: z.string().optional(),
-  isActive: z.boolean().default(true).optional()
+  isActive: z.boolean().default(true).optional(),
+  profileImage: z.string().optional().or(z.literal("")),
+  certificates: z.array(certificateSchema).optional(),
 });
 export type TherapistformType = z.infer<typeof TherapistformSchema>
+
+// ── Service catalog ──────────────────────────────────────────────────────────
+// serviceId is auto-allocated (SRV-0001…) by the backend atomic counter, so it
+// is NOT part of the form. The form captures only what staff type in.
+export const serviceFormSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  description: z.string().optional(),
+  price: z
+    .number({ error: "Price is required" })
+    .nonnegative("Price can't be negative"),
+  category: z.string().min(1, "Category is required"),
+  hsnCode: z
+    .string()
+    .min(1, "HSN/SAC code is required")
+    .regex(/^\d{4,8}$/, "HSN/SAC must be 4–8 digits"),
+});
+export type ServiceFormType = z.infer<typeof serviceFormSchema>;
+
+export type ServiceType = ServiceFormType & {
+  _id?: string;
+  serviceId: string; // e.g. "SRV-0001"
+};
 
 export type UserType = {
   id: string | undefined;
