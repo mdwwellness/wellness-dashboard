@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -127,6 +127,8 @@ interface SectionTableProps {
   paginated?: boolean;
   /** Optional per-row className — used to highlight stale rows in amber. */
   rowClassName?: (record: EnquiryType) => string;
+  /** Click anywhere on a row to open it (matches the other dashboard tables). */
+  onRowClick?: (record: EnquiryType) => void;
   /** Column IDs that should be hidden by default in this section. Used by
    *  the top section to hide funnel-checkpoint columns that are always
    *  empty for untouched leads. User can still toggle them on via the
@@ -148,6 +150,7 @@ function SectionTable({
   emptyMessage,
   paginated = false,
   rowClassName,
+  onRowClick,
   hiddenColumnIds,
 }: SectionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -157,15 +160,6 @@ function SectionTable({
   }, [hiddenColumnIds]);
   const [columnVisibility, setColumnVisibility] =
     useState<VisibilityState>(initialVisibility);
-
-  const defaultOrder = useMemo(() => {
-    return columns
-      .map((c) => (c.id ?? (c as { accessorKey?: string }).accessorKey) as string)
-      .filter(Boolean);
-  }, [columns]);
-
-  const [columnOrder, setColumnOrder] = useState<string[]>(defaultOrder);
-  const dragColIdRef = useRef<string | null>(null);
 
   const table = useReactTable({
     data: records,
@@ -178,12 +172,10 @@ function SectionTable({
       : {}),
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    onColumnOrderChange: setColumnOrder,
     state: {
       sorting,
       columnVisibility,
       globalFilter: search,
-      columnOrder,
     },
     onGlobalFilterChange: onSearchChange,
     globalFilterFn: (row, _columnId, value) => {
@@ -218,36 +210,7 @@ function SectionTable({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    draggable={header.column.id !== "action"}
-                    onDragStart={(e) => {
-                      if (header.column.id === "action") return;
-                      dragColIdRef.current = header.column.id;
-                      e.dataTransfer.effectAllowed = "move";
-                    }}
-                    onDragOver={(e) => {
-                      if (header.column.id === "action") return;
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                    }}
-                    onDrop={() => {
-                      const from = dragColIdRef.current;
-                      const to = header.column.id;
-                      if (!from || from === to || to === "action") return;
-                      setColumnOrder((prev) => {
-                        const next = [...prev];
-                        const i = next.indexOf(from);
-                        const j = next.indexOf(to);
-                        if (i === -1 || j === -1) return prev;
-                        next.splice(i, 1);
-                        next.splice(j, 0, from);
-                        return next;
-                      });
-                      dragColIdRef.current = null;
-                    }}
-                    className={header.column.id !== "action" ? "cursor-grab active:cursor-grabbing" : undefined}
-                  >
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -264,7 +227,12 @@ function SectionTable({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={rowClassName?.(row.original) ?? undefined}
+                  onClick={() => onRowClick?.(row.original)}
+                  className={
+                    `${onRowClick ? "cursor-pointer " : ""}${
+                      rowClassName?.(row.original) ?? ""
+                    }`.trim() || undefined
+                  }
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -383,6 +351,8 @@ export default function EnquiriesPage() {
       consult_done: 0,
       physio_booked: 0,
       assigned: 0,
+      ongoing: 0,
+      completed: 0,
       cancelled: 0,
     };
     for (const r of attendedRecords) counts[deriveStage(r)]++;
@@ -460,6 +430,7 @@ export default function EnquiriesPage() {
                 searchPlaceholder="Search untouched leads..."
                 emptyMessage={topEmptyMessage}
                 paginated={false}
+                onRowClick={setOpenDetail}
                 rowClassName={(r) =>
                   isStaleUntouched(r) ? STALE_ROW_CLASS : ""
                 }
@@ -471,6 +442,7 @@ export default function EnquiriesPage() {
                   "consultSlot",
                   "consultDone",
                   "physioSlot",
+                  "physioTherapist",
                   "assigned",
                   "reachedOutBy",
                 ]}
@@ -553,6 +525,7 @@ export default function EnquiriesPage() {
                     : "No leads contacted yet."
                 }
                 paginated={bottomExpanded}
+                onRowClick={setOpenDetail}
                 rowClassName={(r) =>
                   isStaleAttended(r) ? STALE_ROW_CLASS : ""
                 }
