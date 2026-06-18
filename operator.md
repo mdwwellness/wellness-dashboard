@@ -4,6 +4,11 @@ Manual steps that **I (the operator/owner) must do by hand** — things code can
 
 Legend: `[ ]` = todo · `[x]` = done · `[~]` = in progress
 
+> **2026-06-17:** Backend migrated to a fresh deploy — repo `mdwwellness/wellness-backend`,
+> live at `https://wellness-backend-1-wya5.onrender.com` (same MongoDB). All four backend
+> patches below (therapist media, activity log, payment/completion, services API) are
+> deployed there. Frontend `.env.local` `BACKEND_BASE_URL` points at this URL.
+
 ---
 
 ## Therapist profile pic + certificates (added 2026-06-13)
@@ -27,8 +32,8 @@ in-session mock store, so adding/editing/deleting services works for review but
 
 - [ ] **Provide real categories** — replace the placeholder `SERVICE_CATEGORIES` list in [src/lib/constant.ts](src/lib/constant.ts) with the actual service categories
 - [ ] **Review the UI** — open `/dashboard/services`, try add / edit / delete, give UX feedback before it's wired to a backend
-- [ ] **Backend (Render + Mongoose)** — apply [scripts/SERVICES_BACKEND_PATCH.md](scripts/SERVICES_BACKEND_PATCH.md): Service model, atomic `SRV-####` counter, CRUD endpoints. Push → Render deploys. _("someday" task_
-- [ ] **Swap data layer** — after backend is live, tell me to replace the mock hooks in `src/data/service/service.ts` with real API calls (signatures already match, page won't change)
+- [x] **Backend (Render + Mongoose)** — DONE: Service model + `/api/services` CRUD + `SRV-####` counter, deployed to the new backend.
+- [x] **Swap data layer** — DONE: `src/data/service/service.ts` now calls `/api/services` (mock store removed; hook signatures unchanged).
 
 ---
 
