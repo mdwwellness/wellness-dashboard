@@ -1,72 +1,27 @@
 "use client";
 
 /**
- * ⚠️ STUB DATA LAYER — in-session mock only.
+ * Services data layer — talks to the real backend (/api/services).
  *
- * Services are NOT yet persisted anywhere. This module keeps a module-level
- * array as a fake "DB" so the Services page is fully clickable (add/edit/delete
- * all work) for UI/UX review. Everything resets on page refresh.
- *
- * When the backend is ready (see scripts/SERVICES_BACKEND_PATCH.md), replace the
- * bodies of the four hooks below with real server actions + fetch calls. The
- * hook signatures and query key (["services"]) are designed to stay identical,
- * so the page components won't need to change.
+ * Hook signatures and the ["services"] query key match the previous mock store,
+ * so the Services page / drawer / add-form did not need any changes.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { ServiceFormType, ServiceType } from "@/type/schema";
+import { getAllServices } from "@/actions/services/get-all-services";
+import addService from "@/actions/services/add-service";
+import updateService from "@/actions/services/update-service";
+import deleteService from "@/actions/services/delete-service";
 
-// ── Fake in-memory store ─────────────────────────────────────────────────────
-let SERVICES: ServiceType[] = [
-  {
-    _id: "seed-1",
-    serviceId: "SRV-0001",
-    name: "Initial Physiotherapy Consultation",
-    description: "45-min assessment with a licensed physiotherapist.",
-    price: 800,
-    category: "Consultation",
-    hsnCode: "999319",
-  },
-  {
-    _id: "seed-2",
-    serviceId: "SRV-0002",
-    name: "Deep Tissue Massage (60 min)",
-    description: "Full-body deep tissue massage session.",
-    price: 1500,
-    category: "Massage Therapy",
-    hsnCode: "999722",
-  },
-  {
-    _id: "seed-3",
-    serviceId: "SRV-0003",
-    name: "Personalized Diet Plan",
-    description: "One-month customized nutrition plan with follow-up.",
-    price: 2500,
-    category: "Diet & Nutrition",
-    hsnCode: "999319",
-  },
-];
-
-let counter = SERVICES.length;
-
-/** Mimics the backend atomic counter: SRV-0001, SRV-0002, … */
-function nextServiceId(): string {
-  counter += 1;
-  return `SRV-${String(counter).padStart(4, "0")}`;
-}
-
-// Simulate a tiny network delay so loading states are visible.
-const delay = (ms = 250) => new Promise((r) => setTimeout(r, ms));
-
-// ── Hooks ────────────────────────────────────────────────────────────────────
 export function useGetServices() {
   return useQuery({
     queryKey: ["services"],
     queryFn: async (): Promise<ServiceType[]> => {
-      await delay();
-      // return a copy so callers can't mutate the store directly
-      return [...SERVICES];
+      const result = await getAllServices();
+      if (!result.success) throw new Error(result.message);
+      return (result.data ?? []) as ServiceType[];
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -76,15 +31,10 @@ export function useGetServices() {
 export function useAddService() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (values: ServiceFormType): Promise<ServiceType> => {
-      await delay();
-      const created: ServiceType = {
-        ...values,
-        _id: `local-${nextServiceId()}`,
-        serviceId: `SRV-${String(counter).padStart(4, "0")}`,
-      };
-      SERVICES = [created, ...SERVICES];
-      return created;
+    mutationFn: async (values: ServiceFormType) => {
+      const result = await addService(values);
+      if (!result.success) throw new Error(result.message);
+      return result.data;
     },
     onSuccess: () => {
       toast.success("Service added");
@@ -97,12 +47,10 @@ export function useAddService() {
 export function useUpdateService() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (service: ServiceType): Promise<ServiceType> => {
-      await delay();
-      SERVICES = SERVICES.map((s) =>
-        s.serviceId === service.serviceId ? { ...s, ...service } : s,
-      );
-      return service;
+    mutationFn: async (service: ServiceType) => {
+      const result = await updateService(service);
+      if (!result.success) throw new Error(result.message);
+      return result;
     },
     onSuccess: () => {
       toast.success("Service updated");
@@ -115,9 +63,10 @@ export function useUpdateService() {
 export function useDeleteService() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (serviceId: string): Promise<void> => {
-      await delay();
-      SERVICES = SERVICES.filter((s) => s.serviceId !== serviceId);
+    mutationFn: async (serviceId: string) => {
+      const result = await deleteService(serviceId);
+      if (!result.success) throw new Error(result.message);
+      return result;
     },
     onSuccess: () => {
       toast.success("Service deleted");
