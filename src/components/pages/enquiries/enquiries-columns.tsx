@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Check, Info } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -22,6 +22,10 @@ import { formatTimeRange } from "./time-range";
 function readLastActiveISO(r: EnquiryType): string | undefined {
   const m = r as unknown as { updatedAt?: string; createdAt?: string };
   return m.updatedAt ?? m.createdAt;
+}
+
+function readCreatedISO(r: EnquiryType): string | undefined {
+  return (r as unknown as { createdAt?: string }).createdAt;
 }
 
 /**
@@ -62,19 +66,23 @@ function HeaderHint({ label, hint }: { label: string; hint: string }) {
   );
 }
 
-function LastActiveCell({ record }: { record: EnquiryType }) {
-  const iso = readLastActiveISO(record);
+function LastActiveCell({
+  record,
+  field,
+}: {
+  record: EnquiryType;
+  field: "received" | "updated";
+}) {
+  const iso =
+    field === "received" ? readCreatedISO(record) : readLastActiveISO(record);
   if (!iso) return <span className="text-muted-foreground">—</span>;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
     return <span className="text-muted-foreground">—</span>;
   }
   return (
-    <span
-      className="text-xs text-muted-foreground whitespace-nowrap"
-      title={date.toLocaleString()}
-    >
-      {formatDistanceToNow(date, { addSuffix: true })}
+    <span className="whitespace-nowrap" title={date.toLocaleString()}>
+      {format(date, "yyyy-MM-dd HH:mm")}
     </span>
   );
 }
@@ -113,10 +121,18 @@ function SlotCell({
 
 interface MakeColumnsParams {
   onOpenDetail: (record: EnquiryType) => void;
+  /** Header label for the timestamp column — differs per section
+   *  ("Waiting since" for untouched, "Last updated" for attended). */
+  lastActiveLabel?: string;
+  /** Which timestamp to show: "received" = createdAt (when the enquiry came
+   *  in), "updated" = updatedAt (last staff action). */
+  lastActiveField?: "received" | "updated";
 }
 
 export function makeEnquiryColumns({
   onOpenDetail,
+  lastActiveLabel = "Last active",
+  lastActiveField = "updated",
 }: MakeColumnsParams): ColumnDef<EnquiryType>[] {
   return [
     {
@@ -278,10 +294,15 @@ export function makeEnquiryColumns({
     {
       id: "lastActive",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Last active" />
+        <DataTableColumnHeader column={column} title={lastActiveLabel} />
       ),
-      accessorFn: (r) => readLastActiveISO(r) ?? "",
-      cell: ({ row }) => <LastActiveCell record={row.original} />,
+      accessorFn: (r) =>
+        (lastActiveField === "received"
+          ? readCreatedISO(r)
+          : readLastActiveISO(r)) ?? "",
+      cell: ({ row }) => (
+        <LastActiveCell record={row.original} field={lastActiveField} />
+      ),
     },
     {
       id: "action",
