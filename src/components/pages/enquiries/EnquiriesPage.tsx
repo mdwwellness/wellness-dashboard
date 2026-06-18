@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import {
   ColumnDef,
   flexRender,
@@ -41,8 +42,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
+import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import type { EnquiryType } from "@/type/schema";
 
 import { makeEnquiryColumns } from "./enquiries-columns";
@@ -127,6 +130,8 @@ interface SectionTableProps {
   paginated?: boolean;
   /** Optional per-row className — used to highlight stale rows in amber. */
   rowClassName?: (record: EnquiryType) => string;
+  /** Click anywhere on a row to open it (matches the other dashboard tables). */
+  onRowClick?: (record: EnquiryType) => void;
   /** Column IDs that should be hidden by default in this section. Used by
    *  the top section to hide funnel-checkpoint columns that are always
    *  empty for untouched leads. User can still toggle them on via the
@@ -148,6 +153,7 @@ function SectionTable({
   emptyMessage,
   paginated = false,
   rowClassName,
+  onRowClick,
   hiddenColumnIds,
 }: SectionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -157,15 +163,6 @@ function SectionTable({
   }, [hiddenColumnIds]);
   const [columnVisibility, setColumnVisibility] =
     useState<VisibilityState>(initialVisibility);
-
-  const defaultOrder = useMemo(() => {
-    return columns
-      .map((c) => (c.id ?? (c as { accessorKey?: string }).accessorKey) as string)
-      .filter(Boolean);
-  }, [columns]);
-
-  const [columnOrder, setColumnOrder] = useState<string[]>(defaultOrder);
-  const dragColIdRef = useRef<string | null>(null);
 
   const table = useReactTable({
     data: records,
@@ -178,12 +175,10 @@ function SectionTable({
       : {}),
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    onColumnOrderChange: setColumnOrder,
     state: {
       sorting,
       columnVisibility,
       globalFilter: search,
-      columnOrder,
     },
     onGlobalFilterChange: onSearchChange,
     globalFilterFn: (row, _columnId, value) => {
@@ -218,36 +213,7 @@ function SectionTable({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    draggable={header.column.id !== "action"}
-                    onDragStart={(e) => {
-                      if (header.column.id === "action") return;
-                      dragColIdRef.current = header.column.id;
-                      e.dataTransfer.effectAllowed = "move";
-                    }}
-                    onDragOver={(e) => {
-                      if (header.column.id === "action") return;
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                    }}
-                    onDrop={() => {
-                      const from = dragColIdRef.current;
-                      const to = header.column.id;
-                      if (!from || from === to || to === "action") return;
-                      setColumnOrder((prev) => {
-                        const next = [...prev];
-                        const i = next.indexOf(from);
-                        const j = next.indexOf(to);
-                        if (i === -1 || j === -1) return prev;
-                        next.splice(i, 1);
-                        next.splice(j, 0, from);
-                        return next;
-                      });
-                      dragColIdRef.current = null;
-                    }}
-                    className={header.column.id !== "action" ? "cursor-grab active:cursor-grabbing" : undefined}
-                  >
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -264,7 +230,12 @@ function SectionTable({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={rowClassName?.(row.original) ?? undefined}
+                  onClick={() => onRowClick?.(row.original)}
+                  className={
+                    `${onRowClick ? "cursor-pointer " : ""}${
+                      rowClassName?.(row.original) ?? ""
+                    }`.trim() || undefined
+                  }
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -307,6 +278,7 @@ export default function EnquiriesPage() {
     isError,
     error,
     refetch,
+    isFetching,
   } = useGetAllEnquiries({ role, id, userEmail });
 
   const [openDetail, setOpenDetail] = useState<EnquiryType | null>(null);
@@ -316,6 +288,34 @@ export default function EnquiriesPage() {
   const [attendedStageFilter, setAttendedStageFilter] = useState<
     FunnelStage | "all"
   >("all");
+
+  // ── New-enquiry notification + manual reload (pull-based) ──
+  // We don't auto-refresh the table. On window-focus we do a light peek; if the
+  // server has MORE records than we're showing, a minimal toast offers a Reload.
+  // Keeps backend/compute use low while still flagging fresh bookings.
+  const [newCount, setNewCount] = useState(0);
+  const knownCountRef = useRef(0);
+
+  useEffect(() => {
+    knownCountRef.current = allRecords?.length ?? knownCountRef.current;
+  }, [allRecords]);
+
+  useEffect(() => {
+    function peek() {
+      getAllAppointments({ role, id, userEmail }).then((res) => {
+        if (!res?.success) return;
+        const diff = (res.data ?? []).length - knownCountRef.current;
+        if (diff > 0) setNewCount(diff);
+      });
+    }
+    window.addEventListener("focus", peek);
+    return () => window.removeEventListener("focus", peek);
+  }, [role, id, userEmail]);
+
+  function handleReload() {
+    refetch();
+    setNewCount(0);
+  }
 
   // Frontend-side scoping: surface records that participate in the enquiry funnel.
   // A record counts as "enquiry-funnel" if its status is "enquiry" OR it has
@@ -383,6 +383,8 @@ export default function EnquiriesPage() {
       consult_done: 0,
       physio_booked: 0,
       assigned: 0,
+      ongoing: 0,
+      completed: 0,
       cancelled: 0,
     };
     for (const r of attendedRecords) counts[deriveStage(r)]++;
@@ -399,10 +401,23 @@ export default function EnquiriesPage() {
     ? filteredAttended
     : filteredAttended.slice(0, COLLAPSED_ATTENDED_ROWS);
 
-  const columns = useMemo(
+  // Untouched leads: the timestamp = when the enquiry arrived → "Waiting since".
+  const topColumns = useMemo(
     () =>
       makeEnquiryColumns({
         onOpenDetail: (r) => setOpenDetail(r),
+        lastActiveLabel: "Waiting since",
+        lastActiveField: "received",
+      }),
+    [],
+  );
+  // Attended leads: the timestamp = last staff action → "Last updated".
+  const bottomColumns = useMemo(
+    () =>
+      makeEnquiryColumns({
+        onOpenDetail: (r) => setOpenDetail(r),
+        lastActiveLabel: "Last updated",
+        lastActiveField: "updated",
       }),
     [],
   );
@@ -424,10 +439,22 @@ export default function EnquiriesPage() {
               Track inbound leads from first call to physiotherapist assignment.
             </CardDescription>
           </div>
-          <EnquiryIntakeModal
-            existingRecords={enquiryRecords}
-            onDuplicateFound={(rec) => setOpenDetail(rec)}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleReload}
+              disabled={isFetching}
+              aria-label="Refresh enquiries"
+              title="Refresh"
+            >
+              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+            </Button>
+            <EnquiryIntakeModal
+              existingRecords={enquiryRecords}
+              onDuplicateFound={(rec) => setOpenDetail(rec)}
+            />
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -454,12 +481,13 @@ export default function EnquiriesPage() {
               </div>
               <SectionTable
                 records={unattendedRecords}
-                columns={columns}
+                columns={topColumns}
                 search={topSearch}
                 onSearchChange={setTopSearch}
                 searchPlaceholder="Search untouched leads..."
                 emptyMessage={topEmptyMessage}
                 paginated={false}
+                onRowClick={setOpenDetail}
                 rowClassName={(r) =>
                   isStaleUntouched(r) ? STALE_ROW_CLASS : ""
                 }
@@ -471,6 +499,7 @@ export default function EnquiriesPage() {
                   "consultSlot",
                   "consultDone",
                   "physioSlot",
+                  "physioTherapist",
                   "assigned",
                   "reachedOutBy",
                 ]}
@@ -543,7 +572,7 @@ export default function EnquiriesPage() {
 
               <SectionTable
                 records={displayedAttended}
-                columns={columns}
+                columns={bottomColumns}
                 search={bottomSearch}
                 onSearchChange={setBottomSearch}
                 searchPlaceholder="Search attended leads..."
@@ -553,6 +582,7 @@ export default function EnquiriesPage() {
                     : "No leads contacted yet."
                 }
                 paginated={bottomExpanded}
+                onRowClick={setOpenDetail}
                 rowClassName={(r) =>
                   isStaleAttended(r) ? STALE_ROW_CLASS : ""
                 }
@@ -579,6 +609,23 @@ export default function EnquiriesPage() {
         record={openDetail}
         onClose={() => setOpenDetail(null)}
       />
+
+      {/* Minimal floating "new enquiries" notice — appears on focus when the
+          server has more than we're showing. Click Reload to pull them in. */}
+      {newCount > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-lg border bg-background px-4 py-2.5 text-sm shadow-md">
+          <span>
+            {newCount} new {newCount === 1 ? "enquiry" : "enquiries"}
+          </span>
+          <button
+            type="button"
+            onClick={handleReload}
+            className="font-medium text-primary hover:underline"
+          >
+            Reload
+          </button>
+        </div>
+      )}
     </>
   );
 }

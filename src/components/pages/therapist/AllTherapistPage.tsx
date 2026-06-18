@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   Card,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { DoctorsDataTable } from "./Doctorsdatatable";
 import AddDoctorForm from "./adddoctorform";
+import { TherapistDetailDrawer } from "./therapist-detail-drawer";
 import { QueryWrapper } from "@/components/query-wrapper";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { TherapistformType } from "@/type/schema";
@@ -21,6 +23,8 @@ export default function AllTherapistPage({
   columns,
 }: ColumnDataType<TherapistformType>) {
   const { data: DoctorsDetail, isLoading, isError, error } = useGetAllTherapist();
+  const [selected, setSelected] = useState<TherapistformType | null>(null);
+
   return (
     <QueryWrapper isLoading={isLoading} isError={isError} error={error}>
       <Card>
@@ -34,9 +38,18 @@ export default function AllTherapistPage({
           </div>
         </CardHeader>
         <CardContent>
-          <DoctorsDataTable columns={columns} data={DoctorsDetail ?? []} />
+          <DoctorsDataTable
+            columns={columns}
+            data={DoctorsDetail ?? []}
+            onRowClick={(row) => setSelected(row)}
+          />
         </CardContent>
       </Card>
+
+      <TherapistDetailDrawer
+        therapist={selected}
+        onClose={() => setSelected(null)}
+      />
     </QueryWrapper>
   );
 }

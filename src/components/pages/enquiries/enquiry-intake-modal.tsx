@@ -52,29 +52,43 @@ type IntakeFormValues = z.infer<typeof intakeFormSchema>;
 interface EnquiryIntakeModalProps {
   existingRecords: EnquiryType[] | undefined;
   onDuplicateFound: (record: EnquiryType) => void;
+  /** Pre-fill fields — used from the Customers drawer for follow-up bookings. */
+  prefill?: Partial<IntakeFormValues>;
+  triggerLabel?: string;
+  triggerVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  className?: string;
 }
 
 export function EnquiryIntakeModal({
   existingRecords,
   onDuplicateFound,
+  prefill,
+  triggerLabel = "New Enquiry",
+  triggerVariant = "default",
+  className,
 }: EnquiryIntakeModalProps) {
   const [open, setOpen] = useState(false);
   const createMutation = useCreateEnquiry();
 
+  const emptyValues: IntakeFormValues = {
+    name: "",
+    phonenumber: undefined as unknown as number,
+    preferredReachOutTime: { from: "", to: "" },
+    note: "",
+  };
+
   const form = useForm<IntakeFormValues>({
     resolver: zodResolver(intakeFormSchema),
     mode: "onChange",
-    defaultValues: {
-      name: "",
-      phonenumber: undefined as unknown as number,
-      preferredReachOutTime: { from: "", to: "" },
-      note: "",
-    },
+    defaultValues: emptyValues,
   });
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
-    if (!next) form.reset();
+    if (next && prefill) {
+      form.reset({ ...emptyValues, ...prefill });
+    }
+    if (!next) form.reset(emptyValues);
   }
 
   function onSubmit(values: IntakeFormValues) {
@@ -100,10 +114,13 @@ export function EnquiryIntakeModal({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-1">
+        <Button
+          variant={triggerVariant}
+          className={`flex items-center gap-1 ${className ?? ""}`}
+        >
           <CirclePlus className="h-4 w-4" />
           <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-            New Enquiry
+            {triggerLabel}
           </span>
         </Button>
       </DialogTrigger>

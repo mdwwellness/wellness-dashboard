@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
-import { CalendarIcon, Loader2, Pencil } from "lucide-react";
+import { format, startOfToday } from "date-fns";
+import { CalendarIcon, Check, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -48,8 +48,21 @@ import {
 import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { useGetBackOfficeUsers } from "@/data/user/user-list";
 import { useAuthStore } from "@/providers/permission-provider";
-import type { EnquiryType, TherapistformType } from "@/type/schema";
+import type {
+  ActivityEntry,
+  EnquiryType,
+  TherapistformType,
+} from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
+import { EnquiryProgressStepper } from "./enquiry-progress-stepper";
+
+const STATUS_LABELS: Record<string, string> = {
+  enquiry: "Enquiry",
+  scheduled: "Scheduled",
+  ongoing: "Ongoing",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
 
 interface EnquiryDetailDrawerProps {
   record: EnquiryType | null;
@@ -61,7 +74,10 @@ export function EnquiryDetailDrawer({
   onClose,
 }: EnquiryDetailDrawerProps) {
   const open = record !== null;
-  const { mutate: update, isPending: isUpdating } = useUpdateAppointment();
+  // Auto-save is silent (inline indicator), so suppress the per-save toast.
+  const { mutate: update, isPending: isUpdating } = useUpdateAppointment({
+    silent: true,
+  });
   const { mutate: del, isPending: isDeleting } = useDeleteAppointment();
   const { data: therapists } = useGetAllTherapist();
   const { data: users } = useGetBackOfficeUsers();
@@ -97,6 +113,16 @@ export function EnquiryDetailDrawer({
   // nesting a Radix AlertDialog inside a Sheet causes the Sheet's pointer-events
   // overlay to swallow the trigger's first click, forcing the user to double-tap.
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  // Inline save feedback (replaces per-save toasts). `savedOnce` gates the
+  // "All changes saved" label so it doesn't show before any edit happens.
+  const [savedOnce, setSavedOnce] = useState(false);
+
+  // Status-override flow: picking a new status stages it here and reveals a
+  // required reason note; nothing is written until the note is filled + applied.
+  const [pendingStatus, setPendingStatus] =
+    useState<EnquiryType["status"] | null>(null);
+  const [overrideNote, setOverrideNote] = useState("");
 
   // Only NOW is it safe to early-return — hooks above have all run.
   if (!record || !draft) return null;
@@ -153,9 +179,41 @@ export function EnquiryDetailDrawer({
     update(next, {
       onSuccess: () => {
         setDraft(next);
-        if (extra) toast.success("Updated");
+        setSavedOnce(true);
       },
     });
+  }
+
+  function currentActorName() {
+    if (!currentUser) return "Someone";
+    return (
+      `${currentUser.userfName ?? ""} ${currentUser.userlName ?? ""}`.trim() ||
+      "Someone"
+    );
+  }
+
+  // Apply a staged status change — requires a non-empty reason note, which is
+  // recorded as an activity-log entry.
+  function applyStatusOverride() {
+    if (!pendingStatus) return;
+    const note = overrideNote.trim();
+    if (!note) {
+      toast.error("Add a reason note for the status change");
+      return;
+    }
+    const entry: ActivityEntry = {
+      at: new Date().toISOString(),
+      userId: currentUser?.id,
+      name: currentActorName(),
+      action: `Status → ${STATUS_LABELS[pendingStatus] ?? pendingStatus}: ${note}`,
+    };
+    save({
+      status: pendingStatus,
+      statusNote: note,
+      activityLog: [...(draft!.activityLog ?? []), entry],
+    });
+    setPendingStatus(null);
+    setOverrideNote("");
   }
 
   function handleDelete() {
@@ -211,6 +269,65 @@ export function EnquiryDetailDrawer({
     );
   }
 
+  function togglePayment(checked: boolean) {
+    if (checked && !draft?.physioAssignmentConfirmed) {
+      toast.error("Confirm the physio assignment first");
+      return;
+    }
+    const extra: Partial<EnquiryType> = {
+      paymentReceived: checked,
+      paymentReceivedAt: checked ? new Date().toISOString() : undefined,
+      // Paying advances to Ongoing; un-paying drops back to Scheduled
+      // (derived stage then falls back to Assigned).
+      status: checked ? "ongoing" : "scheduled",
+    };
+    if (checked) {
+      const amt = draft?.paymentAmount;
+      const method = draft?.paymentMethod;
+      const desc = `Payment received${amt ? ` ₹${amt}` : ""}${
+        method ? ` (${method})` : ""
+      }`;
+      extra.activityLog = [
+        ...(draft?.activityLog ?? []),
+        {
+          at: new Date().toISOString(),
+          userId: currentUser?.id,
+          name: currentActorName(),
+          action: desc,
+        },
+      ];
+    } else {
+      // un-paying also clears any completion
+      extra.completedAt = undefined;
+    }
+    save(extra);
+  }
+
+  function toggleCompleted(checked: boolean) {
+    if (checked && !draft?.paymentReceived) {
+      toast.error("Record payment first");
+      return;
+    }
+    const extra: Partial<EnquiryType> = {
+      status: checked ? "completed" : "ongoing",
+      completedAt: checked ? new Date().toISOString() : undefined,
+    };
+    if (checked) {
+      extra.activityLog = [
+        ...(draft?.activityLog ?? []),
+        {
+          at: new Date().toISOString(),
+          userId: currentUser?.id,
+          name: currentActorName(),
+          action: "Marked completed",
+        },
+      ];
+    }
+    save(extra);
+  }
+
+  const activity = buildActivity(draft);
+
   return (
     <>
     <Sheet
@@ -232,9 +349,28 @@ export function EnquiryDetailDrawer({
           <SheetDescription>
             Advance the lead through the funnel. All changes save on click.
           </SheetDescription>
+          <div
+            className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1 h-4"
+            aria-live="polite"
+          >
+            {isUpdating ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Saving…
+              </>
+            ) : savedOnce ? (
+              <>
+                <Check className="h-3 w-3 text-emerald-600" />
+                All changes saved
+              </>
+            ) : null}
+          </div>
         </SheetHeader>
 
         <div className="p-4 space-y-6">
+          {/* ── Progress overview ── */}
+          <EnquiryProgressStepper record={draft} />
+
           {/* ── Section: Lead info ── */}
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">Lead info</h3>
@@ -318,7 +454,7 @@ export function EnquiryDetailDrawer({
           </section>
 
           {/* ── Section: Reach out ── */}
-          <section className="space-y-2 border-t pt-4">
+          <section id="enq-sec-reach" className="space-y-2 border-t pt-4 scroll-mt-4">
             <h3 className="text-sm font-semibold">1. Executive reach-out</h3>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -337,7 +473,7 @@ export function EnquiryDetailDrawer({
           </section>
 
           {/* ── Section: Online consultation ── */}
-          <section className="space-y-3 border-t pt-4">
+          <section id="enq-sec-consult" className="space-y-3 border-t pt-4 scroll-mt-4">
             <h3 className="text-sm font-semibold">
               2. Online consultation
             </h3>
@@ -364,7 +500,7 @@ export function EnquiryDetailDrawer({
           </section>
 
           {/* ── Section: Physio assignment ── */}
-          <section className="space-y-3 border-t pt-4">
+          <section id="enq-sec-physio" className="space-y-3 border-t pt-4 scroll-mt-4">
             <h3 className="text-sm font-semibold">
               3. Physiotherapist assignment
             </h3>
@@ -404,6 +540,13 @@ export function EnquiryDetailDrawer({
                 </SelectContent>
               </Select>
             </div>
+            {draft.doctorId &&
+              (!draft.physioSlot?.date || !draft.physioSlot?.time) && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
+                  Pick a physio date &amp; time for{" "}
+                  {draft.doctor || "this therapist"} to confirm the assignment.
+                </p>
+              )}
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -425,34 +568,140 @@ export function EnquiryDetailDrawer({
             )}
           </section>
 
-          {/* ── Section: Handled by (audit) ── */}
-          {draft.reachedOutBy?.name && (
-            <section className="space-y-2 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Handled by</h3>
-                {isAdmin && !editingReachedBy && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2"
-                    onClick={() => setEditingReachedBy(true)}
-                  >
-                    <Pencil className="h-3 w-3 mr-1" />
-                    Override
-                  </Button>
-                )}
+          {/* ── Section: Payment ── */}
+          <section
+            id="enq-sec-payment"
+            className="space-y-3 border-t pt-4 scroll-mt-4"
+          >
+            <h3 className="text-sm font-semibold">4. Payment</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground">
+                  Amount (₹)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={draft.paymentAmount ?? ""}
+                  onChange={(e) =>
+                    patch({
+                      paymentAmount:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                    })
+                  }
+                  onBlur={() => save()}
+                />
               </div>
-              {!editingReachedBy ? (
+              <div>
+                <label className="text-xs text-muted-foreground">Method</label>
+                <Select
+                  value={draft.paymentMethod ?? ""}
+                  onValueChange={(v) =>
+                    save({ paymentMethod: v as EnquiryType["paymentMethod"] })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                    <SelectItem value="bank">Bank</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <label
+              className={cn(
+                "flex items-center gap-2 text-sm",
+                !draft.physioAssignmentConfirmed && "opacity-50",
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={draft.paymentReceived ?? false}
+                disabled={!draft.physioAssignmentConfirmed}
+                onChange={(e) => togglePayment(e.target.checked)}
+              />
+              Payment received
+            </label>
+            {draft.paymentReceived && draft.paymentReceivedAt && (
+              <p className="text-xs text-muted-foreground">
+                Received
+                {draft.paymentAmount ? ` ₹${draft.paymentAmount}` : ""}
+                {draft.paymentMethod ? ` via ${draft.paymentMethod}` : ""} on{" "}
+                {new Date(draft.paymentReceivedAt).toLocaleString()}
+              </p>
+            )}
+            {!draft.physioAssignmentConfirmed && (
+              <p className="text-xs text-muted-foreground">
+                Confirm the physio assignment before recording payment.
+              </p>
+            )}
+          </section>
+
+          {/* ── Section: Completion ── */}
+          <section
+            id="enq-sec-completion"
+            className="space-y-2 border-t pt-4 scroll-mt-4"
+          >
+            <h3 className="text-sm font-semibold">5. Completion</h3>
+            <label
+              className={cn(
+                "flex items-center gap-2 text-sm",
+                !draft.paymentReceived && "opacity-50",
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={draft.status === "completed"}
+                disabled={!draft.paymentReceived}
+                onChange={(e) => toggleCompleted(e.target.checked)}
+              />
+              Mark completed
+            </label>
+            {draft.status === "completed" && draft.completedAt ? (
+              <p className="text-xs text-muted-foreground">
+                Completed on {new Date(draft.completedAt).toLocaleString()}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {draft.paymentReceived
+                  ? "Treatment in progress — mark when finished."
+                  : "Record payment first to enable."}
+              </p>
+            )}
+          </section>
+
+          {/* ── Section: Activity (audit log) ── */}
+          <section className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Activity</h3>
+              {draft.reachedOutBy?.name && isAdmin && !editingReachedBy && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => setEditingReachedBy(true)}
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  Reassign handler
+                </Button>
+              )}
+            </div>
+
+            {/* Handled-by summary + admin reassign */}
+            {draft.reachedOutBy?.name &&
+              (!editingReachedBy ? (
                 <p className="text-sm">
-                  <span className="font-medium">
-                    {draft.reachedOutBy.name}
-                  </span>
-                  {draft.executiveReachedOutAt && (
-                    <span className="text-xs text-muted-foreground ml-2">
-                      ({new Date(draft.executiveReachedOutAt).toLocaleString()})
-                    </span>
-                  )}
+                  <span className="text-muted-foreground">Handled by </span>
+                  <span className="font-medium">{draft.reachedOutBy.name}</span>
                 </p>
               ) : (
                 <div className="flex gap-2">
@@ -461,11 +710,16 @@ export function EnquiryDetailDrawer({
                     onValueChange={(userId) => {
                       const u = users?.find((x) => x._id === userId);
                       if (!u) return;
+                      const name = `${u.userfName} ${u.userlName}`.trim();
+                      const entry: ActivityEntry = {
+                        at: new Date().toISOString(),
+                        userId: currentUser?.id,
+                        name: currentActorName(),
+                        action: `Reassigned handler to ${name}`,
+                      };
                       save({
-                        reachedOutBy: {
-                          userId: u._id,
-                          name: `${u.userfName} ${u.userlName}`.trim(),
-                        },
+                        reachedOutBy: { userId: u._id, name },
+                        activityLog: [...(draft.activityLog ?? []), entry],
                       });
                       setEditingReachedBy(false);
                     }}
@@ -490,14 +744,29 @@ export function EnquiryDetailDrawer({
                     Cancel
                   </Button>
                 </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {isAdmin
-                  ? "Admin: you can reassign who handled this lead."
-                  : "This is the record of who looked into and handled this lead."}
-              </p>
-            </section>
-          )}
+              ))}
+
+            {/* Timeline */}
+            {activity.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No activity yet.</p>
+            ) : (
+              <ol className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                {activity.map((e, i) => (
+                  <li
+                    key={`${e.at}-${i}`}
+                    className="text-xs border-l-2 border-muted pl-3 pb-0.5"
+                  >
+                    <div className="text-foreground">{e.action}</div>
+                    <div className="text-muted-foreground">
+                      {e.name}
+                      {" · "}
+                      {new Date(e.at).toLocaleString()}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
 
           {/* ── Section: Status override (permission-gated) ── */}
           <section className="space-y-2 border-t pt-4">
@@ -510,11 +779,35 @@ export function EnquiryDetailDrawer({
               )}
             </div>
             <Select
-              value={draft.status ?? "enquiry"}
+              value={pendingStatus ?? draft.status ?? "enquiry"}
               disabled={!canEditStatus}
-              onValueChange={(v) =>
-                save({ status: v as EnquiryType["status"] })
-              }
+              onValueChange={(v) => {
+                const next = v as EnquiryType["status"];
+                const current = draft.status ?? "enquiry";
+                if (next === current) {
+                  setPendingStatus(null);
+                  setOverrideNote("");
+                  return;
+                }
+                if (next === "cancelled") {
+                  // Cancelling requires a reason — stage it and ask.
+                  setPendingStatus(next);
+                  return;
+                }
+                // Any other status change saves immediately (and is logged).
+                const entry: ActivityEntry = {
+                  at: new Date().toISOString(),
+                  userId: currentUser?.id,
+                  name: currentActorName(),
+                  action: `Changed status to ${STATUS_LABELS[next as string] ?? next}`,
+                };
+                save({
+                  status: next,
+                  activityLog: [...(draft.activityLog ?? []), entry],
+                });
+                setPendingStatus(null);
+                setOverrideNote("");
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -527,6 +820,44 @@ export function EnquiryDetailDrawer({
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Required reason note — only when cancelling a lead. */}
+            {pendingStatus === "cancelled" && (
+              <div className="rounded-md border bg-muted/40 p-3 space-y-2">
+                <label className="text-sm font-medium">
+                  Reason for cancellation
+                  <span className="text-destructive"> *</span>
+                </label>
+                <Textarea
+                  autoFocus
+                  placeholder="Why is this lead being cancelled? (required)"
+                  value={overrideNote}
+                  onChange={(e) => setOverrideNote(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setPendingStatus(null);
+                      setOverrideNote("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!overrideNote.trim() || isUpdating}
+                    onClick={applyStatusOverride}
+                  >
+                    Apply change
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {!canEditStatus && (
               <p className="text-xs text-muted-foreground">
                 Only admins or {draft.reachedOutBy?.name ?? "the person who handled this lead"} can change status.
@@ -586,6 +917,57 @@ export function EnquiryDetailDrawer({
 }
 
 // ── Local helpers ──
+
+/**
+ * Build a chronological activity timeline of EXECUTIVE actions only —
+ * name · what they did · timestamp. No "system" events.
+ *
+ * Merges the backend-stored `activityLog` (real per-action attribution, once
+ * the backend supports the field) with milestones DERIVED from the timestamp
+ * fields we already persist. Derived milestones are only included when we know
+ * which person to attribute them to (the lead's handler) — anything we can't
+ * tie to a person is left out rather than shown as "system".
+ */
+function buildActivity(d: EnquiryType): ActivityEntry[] {
+  const entries: ActivityEntry[] = [];
+  const handler = d.reachedOutBy?.name;
+  const handlerId = d.reachedOutBy?.userId;
+
+  if (handler) {
+    if (d.executiveReachedOutAt) {
+      entries.push({
+        at: d.executiveReachedOutAt,
+        userId: handlerId,
+        name: handler,
+        action: "Reached out to lead",
+      });
+    }
+    if (d.consultationCompletedAt) {
+      entries.push({
+        at: d.consultationCompletedAt,
+        userId: handlerId,
+        name: handler,
+        action: "Marked consultation done",
+      });
+    }
+    if (d.physioAssignmentConfirmedAt) {
+      entries.push({
+        at: d.physioAssignmentConfirmedAt,
+        userId: handlerId,
+        name: handler,
+        action: `Confirmed assignment${d.doctor ? ` (${d.doctor})` : ""}`,
+      });
+    }
+  }
+
+  // Stored log entries (status changes, reassignments, future backend log).
+  if (d.activityLog?.length) entries.push(...d.activityLog);
+
+  // Defensive: never show non-executive ("System") rows.
+  return entries
+    .filter((e) => e.name && e.name !== "System")
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+}
 
 function LabeledInput({
   label,
@@ -649,6 +1031,8 @@ function SlotPicker({
             <Calendar
               mode="single"
               selected={date}
+              // Block past dates — slots can only be booked today or later.
+              disabled={{ before: startOfToday() }}
               onSelect={(d) => {
                 if (d)
                   onChange({

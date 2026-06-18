@@ -46,3 +46,6 @@ docs/superpowers/
 CLAUDE.md
 AGENTS.md
 .claude/
+
+# Local one-off ops / DB scripts (run by hand, not for the shared repo)
+scripts/*.cjs

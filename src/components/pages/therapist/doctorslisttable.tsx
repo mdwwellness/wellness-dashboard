@@ -2,9 +2,30 @@
 import { TherapistformType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
-import TherapistDetailsActionPage from "./theraipst-detail-page";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
+import { User } from "lucide-react";
+
+function TherapistAvatar({ url, name }: { url?: string; name: string }) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("");
+  return (
+    <div className="h-8 w-8 rounded-full border bg-muted overflow-hidden flex items-center justify-center shrink-0">
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={name} className="h-full w-full object-cover" />
+      ) : initials ? (
+        <span className="text-[10px] font-semibold text-muted-foreground">
+          {initials}
+        </span>
+      ) : (
+        <User className="h-4 w-4 text-muted-foreground" />
+      )}
+    </div>
+  );
+}
 
 export const DoctorsListColumn: ColumnDef<TherapistformType>[] = [
   {
@@ -12,7 +33,16 @@ export const DoctorsListColumn: ColumnDef<TherapistformType>[] = [
     header: ({ column }) => {
       return <DataTableColumnHeader column={column} title="Name" />
     },
-    cell: ({ row }) => row.getValue("name"),
+    cell: ({ row }) => {
+      const name = row.getValue("name") as string;
+      const profileImage = (row.original as TherapistformType).profileImage;
+      return (
+        <div className="flex items-center gap-2">
+          <TherapistAvatar url={profileImage} name={name ?? ""} />
+          <span>{name}</span>
+        </div>
+      );
+    },
   },
   {
     accessorKey: "email",
@@ -67,20 +97,4 @@ export const DoctorsListColumn: ColumnDef<TherapistformType>[] = [
       )
     },
   },
-  {
-    id: "action",
-    cell: ({ row }) => {
-      const details = row.original;
-      return (
-        <>
-          <TherapistDetailsActionPage data={details}>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </TherapistDetailsActionPage>
-        </>
-      )
-    }
-  }
 ];

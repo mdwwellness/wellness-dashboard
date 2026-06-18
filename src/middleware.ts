@@ -18,9 +18,10 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = pathname.startsWith("/auth");
 
   if (
-    pathname.startsWith('/_next') || 
-    pathname.startsWith('/static') || 
-    pathname.includes('.') ||   
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname.startsWith('/api/uploadthing') ||
+    pathname.includes('.') ||
     pathname === '/favicon.ico'
   ) {
     return NextResponse.next();
