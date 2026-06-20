@@ -168,6 +168,11 @@ export const enquirySchema = z.object({
     )
     .optional(),
 
+  // ── How many times this person re-submitted a booking while this lead
+  // stayed OPEN. The backend bumps this (and logs the repeat in activityLog)
+  // instead of creating a duplicate row. Defaults to 1 server-side. ──
+  repeatCount: z.number().optional(),
+
   // ── Reason captured when a status is manually overridden. ──
   statusNote: z.string().optional(),
 

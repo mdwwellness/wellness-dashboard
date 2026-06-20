@@ -155,9 +155,22 @@ export function makeEnquiryColumns({
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Name" />
       ),
-      cell: ({ row }) => (
-        <span className="font-medium">{row.original.name || "—"}</span>
-      ),
+      cell: ({ row }) => {
+        const count = row.original.repeatCount ?? 1;
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="font-medium">{row.original.name || "—"}</span>
+            {count > 1 && (
+              <span
+                title={`This person submitted ${count} bookings while this lead was open — see the activity log`}
+                className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber-700 whitespace-nowrap dark:bg-amber-950/40 dark:text-amber-400"
+              >
+                ↺ {count}
+              </span>
+            )}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "phonenumber",
