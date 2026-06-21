@@ -126,7 +126,7 @@ export default function AppointmentBookingForm() {
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-5"
+            className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mt-5"
           >
             <div className="w-full space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -259,7 +259,7 @@ export default function AppointmentBookingForm() {
                           <Button
                             type="button"
                             variant="outline"
-                            className={cn("w-[240px] justify-start text-left font-normal")}
+                            className={cn("w-full sm:w-[240px] justify-start text-left font-normal")}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}

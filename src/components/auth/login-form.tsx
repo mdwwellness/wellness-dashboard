@@ -47,7 +47,7 @@ export const LoginForm = () => {
   };
 
   return (
-    <Card className="p-6 w-[500px]">
+    <Card className="p-6 w-full max-w-[500px]">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField

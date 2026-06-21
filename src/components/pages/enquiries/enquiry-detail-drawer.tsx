@@ -374,7 +374,7 @@ export function EnquiryDetailDrawer({
           {/* ── Section: Lead info ── */}
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">Lead info</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <LabeledInput
                 label="Name"
                 value={draft.name ?? ""}
@@ -411,7 +411,7 @@ export function EnquiryDetailDrawer({
                 <label className="text-xs text-muted-foreground">
                   Preferred reach-out
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Input
                     type="time"
                     aria-label="Preferred reach-out from"
@@ -574,7 +574,7 @@ export function EnquiryDetailDrawer({
             className="space-y-3 border-t pt-4 scroll-mt-4"
           >
             <h3 className="text-sm font-semibold">4. Payment</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground">
                   Amount (₹)
@@ -1013,7 +1013,7 @@ function SlotPicker({
   const date = value?.date ? new Date(value.date) : undefined;
 
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <div>
         <label className="text-xs text-muted-foreground">{label} date</label>
         <Popover open={open} onOpenChange={setOpen}>

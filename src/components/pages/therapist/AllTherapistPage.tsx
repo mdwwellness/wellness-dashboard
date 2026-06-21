@@ -28,7 +28,7 @@ export default function AllTherapistPage({
   return (
     <QueryWrapper isLoading={isLoading} isError={isError} error={error}>
       <Card>
-        <CardHeader className="flex flex-row justify-start items-center gap-2">
+        <CardHeader className="flex flex-row flex-wrap justify-start items-center gap-2">
           <div className="flex flex-col gap-2">
             <CardTitle>Therapist List</CardTitle>
             <CardDescription>Manage all your Therapist.</CardDescription>

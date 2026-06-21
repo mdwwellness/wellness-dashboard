@@ -72,7 +72,7 @@ const DashboardPageComponents = () => {
   });
 
   return (
-    <div className="w-full flex flex-col justify-center items-center gap-6 px-1 md:px-8 pt-10">
+    <div className="w-full flex flex-col justify-center items-center gap-6 px-3 sm:px-4 md:px-8 pt-10">
       <div className="flex justify-between items-center w-full">
         <h1 className="text-3xl md:text-4xl font-bold">Dashboard</h1>
 

@@ -91,9 +91,9 @@ const SettingsPageComponents = () => {
   };
 
   return (
-    <div className="w-full min-h-screen px-6 py-8">
+    <div className="w-full min-h-screen px-4 sm:px-6 py-8">
       <div className="flex w-full  mx-auto gap-6 items-start justify-center flex-col lg:flex-row">
-          <Card className="w-[400px] flex-shrink-0">
+          <Card className="w-full lg:w-[400px] flex-shrink-0">
             <CardHeader className="flex flex-col items-center text-center gap-4">
               <Image
                 src={Avatar}
@@ -199,7 +199,7 @@ const SettingsPageComponents = () => {
                               <RadioGroup
                                 onValueChange={field.onChange}
                                 value={field.value}
-                                className="flex gap-6"
+                                className="flex flex-wrap gap-6"
                               >
                                 <FormItem className="flex items-center space-x-2">
                                   <FormControl>

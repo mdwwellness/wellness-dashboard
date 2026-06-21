@@ -99,7 +99,7 @@ export default function ConsultationForm() {
                           <Button
                             type="button"
                             variant="outline"
-                            className={cn("w-[240px] justify-start text-left font-normal")}
+                            className={cn("w-full sm:w-[240px] justify-start text-left font-normal")}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}

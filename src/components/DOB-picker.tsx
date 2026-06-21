@@ -61,7 +61,7 @@ export function DOBPicker({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[360px] p-2">
+      <PopoverContent className="w-[360px] max-w-[calc(100vw-2rem)] p-2">
         <div className="flex gap-2">
 
           {/* Day */}

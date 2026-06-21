@@ -432,7 +432,7 @@ export default function EnquiriesPage() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row justify-between items-start">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
           <div>
             <CardTitle>Enquiries</CardTitle>
             <CardDescription>
@@ -541,7 +541,7 @@ export default function EnquiriesPage() {
                     setAttendedStageFilter(v as FunnelStage | "all")
                   }
                 >
-                  <SelectTrigger className="w-[220px]">
+                  <SelectTrigger className="w-full sm:w-[220px]">
                     <SelectValue placeholder="All stages" />
                   </SelectTrigger>
                   <SelectContent>
