@@ -9,6 +9,7 @@ import {
   Inbox,
   PanelLeft,
   Package,
+  PhoneMissed,
   Settings,
   UserPlus,
   Users,
@@ -51,6 +52,11 @@ const navLinks = [
     title: "Enquiries",
     icon: <Inbox className="h-5 w-5" />,
     href: "/dashboard/enquiries",
+  },
+  {
+    title: "Follow-ups",
+    icon: <PhoneMissed className="h-5 w-5" />,
+    href: "/dashboard/follow-ups",
   },
   {
     title: "Customers",

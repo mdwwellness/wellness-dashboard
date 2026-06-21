@@ -144,7 +144,7 @@ interface SectionTableProps {
  * "Attended" sections. Each instance owns its own sort/visibility state so
  * the two tables sort and filter independently.
  */
-function SectionTable({
+export function SectionTable({
   records,
   columns,
   search,
@@ -348,7 +348,10 @@ export default function EnquiriesPage() {
       enquiryRecords.filter(
         (r) =>
           (r.status ?? "enquiry") === "enquiry" &&
-          r.executiveReachedOut !== true,
+          r.executiveReachedOut !== true &&
+          // Leads we've already tried but couldn't reach move to /dashboard/follow-ups,
+          // so "Needs first contact" stays genuinely untouched.
+          (r.reachAttempts ?? 0) === 0,
       ),
     [enquiryRecords],
   );
@@ -378,6 +381,7 @@ export default function EnquiriesPage() {
   const attendedStageCounts = useMemo(() => {
     const counts: Record<FunnelStage, number> = {
       enquiry: 0,
+      follow_up: 0,
       reached_out: 0,
       consult_booked: 0,
       consult_done: 0,
@@ -548,7 +552,9 @@ export default function EnquiriesPage() {
                     <SelectItem value="all">
                       All stages ({attendedRecords.length})
                     </SelectItem>
-                    {STAGE_ORDER.filter((s) => s !== "enquiry").map((stage) => (
+                    {STAGE_ORDER.filter(
+                      (s) => s !== "enquiry" && s !== "follow_up",
+                    ).map((stage) => (
                       <SelectItem
                         key={stage}
                         value={stage}

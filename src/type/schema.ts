@@ -173,6 +173,12 @@ export const enquirySchema = z.object({
   // instead of creating a duplicate row. Defaults to 1 server-side. ──
   repeatCount: z.number().optional(),
 
+  // ── Follow-up tracking: how many times an executive tried to call but
+  // couldn't connect (no answer), and when the last attempt was. Drives the
+  // /dashboard/follow-ups view. ──
+  reachAttempts: z.number().optional(),
+  lastAttemptAt: z.string().datetime().optional(),
+
   // ── Reason captured when a status is manually overridden. ──
   statusNote: z.string().optional(),
 

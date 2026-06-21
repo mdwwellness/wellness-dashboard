@@ -10,6 +10,7 @@ import type { EnquiryType } from "@/type/schema";
 
 const STAGE_CLASSES: Record<FunnelStage, string> = {
   enquiry: "border-yellow-600 text-yellow-700 bg-yellow-50",
+  follow_up: "border-orange-600 text-orange-700 bg-orange-50",
   reached_out: "border-blue-600 text-blue-700 bg-blue-50",
   consult_booked: "border-indigo-600 text-indigo-700 bg-indigo-50",
   consult_done: "border-emerald-600 text-emerald-700 bg-emerald-50",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, Column } from "@tanstack/react-table";
 import { MoreHorizontal, Check, Info } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -127,12 +127,18 @@ interface MakeColumnsParams {
   /** Which timestamp to show: "received" = createdAt (when the enquiry came
    *  in), "updated" = updatedAt (last staff action). */
   lastActiveField?: "received" | "updated";
+  /** Show a "Call tries" column (failed reach-out attempts) — used on Follow-ups. */
+  showAttempts?: boolean;
+  /** Show contact/intake columns (email, city, type) — used on Follow-ups. */
+  showContactCols?: boolean;
 }
 
 export function makeEnquiryColumns({
   onOpenDetail,
   lastActiveLabel = "Last active",
   lastActiveField = "updated",
+  showAttempts = false,
+  showContactCols = false,
 }: MakeColumnsParams): ColumnDef<EnquiryType>[] {
   return [
     {
@@ -177,6 +183,35 @@ export function makeEnquiryColumns({
       header: "Phone",
       cell: ({ row }) => row.original.phonenumber ?? "—",
     },
+    // ── Contact / intake details (only rendered on the Follow-ups view) ──
+    ...(showContactCols
+      ? [
+          {
+            accessorKey: "email",
+            header: "Email",
+            cell: ({ row }: { row: { original: EnquiryType } }) =>
+              row.original.email ? (
+                <span className="text-sm whitespace-nowrap">
+                  {row.original.email}
+                </span>
+              ) : (
+                <span className="text-muted-foreground/40">—</span>
+              ),
+          } as ColumnDef<EnquiryType>,
+          {
+            accessorKey: "location",
+            header: "City",
+            cell: ({ row }: { row: { original: EnquiryType } }) =>
+              row.original.location ? (
+                <span className="text-sm whitespace-nowrap">
+                  {row.original.location}
+                </span>
+              ) : (
+                <span className="text-muted-foreground/40">—</span>
+              ),
+          } as ColumnDef<EnquiryType>,
+        ]
+      : []),
     // ── Headline: where the lead is in the journey ──
     {
       id: "status",
@@ -189,12 +224,12 @@ export function makeEnquiryColumns({
       cell: ({ row }) => <EnquiryStatusBadge record={row.original} />,
     },
     {
-      accessorKey: "preferredReachOutTime",
-      header: () => (
-        <HeaderHint
-          label="Preferred call time"
-          hint="The time window this lead asked to be contacted in"
-        />
+      id: "preferredReachOutTime",
+      // Sort by window start ("HH:MM" sorts correctly as a 24h string); the cell
+      // still renders the full range from row.original.
+      accessorFn: (r) => r.preferredReachOutTime?.from ?? "",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Preferred call time" />
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground whitespace-nowrap">
@@ -202,6 +237,53 @@ export function makeEnquiryColumns({
         </span>
       ),
     },
+    // ── Call tries (only rendered on the Follow-ups view) ──
+    ...(showAttempts
+      ? [
+          {
+            id: "attempts",
+            accessorFn: (r: EnquiryType) => r.reachAttempts ?? 0,
+            header: ({ column }: { column: Column<EnquiryType, unknown> }) => (
+              <DataTableColumnHeader column={column} title="Call tries" />
+            ),
+            cell: ({ row }: { row: { original: EnquiryType } }) => {
+              const n = row.original.reachAttempts ?? 0;
+              const iso = row.original.lastAttemptAt;
+              const last = iso ? new Date(iso) : null;
+              return (
+                <div className="whitespace-nowrap">
+                  <span className="inline-flex items-center rounded-full bg-orange-100 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-orange-700 dark:bg-orange-950/40 dark:text-orange-400">
+                    {n} {n === 1 ? "try" : "tries"}
+                  </span>
+                  {last && !Number.isNaN(last.getTime()) && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      last {format(last, "yyyy-MM-dd HH:mm")}
+                    </span>
+                  )}
+                </div>
+              );
+            },
+          } as ColumnDef<EnquiryType>,
+        ]
+      : []),
+    // ── Type of appointment (only rendered on the Follow-ups view) ──
+    ...(showContactCols
+      ? [
+          {
+            id: "typeOfappointment",
+            accessorFn: (r: EnquiryType) => r.typeOfappointment ?? "",
+            header: "Type",
+            cell: ({ row }: { row: { original: EnquiryType } }) =>
+              row.original.typeOfappointment ? (
+                <span className="text-sm capitalize whitespace-nowrap">
+                  {row.original.typeOfappointment}
+                </span>
+              ) : (
+                <span className="text-muted-foreground/40">—</span>
+              ),
+          } as ColumnDef<EnquiryType>,
+        ]
+      : []),
     // ── Stage ① Reach-out ──
     {
       id: "reach",

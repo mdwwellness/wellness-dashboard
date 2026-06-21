@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format, startOfToday } from "date-fns";
-import { CalendarIcon, Check, Loader2, Pencil } from "lucide-react";
+import { CalendarIcon, Check, Loader2, Pencil, PhoneMissed } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -234,6 +234,34 @@ export function EnquiryDetailDrawer({
       },
       checked, // ticking ON is a funnel advance (captures reachedOutBy etc.)
     );
+  }
+
+  // Log a failed call attempt ("no answer"). Deliberately NOT a funnel advance:
+  // status stays "enquiry" and executiveReachedOut stays false, so the lead lands
+  // on /dashboard/follow-ups rather than moving into "Attended".
+  function logNoAnswer() {
+    const n = (draft!.reachAttempts ?? 0) + 1;
+    const entry: ActivityEntry = {
+      at: new Date().toISOString(),
+      userId: currentUser?.id,
+      name: currentActorName(),
+      action: `Attempted to call — no answer (#${n})`,
+    };
+    save({
+      reachAttempts: n,
+      lastAttemptAt: new Date().toISOString(),
+      activityLog: [...(draft!.activityLog ?? []), entry],
+      // Claim ownership on the first attempt (without advancing the funnel) so
+      // "Handled by" shows who's chasing the lead.
+      reachedOutBy:
+        draft!.reachedOutBy ??
+        (currentUser
+          ? {
+              userId: currentUser.id,
+              name: currentActorName(),
+            }
+          : undefined),
+    });
   }
 
   function toggleConsultDone(checked: boolean) {
@@ -469,6 +497,29 @@ export function EnquiryDetailDrawer({
                 Reached out at{" "}
                 {new Date(draft.executiveReachedOutAt).toLocaleString()}
               </p>
+            )}
+
+            {/* Couldn't-connect path — only relevant until we successfully reach them. */}
+            {!draft.executiveReachedOut && (
+              <div className="space-y-1.5 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={logNoAnswer}
+                  className="border-orange-300 text-orange-700 hover:bg-orange-50 dark:text-orange-400"
+                >
+                  <PhoneMissed className="mr-2 h-4 w-4" />
+                  Couldn&apos;t connect (no answer)
+                </Button>
+                {(draft.reachAttempts ?? 0) > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Attempts: {draft.reachAttempts}
+                    {draft.lastAttemptAt &&
+                      ` · last ${new Date(draft.lastAttemptAt).toLocaleString()}`}
+                  </p>
+                )}
+              </div>
             )}
           </section>
 
