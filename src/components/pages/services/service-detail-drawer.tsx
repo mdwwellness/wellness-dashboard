@@ -64,6 +64,7 @@ export function ServiceDetailDrawer({
         name: service.name,
         description: service.description ?? "",
         price: service.price,
+        recommendedPrice: service.recommendedPrice,
         category: service.category,
         hsnCode: service.hsnCode,
       });

@@ -239,6 +239,8 @@ export const serviceFormSchema = z.object({
   price: z
     .number({ error: "Price is required" })
     .nonnegative("Price can't be negative"),
+  // Discounted price used when a therapist recommends this service in a visit.
+  recommendedPrice: z.number().nonnegative("Can't be negative").optional(),
   category: z.string().min(1, "Category is required"),
   hsnCode: z
     .string()

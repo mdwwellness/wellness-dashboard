@@ -101,6 +101,38 @@ export function ServiceFormFields({
 
       <FormField
         control={control}
+        name="recommendedPrice"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Recommended price (₹)</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                placeholder="Discounted (optional)"
+                name={field.name}
+                ref={field.ref}
+                onBlur={field.onBlur}
+                value={
+                  field.value === undefined || Number.isNaN(field.value)
+                    ? ""
+                    : field.value
+                }
+                onChange={(e) =>
+                  field.onChange(
+                    e.target.value === "" ? undefined : e.target.valueAsNumber,
+                  )
+                }
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
         name="hsnCode"
         render={({ field }) => (
           <FormItem>
