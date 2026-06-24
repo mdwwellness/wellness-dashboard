@@ -2,8 +2,8 @@ import { LoginForm } from "@/components/auth/login-form"
 
 const LoginPage = () => {
   return (
-    <div>
-    <LoginForm />
+    <div className="w-full max-w-[500px]">
+      <LoginForm />
     </div>
   )
 }
