@@ -69,8 +69,8 @@ export function ServiceDetailDrawer({
         category: service.category,
         hsnCode: service.hsnCode,
         isPackage: service.isPackage ?? false,
-        sessions: service.sessions,
-        billingCycle: service.billingCycle,
+        packageUnit: service.packageUnit,
+        packageCount: service.packageCount,
       });
     }
   }, [service, form]);

@@ -170,16 +170,16 @@ export function ServiceFormFields({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               control={control}
-              name="sessions"
+              name="packageCount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Sessions included</FormLabel>
+                  <FormLabel>How many</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       min={0}
                       step={1}
-                      placeholder="e.g. 2"
+                      placeholder="e.g. 6"
                       name={field.name}
                       ref={field.ref}
                       onBlur={field.onBlur}
@@ -203,23 +203,23 @@ export function ServiceFormFields({
             />
             <FormField
               control={control}
-              name="billingCycle"
+              name="packageUnit"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Billing cycle</FormLabel>
+                  <FormLabel>Measured in</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value || undefined}
                   >
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select cycle" />
+                        <SelectValue placeholder="Sessions / Weeks / Months" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="one-time">One-time</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="sessions">Sessions (therapy)</SelectItem>
+                      <SelectItem value="weeks">Weeks (vitals)</SelectItem>
+                      <SelectItem value="months">Months (vitals)</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
