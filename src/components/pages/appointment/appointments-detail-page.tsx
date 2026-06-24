@@ -10,6 +10,7 @@ import {
 import { slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "./appointments-details-page";
 import { RecommendService } from "./recommend-service";
+import { WorkChecklist } from "./work-checklist";
 
 type AppointmentDetailDrawerProps = {
   data: slotBookingZodType | null;
@@ -41,6 +42,7 @@ const AppointmentDetailDrawer = ({
               appointment={data}
               onDone={() => onOpenChange(false)}
             />
+            <WorkChecklist appointment={data} />
           </div>
         ) : null}
       </SheetContent>
