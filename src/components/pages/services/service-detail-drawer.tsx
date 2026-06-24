@@ -38,6 +38,7 @@ const emptyValues: ServiceFormType = {
   price: 0,
   category: "",
   hsnCode: "",
+  isPackage: false,
 };
 
 interface ServiceDetailDrawerProps {
@@ -67,6 +68,9 @@ export function ServiceDetailDrawer({
         recommendedPrice: service.recommendedPrice,
         category: service.category,
         hsnCode: service.hsnCode,
+        isPackage: service.isPackage ?? false,
+        sessions: service.sessions,
+        billingCycle: service.billingCycle,
       });
     }
   }, [service, form]);

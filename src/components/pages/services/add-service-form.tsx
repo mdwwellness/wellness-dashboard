@@ -25,6 +25,7 @@ const emptyValues: ServiceFormType = {
   price: 0,
   category: "",
   hsnCode: "",
+  isPackage: false,
 };
 
 export function AddServiceForm() {

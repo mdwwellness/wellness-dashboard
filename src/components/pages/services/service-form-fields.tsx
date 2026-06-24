@@ -1,6 +1,6 @@
 "use client";
 
-import type { Control } from "react-hook-form";
+import { useWatch, type Control } from "react-hook-form";
 
 import {
   FormControl,
@@ -26,6 +26,7 @@ export function ServiceFormFields({
 }: {
   control: Control<ServiceFormType>;
 }) {
+  const isPackage = useWatch({ control, name: "isPackage" });
   return (
     <>
       <FormField
@@ -144,6 +145,90 @@ export function ServiceFormFields({
           </FormItem>
         )}
       />
+
+      <div className="md:col-span-2 space-y-3 rounded-md border p-3">
+        <FormField
+          control={control}
+          name="isPackage"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center gap-2 space-y-0">
+              <FormControl>
+                <input
+                  type="checkbox"
+                  checked={field.value ?? false}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              </FormControl>
+              <FormLabel className="!mt-0">
+                This is a package (bundled sessions / recurring plan)
+              </FormLabel>
+            </FormItem>
+          )}
+        />
+
+        {isPackage ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={control}
+              name="sessions"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sessions included</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="e.g. 2"
+                      name={field.name}
+                      ref={field.ref}
+                      onBlur={field.onBlur}
+                      value={
+                        field.value === undefined || Number.isNaN(field.value)
+                          ? ""
+                          : field.value
+                      }
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value === ""
+                            ? undefined
+                            : e.target.valueAsNumber,
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="billingCycle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Billing cycle</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select cycle" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="one-time">One-time</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <FormField
         control={control}

@@ -261,6 +261,10 @@ export const serviceFormSchema = z.object({
     .string()
     .min(1, "HSN/SAC code is required")
     .regex(/^\d{4,8}$/, "HSN/SAC must be 4–8 digits"),
+  // ── Package metadata (catalogue only) ──
+  isPackage: z.boolean().optional(),
+  sessions: z.number().nonnegative().optional(),
+  billingCycle: z.enum(["one-time", "monthly", "quarterly"]).optional(),
 });
 export type ServiceFormType = z.infer<typeof serviceFormSchema>;
 
