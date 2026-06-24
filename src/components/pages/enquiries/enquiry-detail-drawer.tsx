@@ -613,11 +613,13 @@ export function EnquiryDetailDrawer({
                   <SelectValue placeholder="Pick a therapist" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(therapists ?? []).map((t: TherapistformType) => (
-                    <SelectItem key={t.doctorId} value={t.doctorId}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
+                  {(therapists ?? [])
+                    .filter((t: TherapistformType) => t.doctorId)
+                    .map((t: TherapistformType) => (
+                      <SelectItem key={t.doctorId} value={t.doctorId as string}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

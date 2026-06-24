@@ -229,7 +229,8 @@ export type Certificate = z.infer<typeof certificateSchema>;
 
 export const TherapistformSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  doctorId: z.string().min(1, "ID is required"),
+  // Auto-allocated server-side (THR-####) when left blank.
+  doctorId: z.string().optional(),
   gender:z.enum(["male","female"]),
   email: z.string().email("Invalid email"),
   phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),

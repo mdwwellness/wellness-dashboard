@@ -199,7 +199,10 @@ export default function AddDoctorForm() {
                       <FormItem>
                         <FormLabel>Therapist ID</FormLabel>
                         <FormControl>
-                          <Input placeholder="Therapist ID" {...field} />
+                          <Input
+                            placeholder="Auto-assigned (THR-####) if left blank"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
