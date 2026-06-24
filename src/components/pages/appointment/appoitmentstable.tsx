@@ -10,7 +10,16 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
     header: ({ column }) => {
       return <DataTableColumnHeader column={column} title="Name" />;
     },
-    cell: ({ row }) => row.getValue("name"),
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-1.5">
+        {row.getValue("name")}
+        {row.original.appointmentKind === "recommended" && (
+          <Badge variant="secondary" className="text-[10px]">
+            Recommended
+          </Badge>
+        )}
+      </span>
+    ),
   },
   {
     accessorKey: "location",

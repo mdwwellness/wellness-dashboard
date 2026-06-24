@@ -9,6 +9,7 @@ import {
 } from "../../ui/sheet";
 import { slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "./appointments-details-page";
+import { RecommendService } from "./recommend-service";
 
 type AppointmentDetailDrawerProps = {
   data: slotBookingZodType | null;
@@ -35,6 +36,10 @@ const AppointmentDetailDrawer = ({
             <AppointmentDetailsPage
               data={data}
               onClose={() => onOpenChange(false)}
+            />
+            <RecommendService
+              appointment={data}
+              onDone={() => onOpenChange(false)}
             />
           </div>
         ) : null}
