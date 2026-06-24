@@ -1,6 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
+import { isToday } from "date-fns";
 import AppointmentBookingForm from "./appointmentbookingform";
+import { MetricCard, MetricCardsRow } from "@/components/metric-card";
+import { isTodayISO, readCreatedISO } from "@/lib/metrics";
 import {
   Card,
   CardContent,
@@ -41,8 +45,43 @@ export default function SlotBookingPage() {
     error,
     refetch,
   } = useGetAllAppointments({ role, id, userEmail });
+
+  const apptTodayStats = useMemo(() => {
+    const recs = appointments ?? [];
+    return {
+      newToday: recs.filter((r) => isTodayISO(readCreatedISO(r))).length,
+      sessionsToday: recs.filter((r) => {
+        const d = r.slot?.date ? new Date(r.slot.date) : null;
+        if (!d || Number.isNaN(d.getTime())) return false;
+        return isToday(d);
+      }).length,
+      completedToday: recs.filter((r) => isTodayISO(r.completedAt)).length,
+      paymentsToday: recs.filter((r) => isTodayISO(r.paymentReceivedAt)).length,
+    };
+  }, [appointments]);
+
   return (
-    <Card>
+    <>
+      <MetricCardsRow className="mb-4">
+        <MetricCard
+          label="New appointments today"
+          value={apptTodayStats.newToday}
+        />
+        <MetricCard
+          label="Today's sessions"
+          value={apptTodayStats.sessionsToday}
+          hint="Scheduled for today"
+        />
+        <MetricCard
+          label="Completed today"
+          value={apptTodayStats.completedToday}
+        />
+        <MetricCard
+          label="Payments received today"
+          value={apptTodayStats.paymentsToday}
+        />
+      </MetricCardsRow>
+      <Card>
       <CardHeader className="flex flex-row flex-wrap justify-start items-center gap-2">
         <div className="flex flex-col gap-2">
           <CardTitle>Appointments</CardTitle>
@@ -67,5 +106,6 @@ export default function SlotBookingPage() {
         </QueryWrapper>
       </CardContent>
     </Card>
+    </>
   );
 }

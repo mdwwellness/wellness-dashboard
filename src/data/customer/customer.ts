@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import type { EnquiryType, UserType } from "@/type/schema";
+import { isTodayISO, readCreatedISO } from "@/lib/metrics";
 
 /**
  * A customer is derived client-side from the appointments collection by
@@ -119,6 +120,33 @@ export function computeCustomerStats(customers: Customer[]): CustomerStats {
     bookingsThisMonth,
     returningCustomers: customers.filter((c) => c.totalBookings >= 2).length,
   };
+}
+
+export interface CustomerTodayStats {
+  newCustomersToday: number;
+  bookingsToday: number;
+  returningToday: number;
+}
+
+/** "Today" KPI cards for the Customers page — derived from grouped customers. */
+export function computeCustomerTodayStats(
+  customers: Customer[],
+): CustomerTodayStats {
+  let newCustomersToday = 0;
+  let bookingsToday = 0;
+  let returningToday = 0;
+  for (const c of customers) {
+    if (isTodayISO(c.firstBookingAt)) newCustomersToday++;
+    // An existing customer (first booking before today) who booked again today.
+    if (isTodayISO(c.lastBookingAt) && !isTodayISO(c.firstBookingAt)) {
+      returningToday++;
+    }
+    for (const b of c.bookings) {
+      if (b.status === "cancelled") continue;
+      if (isTodayISO(readCreatedISO(b))) bookingsToday++;
+    }
+  }
+  return { newCustomersToday, bookingsToday, returningToday };
 }
 
 export function useGetCustomers(user: UserType) {

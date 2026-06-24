@@ -57,6 +57,8 @@ import {
   deriveStage,
   type FunnelStage,
 } from "./stage";
+import { MetricCard, MetricCardsRow } from "@/components/metric-card";
+import { isTodayISO, readCreatedISO } from "@/lib/metrics";
 
 const COLLAPSED_ATTENDED_ROWS = 5;
 
@@ -433,8 +435,35 @@ export default function EnquiriesPage() {
       ? "No enquiries yet. Click + New Enquiry to log one."
       : "All caught up — every lead has been contacted.";
 
+  const enquiryTodayStats = useMemo(
+    () => ({
+      newToday: enquiryRecords.filter((r) => isTodayISO(readCreatedISO(r)))
+        .length,
+      reachedToday: enquiryRecords.filter((r) =>
+        isTodayISO(r.executiveReachedOutAt),
+      ).length,
+      attemptsToday: enquiryRecords.filter((r) => isTodayISO(r.lastAttemptAt))
+        .length,
+    }),
+    [enquiryRecords],
+  );
+
   return (
     <>
+      <MetricCardsRow className="mb-4">
+        <MetricCard
+          label="New enquiries today"
+          value={enquiryTodayStats.newToday}
+        />
+        <MetricCard
+          label="Reached out today"
+          value={enquiryTodayStats.reachedToday}
+        />
+        <MetricCard
+          label="Call attempts today"
+          value={enquiryTodayStats.attemptsToday}
+        />
+      </MetricCardsRow>
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
           <div>

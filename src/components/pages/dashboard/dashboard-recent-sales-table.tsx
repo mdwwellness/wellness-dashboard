@@ -5,7 +5,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { useGetAllAppointments } from "@/data/appointment/appointment";
-import { AnalyticsType } from "@/type/schema";
 import { useAuthStore } from "@/providers/permission-provider";
 import { QueryWrapper } from "@/components/query-wrapper";
 
@@ -40,7 +39,7 @@ function AppointmentTableSkeleton() {
   );
 }
 
-const DashboardTable = ({ data }: { data: AnalyticsType }) => {
+const DashboardTable = () => {
   const { user } = useAuthStore();
   const { role, id, userEmail } = user || {};
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,21 +59,6 @@ const DashboardTable = ({ data }: { data: AnalyticsType }) => {
 
   return (
     <div className="w-full space-y-6">
-
-      {/* stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
-        {[
-          { label: "Total Active Doctors", value: data?.totalActiveDoctors },
-          { label: "Total Patients (This Month)", value: data?.patientsInCurrentMonth },
-          { label: "Total Appointments (This Month)", value: data?.appointmentsInCurrentMonth },
-          { label: "Completed Appointments (This Month)", value: data?.completedAppointments },
-        ].map(({ label, value }) => (
-          <div key={label} className="border border-border p-5 rounded-xl h-28">
-            <p className="text-sm font-medium text-muted-foreground mb-4">{label}</p>
-            <p className="text-3xl font-extrabold">{value ?? "--"}</p>
-          </div>
-        ))}
-      </div>
 
       {/* appointments table */}
       <QueryWrapper

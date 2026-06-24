@@ -21,6 +21,8 @@ import { SectionTable } from "../enquiries/EnquiriesPage";
 import { makeEnquiryColumns } from "../enquiries/enquiries-columns";
 import { EnquiryDetailDrawer } from "../enquiries/enquiry-detail-drawer";
 import { isFollowUp } from "../enquiries/stage";
+import { MetricCard, MetricCardsRow } from "@/components/metric-card";
+import { isTodayISO } from "@/lib/metrics";
 
 // Columns that don't apply to a not-yet-connected lead are hidden here.
 // (Stage is always "Follow-up" on this page, and the ENQ id is redundant.)
@@ -85,8 +87,31 @@ export default function FollowUpsPage() {
     [],
   );
 
+  const todayStats = useMemo(() => {
+    const recs = allRecords ?? [];
+    return {
+      newToday: recs.filter(
+        (r) => r.reachAttempts === 1 && isTodayISO(r.lastAttemptAt),
+      ).length,
+      attemptsToday: recs.filter((r) => isTodayISO(r.lastAttemptAt)).length,
+      connectedToday: recs.filter(
+        (r) => (r.reachAttempts ?? 0) > 0 && isTodayISO(r.executiveReachedOutAt),
+      ).length,
+    };
+  }, [allRecords]);
+
   return (
     <>
+      <MetricCardsRow className="mb-4">
+        <MetricCard label="New follow-ups today" value={todayStats.newToday} />
+        <MetricCard label="Attempts made today" value={todayStats.attemptsToday} />
+        <MetricCard
+          label="Connected today"
+          value={todayStats.connectedToday}
+          hint="Chased & finally reached"
+        />
+        <MetricCard label="Open follow-ups" value={followUps.length} />
+      </MetricCardsRow>
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
           <div>

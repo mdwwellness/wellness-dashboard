@@ -12,7 +12,7 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
-import { IndianRupee, LayoutGrid, Package, RefreshCw, X } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 
 import {
   Card,
@@ -45,31 +45,7 @@ import type { ServiceType } from "@/type/schema";
 import { ServiceColumns, formatINR } from "./services-columns";
 import { AddServiceForm } from "./add-service-form";
 import { ServiceDetailDrawer } from "./service-detail-drawer";
-
-function StatCard({
-  title,
-  value,
-  icon,
-  hint,
-}: {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  hint?: string;
-}) {
-  return (
-    <div className="border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between bg-card">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-        {icon}
-      </div>
-      <div className="text-3xl font-bold text-emerald-600 tabular-nums">
-        {value}
-      </div>
-      {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
-    </div>
-  );
-}
+import { MetricCard } from "@/components/metric-card";
 
 export default function ServicesPage() {
   const {
@@ -142,21 +118,15 @@ export default function ServicesPage() {
         }
       >
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            title="Total Services"
-            value={stats.totalServices}
-            icon={<Package className="h-5 w-5 text-primary" />}
-          />
-          <StatCard
-            title="Categories"
+          <MetricCard label="Total Services" value={stats.totalServices} />
+          <MetricCard
+            label="Categories"
             value={stats.categories}
-            icon={<LayoutGrid className="h-5 w-5 text-primary" />}
             hint="distinct"
           />
-          <StatCard
-            title="Average Price"
+          <MetricCard
+            label="Average Price"
             value={formatINR(stats.avgPrice)}
-            icon={<IndianRupee className="h-5 w-5 text-primary" />}
           />
         </div>
       </QueryWrapper>

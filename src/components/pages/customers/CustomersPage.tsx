@@ -11,12 +11,7 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
-import {
-  CalendarDays,
-  RefreshCw,
-  UserCheck,
-  Users,
-} from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 import {
   Card,
@@ -41,10 +36,11 @@ import { QueryWrapper } from "@/components/query-wrapper";
 
 import { useAuthStore } from "@/providers/permission-provider";
 import {
-  computeCustomerStats,
+  computeCustomerTodayStats,
   useGetCustomers,
   type Customer,
 } from "@/data/customer/customer";
+import { MetricCard, MetricCardsRow } from "@/components/metric-card";
 
 import { makeCustomerColumns } from "./customers-columns";
 import { CustomerDetailDrawer } from "./customer-detail-drawer";
@@ -72,58 +68,21 @@ function TableSkeleton() {
   );
 }
 
-function CustomerStatCards({
-  totalCustomers,
-  totalBookings,
-  bookingsThisMonth,
-  returningCustomers,
-}: ReturnType<typeof computeCustomerStats>) {
-  const cards = [
-    {
-      title: "Total Customers",
-      value: totalCustomers,
-      icon: <Users className="h-5 w-5 text-primary" />,
-    },
-    {
-      title: "Total Bookings",
-      value: totalBookings,
-      icon: <CalendarDays className="h-5 w-5 text-primary" />,
-    },
-    {
-      title: "Bookings This Month",
-      value: bookingsThisMonth,
-      icon: <CalendarDays className="h-5 w-5 text-primary" />,
-    },
-    {
-      title: "Returning Customers",
-      value: returningCustomers,
-      icon: <UserCheck className="h-5 w-5 text-primary" />,
-      hint: "2+ bookings",
-    },
-  ];
-
+function CustomerTodayCards({
+  newCustomersToday,
+  bookingsToday,
+  returningToday,
+}: ReturnType<typeof computeCustomerTodayStats>) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.title}
-          className="border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between bg-card"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              {card.title}
-            </h3>
-            {card.icon}
-          </div>
-          <div className="text-3xl font-bold text-emerald-600 tabular-nums">
-            {card.value}
-          </div>
-          {card.hint && (
-            <p className="text-xs text-muted-foreground mt-1">{card.hint}</p>
-          )}
-        </div>
-      ))}
-    </div>
+    <MetricCardsRow>
+      <MetricCard label="New customers today" value={newCustomersToday} />
+      <MetricCard label="Bookings today" value={bookingsToday} />
+      <MetricCard
+        label="Returning today"
+        value={returningToday}
+        hint="Existing customers who booked again"
+      />
+    </MetricCardsRow>
   );
 }
 
@@ -145,8 +104,8 @@ export default function CustomersPage() {
     {},
   );
 
-  const stats = useMemo(
-    () => computeCustomerStats(customers),
+  const todayStats = useMemo(
+    () => computeCustomerTodayStats(customers),
     [customers],
   );
 
@@ -206,7 +165,7 @@ export default function CustomersPage() {
           onRetry={refetch}
           skeleton={<StatCardsSkeleton />}
         >
-          <CustomerStatCards {...stats} />
+          <CustomerTodayCards {...todayStats} />
         </QueryWrapper>
 
         <Card>

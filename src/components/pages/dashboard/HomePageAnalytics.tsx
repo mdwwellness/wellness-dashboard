@@ -11,10 +11,17 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+
 import RecentSalesTable from "./dashboard-recent-sales-table";
-import DoctorCards from "./revenue-card";
-import { useGetAnalyticsData } from "@/data/dashboard/dashboard";
+import { MetricCard, MetricCardsRow } from "@/components/metric-card";
 import { QueryWrapper } from "@/components/query-wrapper";
+import { useAuthStore } from "@/providers/permission-provider";
+import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
+import { useGetServices } from "@/data/service/service";
+import { useGetAllTherapist } from "@/data/therapist/therapist";
+import { deriveCustomers } from "@/data/customer/customer";
+import { isFollowUp } from "@/components/pages/enquiries/stage";
+import type { EnquiryType } from "@/type/schema";
 
 const formSchema = z.object({
   dateRange: z.object({
@@ -23,12 +30,17 @@ const formSchema = z.object({
   }),
 });
 
-// skeleton for stats cards
-function DoctorCardsSkeleton() {
+// Statuses that count as a real booked appointment (vs a raw enquiry/lead).
+const APPOINTMENT_STATUSES = ["scheduled", "ongoing", "completed"];
+
+function TotalsSkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="border border-border p-5 rounded-xl h-28 space-y-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="border border-border p-5 rounded-xl h-24 space-y-3"
+        >
           <div className="h-3 w-1/2 rounded bg-muted animate-pulse" />
           <div className="h-8 w-1/3 rounded bg-muted animate-pulse" />
         </div>
@@ -37,29 +49,37 @@ function DoctorCardsSkeleton() {
   );
 }
 
-function TableSkeleton() {
-  return (
-    <div className="space-y-2 p-4 w-full">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="flex gap-4">
-          {Array.from({ length: 5 }).map((_, j) => (
-            <div key={j} className="h-8 flex-1 rounded bg-muted animate-pulse" />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 const DashboardPageComponents = () => {
-  const {
-    data: analyticsData,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useGetAnalyticsData();
+  const { user } = useAuthStore();
+  const { id, role, userEmail } = user || {};
 
+  // All totals are derived client-side from the lists the app already fetches.
+  const enq = useGetAllEnquiries({ role, id, userEmail });
+  const therapists = useGetAllTherapist();
+  const services = useGetServices();
+
+  const records = React.useMemo(
+    () => (enq.data ?? []) as EnquiryType[],
+    [enq.data],
+  );
+
+  const totals = React.useMemo(() => {
+    const therapistList = (therapists.data ?? []) as { isActive?: boolean }[];
+    const statusOf = (r: EnquiryType) => r.status ?? "enquiry";
+    return {
+      totalTherapists: therapistList.length,
+      activeTherapists: therapistList.filter((t) => t.isActive).length,
+      totalCustomers: deriveCustomers(records).length,
+      totalEnquiries: records.filter((r) => statusOf(r) === "enquiry").length,
+      totalAppointments: records.filter((r) =>
+        APPOINTMENT_STATUSES.includes(statusOf(r)),
+      ).length,
+      completedAppointments: records.filter((r) => statusOf(r) === "completed")
+        .length,
+      totalServices: services.data?.length ?? 0,
+      openFollowUps: records.filter(isFollowUp).length,
+    };
+  }, [records, therapists.data, services.data]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -70,6 +90,8 @@ const DashboardPageComponents = () => {
       },
     },
   });
+
+  const loading = enq.isLoading || therapists.isLoading || services.isLoading;
 
   return (
     <div className="w-full flex flex-col justify-center items-center gap-6 px-3 sm:px-4 md:px-8 pt-10">
@@ -123,44 +145,42 @@ const DashboardPageComponents = () => {
                   </FormItem>
                 )}
               />
-              <Button
-                type="button"
-                variant="secondary"
-                size="lg"
-                disabled
-              >
+              <Button type="button" variant="secondary" size="lg" disabled>
                 Apply
               </Button>
             </form>
           </Form>
         </div>
       </div>
-      <QueryWrapper
-        isLoading={isLoading}
-        isError={isError}
-        error={error}
-        onRetry={refetch}
-        skeleton={<DoctorCardsSkeleton />}
-      >
-        <DoctorCards
-          totalDoctors={analyticsData?.totalDoctors}
-          activeDoctors={analyticsData?.activeDoctors}
-          totalPatients={analyticsData?.totalPatients}
-          totalAppointments={analyticsData?.totalAppointments}
-        />
-      </QueryWrapper>
-      <div className="flex flex-col xl:flex-row w-full">
-        <QueryWrapper
-          isLoading={isLoading}
-          isError={isError}
-          error={error}
-          onRetry={refetch}
-          skeleton={<TableSkeleton />}
-        >
-          <RecentSalesTable data={analyticsData} />
-        </QueryWrapper>
-      </div>
 
+      <QueryWrapper
+        isLoading={loading}
+        isError={enq.isError}
+        error={enq.error}
+        onRetry={enq.refetch}
+        skeleton={<TotalsSkeleton />}
+      >
+        <MetricCardsRow className="w-full">
+          <MetricCard label="Total Therapists" value={totals.totalTherapists} />
+          <MetricCard label="Active Therapists" value={totals.activeTherapists} />
+          <MetricCard label="Total Customers" value={totals.totalCustomers} />
+          <MetricCard label="Total Enquiries" value={totals.totalEnquiries} />
+          <MetricCard
+            label="Total Appointments"
+            value={totals.totalAppointments}
+          />
+          <MetricCard
+            label="Completed Appointments"
+            value={totals.completedAppointments}
+          />
+          <MetricCard label="Total Services" value={totals.totalServices} />
+          <MetricCard label="Open Follow-ups" value={totals.openFollowUps} />
+        </MetricCardsRow>
+      </QueryWrapper>
+
+      <div className="flex flex-col xl:flex-row w-full">
+        <RecentSalesTable />
+      </div>
     </div>
   );
 };
