@@ -3,6 +3,7 @@
 import Avatar from '@/assests/avatars/avatar2.svg'
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect } from "react";
 import {
   CalendarClock,
   Home,
@@ -38,7 +39,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ModeToggle } from "./theme-mode/mode-toggle";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LogoutButton } from './auth/logout-button';
 import { useAuthStore } from '@/providers/permission-provider';
 
@@ -91,12 +92,33 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
   let PATH_NAMES = pathname.split("/");
   PATH_NAMES = PATH_NAMES.splice(1, PATH_NAMES.length);
 
+  // Role scoping: therapists only see their own work.
+  const router = useRouter();
+  const role = user?.role;
+  const THERAPIST_NAV = new Set(["/dashboard", "/dashboard/appointments"]);
+  const THERAPIST_ALLOWED = new Set([
+    "/dashboard",
+    "/dashboard/appointments",
+    "/dashboard/settings",
+  ]);
+  const visibleLinks =
+    role === "THERAPIST"
+      ? navLinks.filter((l) => THERAPIST_NAV.has(l.href))
+      : navLinks;
+
+  useEffect(() => {
+    if (role === "THERAPIST" && !THERAPIST_ALLOWED.has(pathname)) {
+      router.replace("/dashboard/appointments");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, pathname]);
+
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 h-screen flex-col border-r bg-background sm:flex">
         <nav className="flex flex-col items-center gap-4 px-2 sm:py-4 mt-10 ">
           <TooltipProvider>
-            {navLinks.map((navItems, index) => (
+            {visibleLinks.map((navItems, index) => (
               <Tooltip key={index}>
                 <TooltipTrigger asChild>
                   <Link
@@ -151,7 +173,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs">
               <nav className="grid gap-6 text-lg font-medium mt-12 ">
-                {navLinks.map((navItems, index) => (
+                {visibleLinks.map((navItems, index) => (
                   <Link
                     key={index}
                     href={navItems.href}

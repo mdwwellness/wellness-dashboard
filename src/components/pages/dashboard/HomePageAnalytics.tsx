@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { subDays, format } from "date-fns";
+import { subDays, format, isToday } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -21,6 +21,7 @@ import { useGetServices } from "@/data/service/service";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { deriveCustomers } from "@/data/customer/customer";
 import { isFollowUp } from "@/components/pages/enquiries/stage";
+import { isTodayISO } from "@/lib/metrics";
 import type { EnquiryType } from "@/type/schema";
 
 const formSchema = z.object({
@@ -81,6 +82,25 @@ const DashboardPageComponents = () => {
     };
   }, [records, therapists.data, services.data]);
 
+  const isTherapist = role === "THERAPIST";
+
+  // Therapist personal numbers — derived only from their own appointments
+  // (getAllAppointments is already doctorId-filtered server-side for therapists).
+  const personal = React.useMemo(() => {
+    return {
+      todaySessions: records.filter((r) => {
+        const d = r.slot?.date ? new Date(r.slot.date) : null;
+        return d && !Number.isNaN(d.getTime()) && isToday(d);
+      }).length,
+      completedToday: records.filter((r) => isTodayISO(r.completedAt)).length,
+      recommendations: records.filter((r) => r.appointmentKind === "recommended")
+        .length,
+      openAssigned: records.filter((r) =>
+        ["scheduled", "ongoing"].includes(r.status ?? ""),
+      ).length,
+    };
+  }, [records]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -91,7 +111,9 @@ const DashboardPageComponents = () => {
     },
   });
 
-  const loading = enq.isLoading || therapists.isLoading || services.isLoading;
+  const loading =
+    enq.isLoading ||
+    (!isTherapist && (therapists.isLoading || services.isLoading));
 
   return (
     <div className="w-full flex flex-col justify-center items-center gap-6 px-3 sm:px-4 md:px-8 pt-10">
@@ -160,22 +182,34 @@ const DashboardPageComponents = () => {
         onRetry={enq.refetch}
         skeleton={<TotalsSkeleton />}
       >
-        <MetricCardsRow className="w-full">
-          <MetricCard label="Total Therapists" value={totals.totalTherapists} />
-          <MetricCard label="Active Therapists" value={totals.activeTherapists} />
-          <MetricCard label="Total Customers" value={totals.totalCustomers} />
-          <MetricCard label="Total Enquiries" value={totals.totalEnquiries} />
-          <MetricCard
-            label="Total Appointments"
-            value={totals.totalAppointments}
-          />
-          <MetricCard
-            label="Completed Appointments"
-            value={totals.completedAppointments}
-          />
-          <MetricCard label="Total Services" value={totals.totalServices} />
-          <MetricCard label="Open Follow-ups" value={totals.openFollowUps} />
-        </MetricCardsRow>
+        {isTherapist ? (
+          <MetricCardsRow className="w-full">
+            <MetricCard label="Today's sessions" value={personal.todaySessions} />
+            <MetricCard label="Completed today" value={personal.completedToday} />
+            <MetricCard
+              label="Recommendations made"
+              value={personal.recommendations}
+            />
+            <MetricCard label="Open assigned" value={personal.openAssigned} />
+          </MetricCardsRow>
+        ) : (
+          <MetricCardsRow className="w-full">
+            <MetricCard label="Total Therapists" value={totals.totalTherapists} />
+            <MetricCard label="Active Therapists" value={totals.activeTherapists} />
+            <MetricCard label="Total Customers" value={totals.totalCustomers} />
+            <MetricCard label="Total Enquiries" value={totals.totalEnquiries} />
+            <MetricCard
+              label="Total Appointments"
+              value={totals.totalAppointments}
+            />
+            <MetricCard
+              label="Completed Appointments"
+              value={totals.completedAppointments}
+            />
+            <MetricCard label="Total Services" value={totals.totalServices} />
+            <MetricCard label="Open Follow-ups" value={totals.openFollowUps} />
+          </MetricCardsRow>
+        )}
       </QueryWrapper>
 
       <div className="flex flex-col xl:flex-row w-full">
