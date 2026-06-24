@@ -39,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 import { useAddTherapist } from "@/data/therapist/therapist";
 import { TherapistformSchema, TherapistformType } from "@/type/schema";
 import { ProfilePicUploader } from "./profile-pic-uploader";
@@ -65,6 +66,7 @@ export default function AddDoctorForm() {
     defaultValues: {
       name: "",
       doctorId: "",
+      password: "",
       gender: "male",
       phonenumber: undefined,
       email: "",
@@ -107,6 +109,10 @@ export default function AddDoctorForm() {
   }
 
   function onSubmit(values: TherapistformType) {
+    if (!values.password || values.password.length < 6) {
+      toast.error("Set a temporary password (min 6 characters)");
+      return;
+    }
     mutation.mutate(values, {
       onSuccess: () => {
         setIsDialogOpen(false);
@@ -202,6 +208,24 @@ export default function AddDoctorForm() {
                           <Input
                             placeholder="Auto-assigned (THR-####) if left blank"
                             {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Temporary password</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="Min 6 chars (therapist can change later)"
+                            {...field}
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />

@@ -231,6 +231,9 @@ export const TherapistformSchema = z.object({
   name: z.string().min(1, "Name is required"),
   // Auto-allocated server-side (THR-####) when left blank.
   doctorId: z.string().optional(),
+  // Temporary login password — required only when CREATING a therapist (the add
+  // form enforces it); not used when editing.
+  password: z.string().optional(),
   gender:z.enum(["male","female"]),
   email: z.string().email("Invalid email"),
   phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),

@@ -29,7 +29,7 @@ export default function UserDialog() {
       userEmail: "",
       userPhone: "",
       userPassword: "",
-      role: "THERAPIST",
+      role: "STAFF",
     },
   });
 
@@ -176,9 +176,10 @@ export default function UserDialog() {
                     <SelectContent>
                       <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                       <SelectItem value="ADMIN">Admin</SelectItem>
-                      <SelectItem value="THERAPIST">Therapist</SelectItem>
                       <SelectItem value="STAFF">Staff</SelectItem>
                       <SelectItem value="CUSTOMER_CARE">Customer Care</SelectItem>
+                      {/* Therapists are created from the Therapist List
+                          (creates login + roster + THR-#### id together). */}
                     </SelectContent>
                   </Select>
                   <FormMessage />
