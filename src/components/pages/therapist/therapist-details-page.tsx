@@ -71,7 +71,7 @@ export default function TherapistDetailsPage({
     defaultValues: {
       name: data.name,
       doctorId: data.doctorId,
-      phonenumber: data.phonenumber,
+      phonenumber: data.phonenumber != null ? String(data.phonenumber) : "",
       email: data.email,
       isActive: data.isActive,
       specialization: data.specialization ?? [],
