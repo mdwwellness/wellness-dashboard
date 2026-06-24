@@ -94,6 +94,12 @@ export const enquirySchema = z.object({
   note: z.string().optional(),
   typeOfappointment: z.enum(["consultation", "appointment"]).optional(),
 
+  // ── Which offering the customer is approaching (from the public site):
+  // "Online Consultation" | "Home Therapy" | "Vitals Check". ──
+  service: z.string().optional(),
+  // ── Vitals Check sub-selections (e.g. "Blood Pressure (BP)", "Other: ..."). ──
+  vitals: z.array(z.string()).optional(),
+
   // ── Checkpoint: executive reached out ──
   // Booleans are optional (not .default(false)) so existing forms with
   // defaultValues that omit these still type-check. Consumers read with `?? false`.

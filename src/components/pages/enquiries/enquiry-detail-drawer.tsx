@@ -471,6 +471,28 @@ export function EnquiryDetailDrawer({
                 </div>
               </div>
             </div>
+
+            {(draft.service || (draft.vitals && draft.vitals.length > 0)) && (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                <div className="text-xs text-muted-foreground">
+                  Requested service
+                </div>
+                <div className="font-medium">{draft.service ?? "—"}</div>
+                {draft.vitals && draft.vitals.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {draft.vitals.map((v) => (
+                      <span
+                        key={v}
+                        className="inline-flex items-center rounded-full border bg-background px-2 py-0.5 text-xs"
+                      >
+                        {v}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="text-xs text-muted-foreground">Note</label>
               <Textarea
@@ -526,7 +548,10 @@ export function EnquiryDetailDrawer({
           {/* ── Section: Online consultation ── */}
           <section id="enq-sec-consult" className="space-y-3 border-t pt-4 scroll-mt-4">
             <h3 className="text-sm font-semibold">
-              2. Online consultation
+              2.{" "}
+              {draft.service === "Vitals Check" || draft.service === "Home Therapy"
+                ? "Consultation call"
+                : "Online consultation"}
             </h3>
             <SlotPicker
               label="Consultation slot"
@@ -553,7 +578,12 @@ export function EnquiryDetailDrawer({
           {/* ── Section: Physio assignment ── */}
           <section id="enq-sec-physio" className="space-y-3 border-t pt-4 scroll-mt-4">
             <h3 className="text-sm font-semibold">
-              3. Physiotherapist assignment
+              3.{" "}
+              {draft.service === "Vitals Check"
+                ? "Vitals visit assignment"
+                : draft.service === "Home Therapy"
+                  ? "Therapist (home visit)"
+                  : "Physiotherapist assignment"}
             </h3>
             <SlotPicker
               label="Physio slot"
