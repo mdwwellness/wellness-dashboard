@@ -1,35 +1,46 @@
-// appointments-details-dialog.tsx
-'use client'
-import React, { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "../../ui/dialog";
+// Appointment detail — right-side drawer (controlled by the table's row click).
+"use client";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "../../ui/sheet";
 import { slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "./appointments-details-page";
 
-type AppointmentsDetailsDialogProps = {
-  children: React.ReactNode;
-  data: slotBookingZodType;
-}
+type AppointmentDetailDrawerProps = {
+  data: slotBookingZodType | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
-const AppointmentsDetailsDialog = ({ children, data }: AppointmentsDetailsDialogProps) => {
-  const [open, setOpen] = useState(false);
-
+const AppointmentDetailDrawer = ({
+  data,
+  open,
+  onOpenChange,
+}: AppointmentDetailDrawerProps) => {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl h-[92vh] md:h-fit overflow-y-scroll">
-        <DialogTitle>Appointment Details</DialogTitle>
-        <DialogDescription>
-          Change the respective fields and click update to save changes.
-        </DialogDescription>
-        <AppointmentDetailsPage
-          data={data}
-          onClose={() => setOpen(false)} 
-        />
-      </DialogContent>
-    </Dialog>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Appointment Details</SheetTitle>
+          <SheetDescription>
+            Change the respective fields and click update to save changes.
+          </SheetDescription>
+        </SheetHeader>
+        {data ? (
+          <div className="px-4 pb-6">
+            <AppointmentDetailsPage
+              data={data}
+              onClose={() => onOpenChange(false)}
+            />
+          </div>
+        ) : null}
+      </SheetContent>
+    </Sheet>
   );
-}
+};
 
-export default AppointmentsDetailsDialog;
+export default AppointmentDetailDrawer;

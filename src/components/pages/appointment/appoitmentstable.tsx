@@ -2,9 +2,6 @@
 import { slotBookingZodType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
-import AppointmentsDetailsPage from "./appointments-detail-page";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
@@ -126,22 +123,6 @@ export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] = [
         default:
           return "N/A";
       }
-    },
-  },
-  {
-    id: "action",
-    cell: ({ row }) => {
-      const details = row.original;
-      return (
-        <>
-          <AppointmentsDetailsPage data={details}>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </AppointmentsDetailsPage>
-        </>
-      );
     },
   },
 ];

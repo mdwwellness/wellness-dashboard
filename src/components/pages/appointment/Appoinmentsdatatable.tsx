@@ -28,6 +28,8 @@ import { DataTableFacetedFilter } from "@/components/tables/data-table-faceted-f
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { THERAPY_CATEGORYES } from "@/lib/constant";
+import AppointmentDetailDrawer from "./appointments-detail-page";
+import { slotBookingZodType } from "@/type/schema";
 
 interface AppointmentDataType<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -45,6 +47,8 @@ export function AppointmentDataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [selected, setSelected] = React.useState<TData | null>(null);
+  const [detailOpen, setDetailOpen] = React.useState(false);
 
   const table = useReactTable({
     data,
@@ -128,6 +132,11 @@ export function AppointmentDataTable<TData, TValue>({
                     <TableRow
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setSelected(row.original);
+                        setDetailOpen(true);
+                      }}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
@@ -155,6 +164,15 @@ export function AppointmentDataTable<TData, TValue>({
         </div>
         <DataTablePagination table={table} />
       </div>
+
+      <AppointmentDetailDrawer
+        data={selected as slotBookingZodType | null}
+        open={detailOpen}
+        onOpenChange={(o) => {
+          setDetailOpen(o);
+          if (!o) setSelected(null);
+        }}
+      />
     </>
   );
 }
