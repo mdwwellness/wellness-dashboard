@@ -1,28 +1,32 @@
-# MDW Wellness Dashboard — Flowcharts
+# MDW Wellness Dashboard - Flowcharts
 
-Backend API: `WellnessBackend` on Render (`BACKEND_BASE_URL` → `https://wellness-backend-1-wya5.onrender.com`)
+Backend API: WellnessBackend on Render
+
+Base URL: `https://wellness-backend-1-wya5.onrender.com`
+
+All diagrams below use GitHub-safe Mermaid syntax: quoted labels only, no slash-shaped nodes, no special node shapes.
 
 ---
 
 ## 1. App entry and authentication
 
 ```mermaid
-flowchart TD
-    A[User opens app] --> B{Has refreshToken cookie?}
-    B -->|No| C[/auth/login]
-    B -->|Yes| D{accessToken valid?}
-    D -->|Yes| E[Enter dashboard]
-    D -->|No / expired| F[POST /api/users/refresh-token]
-    F -->|Success| G[Set new accessToken cookie]
+graph TD
+    A["User opens app"] --> B{"Has refreshToken cookie?"}
+    B -->|"No"| C["Login page"]
+    B -->|"Yes"| D{"accessToken valid?"}
+    D -->|"Yes"| E["Enter dashboard"]
+    D -->|"No or expired"| F["Refresh token API call"]
+    F -->|"Success"| G["Set new accessToken cookie"]
     G --> E
-    F -->|Fail| H[Clear cookies]
+    F -->|"Fail"| H["Clear cookies"]
     H --> C
-    C --> I[Staff enters email + password]
-    I --> J[POST /api/users/login via server action]
-    J -->|Success| K[Set accessToken + refreshToken cookies]
-    K --> L[Store user in Zustand auth store]
+    C --> I["Staff enters email and password"]
+    I --> J["Login API via server action"]
+    J -->|"Success"| K["Set access and refresh cookies"]
+    K --> L["Store user in auth store"]
     L --> E
-    J -->|Fail| C
+    J -->|"Fail"| C
 ```
 
 ---
@@ -30,92 +34,92 @@ flowchart TD
 ## 2. Dashboard shell and role-based navigation
 
 ```mermaid
-flowchart TD
-    E[Enter /dashboard] --> R{User role?}
-    R -->|THERAPIST| TNav[Sidebar: Dashboard + Book Slot only]
-    R -->|Admin / Staff / Customer Care / Super Admin| FNav[Full sidebar navigation]
-    TNav --> TGuard{Route allowed?}
-    TGuard -->|/dashboard or /dashboard/appointments or /dashboard/settings| TPage[Show page]
-    TGuard -->|Any other route| TRedirect[Redirect to /dashboard/appointments]
-    FNav --> FPage[Show any dashboard page]
-    FPage --> Pages
+graph TD
+    E["Enter dashboard"] --> R{"User role?"}
+    R -->|"Therapist"| TNav["Sidebar: Dashboard and Book Slot only"]
+    R -->|"Admin or Staff"| FNav["Full sidebar navigation"]
+    TNav --> TGuard{"Route allowed?"}
+    TGuard -->|"Allowed routes"| TPage["Show page"]
+    TGuard -->|"Blocked route"| TRedirect["Redirect to appointments"]
+    FNav --> FPage["Show any dashboard page"]
+    FPage --> Pages["Dashboard pages"]
     TPage --> Pages
-    Pages --> P1[/dashboard — Analytics home]
-    Pages --> P2[/dashboard/enquiries — Lead funnel]
-    Pages --> P3[/dashboard/follow-ups — Unreachable leads]
-    Pages --> P4[/dashboard/customers — Customer bookings]
-    Pages --> P5[/dashboard/services — Service catalogue]
-    Pages --> P6[/dashboard/appointments — Book Slot]
-    Pages --> P7[/dashboard/alltherapist — Therapist roster]
-    Pages --> P8[/dashboard/settings — Users and profile]
+    Pages --> P1["Home analytics"]
+    Pages --> P2["Enquiries"]
+    Pages --> P3["Follow-ups"]
+    Pages --> P4["Customers"]
+    Pages --> P5["Services"]
+    Pages --> P6["Appointments Book Slot"]
+    Pages --> P7["Therapists"]
+    Pages --> P8["Settings"]
 ```
 
 ---
 
-## 3. Data layer — how every page talks to the backend
+## 3. Data layer
 
 ```mermaid
-flowchart TD
-    UI[Dashboard page / drawer / form] --> Hook[TanStack Query hook in src/data/*]
-    Hook --> Action[Next.js server action in src/actions/*]
-    Action --> Auth[fetchWithAuth — forwards cookies]
-    Auth --> API[WellnessBackend REST API on Render]
-    API --> Mongo[(MongoDB)]
+graph TD
+    UI["Page drawer or form"] --> Hook["TanStack Query hook"]
+    Hook --> Action["Server action"]
+    Action --> Auth["fetchWithAuth"]
+    Auth --> API["WellnessBackend API"]
+    API --> Mongo["MongoDB"]
     Mongo --> API
     API --> Action
     Action --> Hook
     Hook --> UI
-    UI --> Toast[sonner toast on success or error]
+    UI --> Toast["Toast notification"]
 ```
 
 | Domain | Frontend hook | Backend endpoint |
 |--------|---------------|------------------|
-| Enquiries / Appointments | `useGetAllEnquiries`, `useGetAllAppointments` | `GET /api/appointments` |
-| Create lead / book slot | `useCreateEnquiry`, `useBookAppointment` | `POST /api/appointments` |
-| Update funnel / checklist | `useUpdateAppointment` | `PATCH /api/appointments/:id` |
-| Services | `useGetServices` | `GET /api/services` |
-| Therapists | `useGetAllTherapist` | `GET /api/therapists` |
-| Staff users | `useGetAllUsers` | `GET /api/users/getallusers` |
-| Login / refresh | login action, middleware | `POST /api/users/login`, `POST /api/users/refresh-token` |
-| Customers | `useGetCustomers` — **client-side only** | Reuses `GET /api/appointments`, groups by phone |
-| Dashboard KPIs | derived in page components | Reuses enquiries + therapists + services lists |
+| Enquiries / Appointments | useGetAllEnquiries, useGetAllAppointments | GET api appointments |
+| Create lead / book slot | useCreateEnquiry, useBookAppointment | POST api appointments |
+| Update funnel / checklist | useUpdateAppointment | PATCH api appointments by id |
+| Services | useGetServices | GET api services |
+| Therapists | useGetAllTherapist | GET api therapists |
+| Staff users | useGetAllUsers | GET api users getallusers |
+| Login / refresh | login action, middleware | POST api users login and refresh |
+| Customers | useGetCustomers client-side | GET api appointments grouped by phone |
+| Dashboard KPIs | derived in components | enquiries therapists services lists |
 
 ---
 
-## 4. Lead sources — how records enter the system
+## 4. Lead sources
 
 ```mermaid
-flowchart TD
-    S1[Public patient site mdw-wellness] -->|WhatsApp / booking form| BE[POST /api/appointments]
-    S2[Dashboard — New Enquiry modal] -->|Staff manual intake| BE
-    S3[Dashboard — Book Slot form] -->|Staff books appointment| BE
-    S4[Appointment drawer — Recommend a service] -->|Therapist books discounted follow-up| BE
-    S5[Customer drawer — Book new session] -->|Pre-filled enquiry intake| BE
-    BE --> DB[(MongoDB appointments collection)]
-    DB --> ENQ[Appears in Enquiries table]
-    DB --> APPT[Appears in Appointments table]
-    DB --> CUST[Grouped into Customers view by phone]
+graph TD
+    S1["Public patient site"] -->|"Booking form"| BE["Create appointment API"]
+    S2["New Enquiry modal"] -->|"Staff intake"| BE
+    S3["Book Slot form"] -->|"Staff booking"| BE
+    S4["Recommend a service"] -->|"Therapist follow-up"| BE
+    S5["Book new session"] -->|"Customer drawer"| BE
+    BE --> DB["MongoDB"]
+    DB --> ENQ["Enquiries table"]
+    DB --> APPT["Appointments table"]
+    DB --> CUST["Customers view"]
 ```
 
 ---
 
-## 5. Enquiry funnel — main sales workflow
+## 5. Enquiry funnel
 
 ```mermaid
-flowchart TD
-    Start[New lead created] --> E1[Enquiry — untouched]
-    E1 -->|Executive calls, no answer| FU[Follow-up — reachAttempts greater than 0]
-    FU -->|Shown on /dashboard/follow-ups| FUPage[Follow-ups page]
-    FU -->|Connected on next call| E2[Reached out]
-    E1 -->|Executive reaches out| E2
-    E2 --> E3[Consult booked — consultation slot set]
-    E3 --> E4[Consult done — consultation completed]
-    E4 --> E5[Physio booked — physio slot set]
-    E5 --> E6[Assigned — therapist confirmed]
-    E6 --> E7[Payment recorded — paymentReceived true]
-    E7 --> E8[Ongoing — status ongoing]
-    E8 --> E9[Completed — mark treatment finished]
-    E1 -->|Cancel with reason| CX[Cancelled]
+graph TD
+    Start["New lead"] --> E1["Enquiry untouched"]
+    E1 -->|"No answer"| FU["Follow-up"]
+    FU --> FUPage["Follow-ups page"]
+    FU -->|"Connected"| E2["Reached out"]
+    E1 -->|"Reached out"| E2
+    E2 --> E3["Consult booked"]
+    E3 --> E4["Consult done"]
+    E4 --> E5["Physio booked"]
+    E5 --> E6["Assigned"]
+    E6 --> E7["Payment recorded"]
+    E7 --> E8["Ongoing"]
+    E8 --> E9["Completed"]
+    E1 -->|"Cancel"| CX["Cancelled"]
     E2 --> CX
     E3 --> CX
     E4 --> CX
@@ -127,158 +131,158 @@ flowchart TD
 
 ---
 
-## 6. Enquiries page — staff interaction flow
+## 6. Enquiries page
 
 ```mermaid
-flowchart TD
-    EP[/dashboard/enquiries] --> Split{Lead status?}
-    Split -->|Nobody reached out yet| Top[Needs first contact section]
-    Split -->|Executive has engaged| Bottom[Attended / in progress section]
-    Top -->|Row click| Drawer[Enquiry detail drawer opens]
-    Bottom -->|Row click| Drawer
-    Top -->|Stale 24h+| Amber1[Amber highlight — needs attention]
-    Bottom -->|Stale 48h+| Amber2[Amber highlight — stalled]
-    EP --> NewBtn[New Enquiry button]
-    NewBtn --> Modal[Intake modal — name phone service vitals]
-    Modal --> Dup{Open lead on same phone?}
-    Dup -->|Yes| Block[Block duplicate — toast error]
-    Dup -->|No| Create[POST /api/appointments]
+graph TD
+    EP["Enquiries page"] --> Split{"Lead status?"}
+    Split -->|"Not reached"| Top["Needs first contact"]
+    Split -->|"Engaged"| Bottom["Attended in progress"]
+    Top -->|"Row click"| Drawer["Detail drawer"]
+    Bottom -->|"Row click"| Drawer
+    Top -->|"Stale 24h"| Amber1["Amber highlight"]
+    Bottom -->|"Stale 48h"| Amber2["Amber highlight"]
+    EP --> NewBtn["New Enquiry"]
+    NewBtn --> Modal["Intake modal"]
+    Modal --> Dup{"Duplicate phone?"}
+    Dup -->|"Yes"| Block["Block with error"]
+    Dup -->|"No"| Create["Create appointment"]
     Create --> Top
-    Drawer --> Stepper[Funnel stepper — 5 milestones]
-    Drawer --> Slots[Consult + physio slot pickers]
-    Drawer --> Pay[Payment section — amount method received]
-    Drawer --> Log[Activity log + status override note]
-    Drawer --> Save[PATCH /api/appointments — auto-save]
+    Drawer --> Stepper["Funnel stepper"]
+    Drawer --> Slots["Slot pickers"]
+    Drawer --> Pay["Payment section"]
+    Drawer --> Log["Activity log"]
+    Drawer --> Save["Auto-save PATCH"]
 ```
 
 ---
 
-## 7. Appointments page — schedule and therapist workflow
+## 7. Appointments page
 
 ```mermaid
-flowchart TD
-    AP[/dashboard/appointments] --> Role{User role?}
-    Role -->|THERAPIST| Own[See own appointments only]
-    Role -->|Staff / Admin| All[See all appointments]
-    AP --> BookBtn[Book Slot button]
-    BookBtn --> BookForm[Booking form — patient therapist slot service]
-    BookForm --> PostAppt[POST /api/appointments]
-  AP -->|Row click| ApptDrawer[Appointment detail drawer]
-    ApptDrawer --> Info[Patient therapist slot status notes]
-    ApptDrawer --> Rec[Recommend a service]
-    Rec --> PickSvc[Pick service from catalogue]
-    PickSvc --> Quote[Use recommendedPrice or override quotedPrice]
-    Quote --> BookRec[POST new appointment — kind recommended]
-    ApptDrawer --> Checklist[Work checklist]
-    Checklist --> C1[Arrived]
-    Checklist --> C2[Service performed]
-    Checklist --> C3[Payment collected]
-    Checklist --> C4[Work completed — marks status completed]
-    Checklist --> ActLog[Append to activityLog]
-    ActLog --> Patch[PATCH /api/appointments]
+graph TD
+    AP["Appointments page"] --> Role{"User role?"}
+    Role -->|"Therapist"| Own["Own appointments only"]
+    Role -->|"Staff"| All["All appointments"]
+    AP --> BookBtn["Book Slot"]
+    BookBtn --> BookForm["Booking form"]
+    BookForm --> PostAppt["Create appointment"]
+    AP -->|"Row click"| ApptDrawer["Detail drawer"]
+    ApptDrawer --> Info["Patient and slot info"]
+    ApptDrawer --> Rec["Recommend service"]
+    Rec --> PickSvc["Pick from catalogue"]
+    PickSvc --> Quote["Set quoted price"]
+    Quote --> BookRec["Book recommended"]
+    ApptDrawer --> Checklist["Work checklist"]
+    Checklist --> C1["Arrived"]
+    Checklist --> C2["Service performed"]
+    Checklist --> C3["Payment collected"]
+    Checklist --> C4["Work completed"]
+    Checklist --> ActLog["Activity log entry"]
+    ActLog --> Patch["Update appointment"]
 ```
 
 ---
 
-## 8. Customers page — derived customer view
+## 8. Customers page
 
 ```mermaid
-flowchart TD
-    CP[/dashboard/customers] --> Fetch[GET /api/appointments]
-    Fetch --> Group[Group records by phonenumber]
-    Group --> KPI[4 stat cards]
-    KPI --> K1[Total Customers]
-    KPI --> K2[Total Bookings]
-    KPI --> K3[Bookings This Month]
-    KPI --> K4[Returning Customers — 2 plus bookings]
-    Group --> Table[Customer table — segment pills New Returning VIP]
-    Table -->|Row click| CD[Customer detail drawer]
-    CD --> History[Expandable booking history per customer]
-    CD --> BookNew[Book new session button]
-    BookNew --> Intake[Enquiry intake modal — name phone pre-filled]
-    Intake --> NewLead[POST /api/appointments — new enquiry]
+graph TD
+    CP["Customers page"] --> Fetch["Fetch appointments"]
+    Fetch --> Group["Group by phone"]
+    Group --> KPI["Four stat cards"]
+    KPI --> K1["Total Customers"]
+    KPI --> K2["Total Bookings"]
+    KPI --> K3["Bookings This Month"]
+    KPI --> K4["Returning Customers"]
+    Group --> Table["Customer table"]
+    Table -->|"Row click"| CD["Detail drawer"]
+    CD --> History["Booking history"]
+    CD --> BookNew["Book new session"]
+    BookNew --> Intake["Intake modal prefilled"]
+    Intake --> NewLead["New enquiry created"]
 ```
 
 ---
 
-## 9. Services and therapists — catalogue and roster
+## 9. Services and therapists
 
 ```mermaid
-flowchart TD
-    subgraph services [Services /dashboard/services]
-        SV[List services] -->|GET| SAPI[/api/services]
-        SV --> Add[Add service form]
-        Add -->|POST| SAPI
-        SV -->|Row click| SD[Service detail drawer — edit delete]
-        SD -->|PUT DELETE| SAPI
-        Add --> Pkg{Is package?}
-        Pkg -->|Yes| PkgFields[sessions or weeks or months + count]
-        Pkg -->|No| StdFields[price recommendedPrice HSN category]
+graph TD
+    subgraph sgServices ["Services"]
+        SV["List services"] -->|"GET"| SAPI["Services API"]
+        SV --> Add["Add service"]
+        Add -->|"POST"| SAPI
+        SV --> SD["Edit or delete"]
+        SD -->|"PUT DELETE"| SAPI
+        Add --> Pkg{"Is package?"}
+        Pkg -->|"Yes"| PkgFields["Package count and unit"]
+        Pkg -->|"No"| StdFields["Price HSN category"]
     end
-    subgraph therapists [Therapists /dashboard/alltherapist]
-        TH[List therapists] -->|GET| TAPI[/api/therapists]
-        TH --> AddT[Add Therapist form]
-        AddT -->|POST + temp password| TAPI
-        AddT --> THRID[Auto THR-#### ID]
-        AddT --> Upload[Profile pic + certificates via UploadThing]
-        TH -->|Row click| TD[Therapist detail drawer + lightbox]
-        TD -->|PATCH| TAPI
+    subgraph sgTherapists ["Therapists"]
+        TH["List therapists"] -->|"GET"| TAPI["Therapists API"]
+        TH --> AddT["Add therapist"]
+        AddT -->|"POST"| TAPI
+        AddT --> THRID["Auto therapist ID"]
+        AddT --> Upload["Upload profile and certs"]
+        TH --> TD["Detail drawer"]
+        TD -->|"PATCH"| TAPI
     end
 ```
 
 ---
 
-## 10. Settings and staff management
+## 10. Settings
 
 ```mermaid
-flowchart TD
-    ST[/dashboard/settings] --> Tabs{Section}
-    Tabs --> Profile[Edit own profile]
-    Tabs --> Users[Staff user list]
-    Profile -->|PATCH| UAPI[/api/users/update-profile]
-    Users --> AddU[Add User — admin staff customer care roles]
-    AddU -->|POST| UAPI2[/api/users/register or admin add]
-    Users --> Del[Delete user]
-    Del -->|DELETE| UAPI3[/api/users/:id]
-    Note[Therapist accounts created via Add Therapist — not Add User]
+graph TD
+    ST["Settings page"] --> Tabs{"Section"}
+    Tabs --> Profile["Edit profile"]
+    Tabs --> Users["Staff list"]
+    Profile -->|"PATCH"| UAPI["Update profile API"]
+    Users --> AddU["Add user"]
+    AddU -->|"POST"| UAPI2["Register user API"]
+    Users --> Del["Delete user"]
+    Del -->|"DELETE"| UAPI3["Delete user API"]
+    Users --> Note["Therapists added via Therapist page"]
 ```
 
 ---
 
-## 11. End-to-end journey — public booking to completed treatment
+## 11. End-to-end journey
 
 ```mermaid
-flowchart TD
-    A[Patient books on public site] -->|POST /api/appointments| B[Lead appears in Enquiries]
-    B --> C[Staff opens enquiry drawer]
-    C --> D[Reach out — assign executive]
-    D --> E[Book online consultation slot]
-    E --> F[Mark consult done]
-    F --> G[Book physio slot + assign therapist]
-    G --> H[Confirm assignment]
-    H --> I[Record payment — amount + method]
-    I --> J[Status → Ongoing]
-    J --> K[Therapist sees appointment in Book Slot]
-    K --> L[Work checklist — arrived performed payment completed]
-    L --> M[Status → Completed]
-    M --> N[Customer visible in Customers page with full history]
+graph TD
+    A["Public booking"] --> B["Lead in Enquiries"]
+    B --> C["Open enquiry drawer"]
+    C --> D["Reach out"]
+    D --> E["Book consult slot"]
+    E --> F["Consult done"]
+    F --> G["Book physio slot"]
+    G --> H["Confirm assignment"]
+    H --> I["Record payment"]
+    I --> J["Status Ongoing"]
+    J --> K["Therapist sees appointment"]
+    K --> L["Complete checklist"]
+    L --> M["Status Completed"]
+    M --> N["Visible in Customers"]
 ```
 
 ---
 
-## 12. Planned — invoice flow (not built yet)
+## 12. Planned invoice flow
 
 ```mermaid
-flowchart TD
-    P1[Appointment drawer or Customer drawer] -->|Generate Invoice button| P2[Invoice modal opens]
-    P2 --> P3[Pre-fill from appointment — service HSN quotedPrice]
-    P3 --> P4{Apply discount?}
-    P4 -->|Recommended price| P5[Use service.recommendedPrice]
-    P4 -->|Manual override| P6[Staff enters discount amount]
-    P4 -->|Coupon code| P7[POST /api/coupons/validate]
-    P7 --> P8[Apply coupon discount to subtotal]
-    P5 --> P9[POST /api/invoices — INV-####]
+graph TD
+    P1["Appointment or Customer drawer"] --> P2["Invoice modal"]
+    P2 --> P3["Pre-fill line items"]
+    P3 --> P4{"Apply discount?"}
+    P4 -->|"Recommended"| P5["Use recommended price"]
+    P4 -->|"Manual"| P6["Staff discount"]
+    P4 -->|"Coupon"| P7["Validate coupon API"]
+    P7 --> P8["Apply coupon"]
+    P5 --> P9["Create invoice API"]
     P6 --> P9
     P8 --> P9
-    P9 --> P10[Invoice issued — printable snapshot]
+    P9 --> P10["Invoice issued"]
 ```
