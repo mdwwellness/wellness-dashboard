@@ -93,8 +93,13 @@ const DashboardPageComponents = () => {
         return d && !Number.isNaN(d.getTime()) && isToday(d);
       }).length,
       completedToday: records.filter((r) => isTodayISO(r.completedAt)).length,
-      recommendations: records.filter((r) => r.appointmentKind === "recommended")
-        .length,
+      recommendations: records.reduce(
+        (sum, r) =>
+          sum +
+          (r.recommendedServices?.length ?? 0) +
+          (r.appointmentKind === "recommended" ? 1 : 0),
+        0,
+      ),
       openAssigned: records.filter((r) =>
         ["scheduled", "ongoing"].includes(r.status ?? ""),
       ).length,

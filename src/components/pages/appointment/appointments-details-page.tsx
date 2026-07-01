@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,8 @@ import {
   useDeleteAppointment,
   useUpdateAppointment,
 } from "@/data/appointment/appointment";
+import { useGetServices } from "@/data/service/service";
+import { getSessionPackages } from "@/lib/package-progress";
 import z from "zod";
 
 interface AppointmentDetailsPageProps {
@@ -51,8 +54,9 @@ export default function AppointmentDetailsPage({
     useUpdateAppointment();
   const { mutate: deleteMutate, isPending: isDeleting } =
     useDeleteAppointment();
+  const { data: services = [] } = useGetServices();
+  const sessionPackages = getSessionPackages(services);
 
-    console.log("daa",data)
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
     resolver: zodResolver(slotBookingZodSchema),
     defaultValues: {
@@ -75,9 +79,36 @@ export default function AppointmentDetailsPage({
       status: data.status ?? "scheduled",
       therapyStartTime: data.therapyStartTime ?? "",
       therapyEndTime: data.therapyEndTime ?? "",
-      typeOfappointment: data.typeOfappointment ?? "appointment", 
+      typeOfappointment: data.typeOfappointment ?? "appointment",
+      packageServiceId: data.packageServiceId ?? "",
     },
   });
+
+  useEffect(() => {
+    form.reset({
+      _id: data._id,
+      name: data.name,
+      location: data.location,
+      category: data.category,
+      slot: {
+        date: data.slot?.date
+          ? new Date(data.slot.date).toISOString().split("T")[0]
+          : "",
+        time: data.slot?.time ?? "",
+      },
+      note: data.note,
+      age: data.age,
+      phonenumber: data.phonenumber,
+      email: data.email,
+      doctor: data.doctor,
+      doctorId: data.doctorId,
+      status: data.status ?? "scheduled",
+      therapyStartTime: data.therapyStartTime ?? "",
+      therapyEndTime: data.therapyEndTime ?? "",
+      typeOfappointment: data.typeOfappointment ?? "appointment",
+      packageServiceId: data.packageServiceId ?? "",
+    });
+  }, [data._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onSubmit(values: slotBookingZodType) {
     updateMutate(values, {
@@ -132,12 +163,7 @@ export default function AppointmentDetailsPage({
           </AlertDialog>
 
           {/* update */}
-          <Button type="submit" size="sm" disabled={isUpdating || isDeleting}
-           onClick={() => {
-    console.log("form errors", form.formState.errors);
-    console.log("form values", form.getValues());
-    console.log("form isValid", form.formState.isValid);
-  }}>
+          <Button type="submit" size="sm" disabled={isUpdating || isDeleting}>
             {isUpdating ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -275,6 +301,37 @@ export default function AppointmentDetailsPage({
                 <FormControl>
                   <Input placeholder="Time" {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="packageServiceId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Therapy package</FormLabel>
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(v) =>
+                    field.onChange(v === "none" ? "" : v)
+                  }
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select package (for session progress)" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">No package</SelectItem>
+                    {sessionPackages.map((pkg) => (
+                      <SelectItem key={pkg.serviceId} value={pkg.serviceId}>
+                        {pkg.name} ({pkg.packageCount} sessions)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

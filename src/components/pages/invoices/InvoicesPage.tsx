@@ -7,9 +7,9 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  SortingState,
   useReactTable,
-  VisibilityState,
+  type SortingState,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import { RefreshCw } from "lucide-react";
 
@@ -33,30 +33,14 @@ import {
 import { DataTablePagination } from "@/components/tables/data-table-pagination";
 import { DataTableViewOptions } from "@/components/tables/data-table-view-options";
 import { QueryWrapper } from "@/components/query-wrapper";
-
-import { useAuthStore } from "@/providers/permission-provider";
+import { useGetInvoices } from "@/data/invoice/invoice";
+import type { PersistedInvoice } from "@/type/invoice";
+import { makeInvoiceColumns } from "./invoices-columns";
+import { InvoiceDetailDrawer } from "./invoice-detail-drawer";
 import {
-  computeCustomerTodayStats,
-  useGetCustomers,
-  type Customer,
-} from "@/data/customer/customer";
-import { MetricCard, MetricCardsRow } from "@/components/metric-card";
-
-import { makeCustomerColumns } from "./customers-columns";
-import { CustomerDetailDrawer } from "./customer-detail-drawer";
-
-function StatCardsSkeleton() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div
-          key={i}
-          className="border rounded-xl p-5 h-28 bg-muted/30 animate-pulse"
-        />
-      ))}
-    </div>
-  );
-}
+  CreateInvoiceSheet,
+  CreateInvoiceTrigger,
+} from "./create-invoice-sheet";
 
 function TableSkeleton() {
   return (
@@ -68,57 +52,36 @@ function TableSkeleton() {
   );
 }
 
-function CustomerTodayCards({
-  newCustomersToday,
-  bookingsToday,
-  returningToday,
-}: ReturnType<typeof computeCustomerTodayStats>) {
-  return (
-    <MetricCardsRow>
-      <MetricCard label="New customers today" value={newCustomersToday} />
-      <MetricCard label="Bookings today" value={bookingsToday} />
-      <MetricCard
-        label="Returning today"
-        value={returningToday}
-        hint="Existing customers who booked again"
-      />
-    </MetricCardsRow>
-  );
-}
-
-export default function CustomersPage() {
-  const { user } = useAuthStore();
-  const { id, role, userEmail } = user || {};
+export default function InvoicesPage() {
   const {
-    data: customers = [],
+    data: invoices = [],
     isLoading,
     isError,
     error,
     refetch,
-  } = useGetCustomers({ id, role, userEmail });
+  } = useGetInvoices();
 
-  const [openCustomer, setOpenCustomer] = useState<Customer | null>(null);
+  const [openInvoiceId, setOpenInvoiceId] = useState<string | null>(null);
+  const openInvoice: PersistedInvoice | null = useMemo(() => {
+    if (!openInvoiceId) return null;
+    return invoices.find((i) => i.invoice_id === openInvoiceId) ?? null;
+  }, [invoices, openInvoiceId]);
+
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
-    {},
-  );
-
-  const todayStats = useMemo(
-    () => computeCustomerTodayStats(customers),
-    [customers],
-  );
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const columns = useMemo(
     () =>
-      makeCustomerColumns({
-        onOpenDetail: (c) => setOpenCustomer(c),
+      makeInvoiceColumns({
+        onOpenDetail: (inv) => setOpenInvoiceId(inv.invoice_id),
       }),
     [],
   );
 
   const table = useReactTable({
-    data: customers,
+    data: invoices,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -135,60 +98,44 @@ export default function CustomersPage() {
     globalFilterFn: (row, _columnId, value) => {
       const q = String(value).toLowerCase().trim();
       if (!q) return true;
-      const c = row.original;
+      const r = row.original;
       return (
-        (c.customer_id ?? "").toLowerCase().includes(q) ||
-        (c.name ?? "").toLowerCase().includes(q) ||
-        String(c.phonenumber ?? "").includes(q) ||
-        (c.email ?? "").toLowerCase().includes(q) ||
-        (c.location ?? "").toLowerCase().includes(q)
+        (r.invoice_id ?? "").toLowerCase().includes(q) ||
+        (r.customer_name ?? "").toLowerCase().includes(q) ||
+        String(r.customer_phone ?? "").includes(q)
       );
     },
-    initialState: {
-      pagination: { pageSize: 10 },
-    },
+    initialState: { pagination: { pageSize: 10 } },
   });
 
   return (
     <>
       <div className="space-y-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Everyone who has booked with you — each phone has a unique customer ID.
+            Auto-generated invoices created when sessions are marked complete.
           </p>
         </div>
-
-        <QueryWrapper
-          isLoading={isLoading}
-          isError={isError}
-          error={error}
-          onRetry={refetch}
-          skeleton={<StatCardsSkeleton />}
-        >
-          <CustomerTodayCards {...todayStats} />
-        </QueryWrapper>
 
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
-              <CardTitle>All customers</CardTitle>
-              <CardDescription>
-                Click a name or the menu to see full booking history.
-              </CardDescription>
+              <CardTitle>All invoices</CardTitle>
+              <CardDescription>Click an invoice to view/edit and generate PDF.</CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              disabled={isLoading}
-              className="shrink-0"
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <CreateInvoiceTrigger onOpen={() => setCreateOpen(true)} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
 
           <CardContent>
@@ -201,7 +148,7 @@ export default function CustomersPage() {
             >
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                 <Input
-                  placeholder="Search name, phone, email, city…"
+                  placeholder="Search invoice ID, customer name, phone…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="max-w-sm"
@@ -240,15 +187,14 @@ export default function CustomersPage() {
                         <TableRow
                           key={row.id}
                           className="cursor-pointer"
-                          onClick={() => setOpenCustomer(row.original)}
+                          onClick={() => setOpenInvoiceId(row.original.invoice_id)}
                         >
                           {row.getVisibleCells().map((cell) => (
                             <TableCell
                               key={cell.id}
                               onClick={(e) => {
-                                if (cell.column.id === "action") {
-                                  e.stopPropagation();
-                                }
+                                // Keep action-cell button click from bubbling twice.
+                                if (cell.column.id === "action") e.stopPropagation();
                               }}
                             >
                               {flexRender(
@@ -265,9 +211,9 @@ export default function CustomersPage() {
                           colSpan={columns.length}
                           className="h-24 text-center text-muted-foreground"
                         >
-                          {customers.length === 0
-                            ? "No customers yet — they appear here once someone books."
-                            : "No customers match your search."}
+                          {invoices.length === 0
+                            ? "No invoices yet — mark a session complete to generate one."
+                            : "No invoices match your search."}
                         </TableCell>
                       </TableRow>
                     )}
@@ -283,10 +229,17 @@ export default function CustomersPage() {
         </Card>
       </div>
 
-      <CustomerDetailDrawer
-        customer={openCustomer}
-        onClose={() => setOpenCustomer(null)}
+      <InvoiceDetailDrawer
+        invoice={openInvoice}
+        onClose={() => setOpenInvoiceId(null)}
+      />
+
+      <CreateInvoiceSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={(id) => setOpenInvoiceId(id)}
       />
     </>
   );
 }
+

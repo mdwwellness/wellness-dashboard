@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/card";
 import { AppointmentDataTable } from "./Appoinmentsdatatable";
 import { useAuthStore } from "@/providers/permission-provider";
-import { AppointmentBookingColumn } from "./appoitmentstable";
+import { makeAppointmentColumns } from "./appoitmentstable";
 import { useGetAllAppointments } from "@/data/appointment/appointment";
+import { useGetServices } from "@/data/service/service";
 import { QueryWrapper } from "@/components/query-wrapper";
 
 function AppointmentTableSkeleton() {
@@ -45,6 +46,12 @@ export default function SlotBookingPage() {
     error,
     refetch,
   } = useGetAllAppointments({ role, id, userEmail });
+  const { data: services = [] } = useGetServices();
+
+  const columns = useMemo(
+    () => makeAppointmentColumns(appointments ?? [], services),
+    [appointments, services],
+  );
 
   const apptTodayStats = useMemo(() => {
     const recs = appointments ?? [];
@@ -100,7 +107,7 @@ export default function SlotBookingPage() {
           skeleton={<AppointmentTableSkeleton />}
         >
           <AppointmentDataTable
-            columns={AppointmentBookingColumn}
+            columns={columns}
             data={appointments ?? []}
           />
         </QueryWrapper>

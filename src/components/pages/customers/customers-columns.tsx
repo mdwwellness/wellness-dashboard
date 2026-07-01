@@ -45,6 +45,20 @@ export function makeCustomerColumns({
 }: MakeColumnsParams): ColumnDef<Customer>[] {
   return [
     {
+      accessorKey: "customer_id",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Customer ID" />
+      ),
+      cell: ({ row }) =>
+        row.original.customer_id ? (
+          <span className="font-mono text-xs text-primary">
+            {row.original.customer_id}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/40">—</span>
+        ),
+    },
+    {
       accessorKey: "name",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Name" />

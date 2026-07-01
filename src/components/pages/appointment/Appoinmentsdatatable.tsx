@@ -167,6 +167,7 @@ export function AppointmentDataTable<TData, TValue>({
 
       <AppointmentDetailDrawer
         data={selected as slotBookingZodType | null}
+        allAppointments={(data as slotBookingZodType[]) ?? []}
         open={detailOpen}
         onOpenChange={(o) => {
           setDetailOpen(o);

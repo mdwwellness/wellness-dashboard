@@ -30,8 +30,6 @@ import type { EnquiryType } from "@/type/schema";
 interface CustomerDetailDrawerProps {
   customer: Customer | null;
   onClose: () => void;
-  allRecords?: EnquiryType[];
-  onDuplicateFound?: (record: EnquiryType) => void;
 }
 
 const STATUS_CLASS: Record<string, string> = {
@@ -180,8 +178,6 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 export function CustomerDetailDrawer({
   customer,
   onClose,
-  allRecords,
-  onDuplicateFound,
 }: CustomerDetailDrawerProps) {
   const open = customer !== null;
   if (!customer) {
@@ -215,7 +211,16 @@ export function CustomerDetailDrawer({
             </Badge>
           </SheetTitle>
           <SheetDescription>
-            Full booking history for this customer.
+            {customer.customer_id ? (
+              <>
+                Customer ID{" "}
+                <span className="font-mono font-medium text-foreground">
+                  {customer.customer_id}
+                </span>
+              </>
+            ) : (
+              "Full booking history for this customer."
+            )}
           </SheetDescription>
         </SheetHeader>
 
@@ -291,20 +296,16 @@ export function CustomerDetailDrawer({
           {/* Footer */}
           <Separator />
           <div className="flex flex-col sm:flex-row gap-2 sm:justify-between">
-            {allRecords && onDuplicateFound && (
-              <EnquiryIntakeModal
-                existingRecords={allRecords}
-                onDuplicateFound={onDuplicateFound}
-                prefill={{
-                  name: customer.name,
-                  phonenumber: customer.phonenumber,
-                  note: `[Returning customer] Follow-up booking`,
-                }}
-                triggerLabel="Book new session"
-                triggerVariant="default"
-                className="w-full sm:w-auto"
-              />
-            )}
+            <EnquiryIntakeModal
+              prefill={{
+                name: customer.name,
+                phonenumber: customer.phonenumber,
+                note: `[Returning customer] Follow-up booking`,
+              }}
+              triggerLabel="Book new session"
+              triggerVariant="default"
+              className="w-full sm:w-auto"
+            />
             <SheetClose asChild>
               <Button variant="outline" className="w-full sm:w-auto sm:ml-auto">
                 Close

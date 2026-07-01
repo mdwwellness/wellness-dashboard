@@ -2,17 +2,19 @@
 
 import { useQuery } from "@tanstack/react-query";
 import getAllAppointments from "@/actions/appointments/get-all-appointments";
+import { getCustomers } from "@/actions/customers/get-customers";
 import type { EnquiryType, UserType } from "@/type/schema";
+import type { PersistedCustomer } from "@/type/customer-record";
 import { isTodayISO, readCreatedISO } from "@/lib/metrics";
 
 /**
- * A customer is derived client-side from the appointments collection by
- * grouping records by phonenumber. The MOST RECENT name/email/location
- * for that phone wins for display purposes.
+ * A customer is derived from appointments (grouped by phone) and enriched with
+ * the persisted `customer_id` from `/api/customers` when available.
  */
 export type CustomerSegment = "new" | "returning" | "vip";
 
 export interface Customer {
+  customer_id?: string;
   phonenumber: number;
   name: string;
   email?: string;
@@ -42,7 +44,10 @@ function segmentFor(activeCount: number): CustomerSegment {
  * Group a flat list of appointment records into Customer aggregates.
  * Exported so the page can recompute KPIs from the same source.
  */
-export function deriveCustomers(records: EnquiryType[]): Customer[] {
+export function deriveCustomers(
+  records: EnquiryType[],
+  persistedByPhone?: Map<number, PersistedCustomer>,
+): Customer[] {
   const buckets = new Map<number, EnquiryType[]>();
   for (const r of records) {
     if (!r.phonenumber) continue;
@@ -61,12 +66,14 @@ export function deriveCustomers(records: EnquiryType[]): Customer[] {
     const totalAll = sorted.length;
     const activeBookings = sorted.filter((r) => r.status !== "cancelled");
     const totalBookings = activeBookings.length;
+    const persisted = persistedByPhone?.get(phonenumber);
 
     out.push({
+      customer_id: persisted?.customer_id,
       phonenumber,
-      name: latest.name ?? "Unnamed",
-      email: latest.email || undefined,
-      location: latest.location || undefined,
+      name: persisted?.name ?? latest.name ?? "Unnamed",
+      email: persisted?.email || latest.email || undefined,
+      location: persisted?.address || latest.location || undefined,
       bookings: sorted,
       totalBookings,
       totalAll,
@@ -153,10 +160,22 @@ export function useGetCustomers(user: UserType) {
   return useQuery({
     queryKey: ["customers", user] as const,
     queryFn: async (): Promise<Customer[]> => {
-      const result = await getAllAppointments(user);
-      if (!result.success) throw new Error(result.message);
-      const records = (result.data ?? []) as EnquiryType[];
-      return deriveCustomers(records);
+      const [apptResult, custResult] = await Promise.all([
+        getAllAppointments(user),
+        getCustomers(),
+      ]);
+
+      if (!apptResult.success) throw new Error(apptResult.message);
+
+      const persistedByPhone = new Map<number, PersistedCustomer>();
+      if (custResult.success && custResult.data) {
+        for (const c of custResult.data) {
+          if (c.phone) persistedByPhone.set(c.phone, c);
+        }
+      }
+
+      const records = (apptResult.data ?? []) as EnquiryType[];
+      return deriveCustomers(records, persistedByPhone);
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

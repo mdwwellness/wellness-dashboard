@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { CirclePlus, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-import { findOpenEnquiryByPhone, useCreateEnquiry } from "@/data/enquiry/enquiry";
-import type { EnquiryType } from "@/type/schema";
+import { useCreateEnquiry } from "@/data/enquiry/enquiry";
 
 const intakeFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -50,8 +48,6 @@ const intakeFormSchema = z.object({
 type IntakeFormValues = z.infer<typeof intakeFormSchema>;
 
 interface EnquiryIntakeModalProps {
-  existingRecords: EnquiryType[] | undefined;
-  onDuplicateFound: (record: EnquiryType) => void;
   /** Pre-fill fields — used from the Customers drawer for follow-up bookings. */
   prefill?: Partial<IntakeFormValues>;
   triggerLabel?: string;
@@ -60,8 +56,6 @@ interface EnquiryIntakeModalProps {
 }
 
 export function EnquiryIntakeModal({
-  existingRecords,
-  onDuplicateFound,
   prefill,
   triggerLabel = "New Enquiry",
   triggerVariant = "default",
@@ -92,17 +86,6 @@ export function EnquiryIntakeModal({
   }
 
   function onSubmit(values: IntakeFormValues) {
-    const dup = findOpenEnquiryByPhone(existingRecords, values.phonenumber);
-    if (dup) {
-      toast.error("This phone already has an open enquiry", {
-        description: `Opening "${dup.name}" instead.`,
-      });
-      setOpen(false);
-      form.reset();
-      onDuplicateFound(dup);
-      return;
-    }
-
     createMutation.mutate(values, {
       onSuccess: () => {
         setOpen(false);

@@ -56,4 +56,18 @@ export const hasPermission = (role: Role, permission: Permission): boolean => {
   return (perms as Permission[]).includes(permission);
 };
 
-export const base_url = process.env.BACKEND_BASE_URL;
+/**
+ * Backend API origin (no trailing slash).
+ * - Production: set BACKEND_BASE_URL
+ * - Local dev: BACKEND_BASE_URL or BACKEND_BASE_URL_LOCAL, else http://localhost:10000
+ */
+function resolveBackendBaseUrl(): string {
+  const fromEnv =
+    process.env.BACKEND_BASE_URL?.trim() ||
+    process.env.BACKEND_BASE_URL_LOCAL?.trim() ||
+    (process.env.NODE_ENV === "development" ? "http://localhost:10000" : "");
+
+  return fromEnv.replace(/\/$/, "");
+}
+
+export const base_url = resolveBackendBaseUrl();

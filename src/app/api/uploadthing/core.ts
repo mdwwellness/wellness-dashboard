@@ -25,6 +25,17 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ file }) => {
       return { url: file.ufsUrl ?? file.url, name: file.name, key: file.key };
     }),
+
+  /** Invoice PDFs are uploaded server-side via UTApi; route kept for parity. */
+  invoicePdf: f({
+    pdf: { maxFileSize: "4MB", maxFileCount: 1 },
+  })
+    .middleware(async () => {
+      return {};
+    })
+    .onUploadComplete(async ({ file }) => {
+      return { url: file.ufsUrl ?? file.url, name: file.name, key: file.key };
+    }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

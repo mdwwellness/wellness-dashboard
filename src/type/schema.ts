@@ -97,15 +97,34 @@ export const enquirySchema = z.object({
   // ── Which offering the customer is approaching (from the public site):
   // "Online Consultation" | "Home Therapy" | "Vitals Check". ──
   service: z.string().optional(),
+  // Therapy session package from catalogue (serviceId). Tracks package progress.
+  packageServiceId: z.string().optional(),
   // ── Vitals Check sub-selections (e.g. "Blood Pressure (BP)", "Other: ..."). ──
   vitals: z.array(z.string()).optional(),
 
   // ── Therapist recommendation flow ──
-  // "new" = normal booking; "recommended" = a service a therapist suggested in
-  // a visit (booked at the recommended/discounted price).
+  // "new" = normal booking; "recommended" = legacy separate row (deprecated).
   appointmentKind: z.enum(["new", "recommended"]).optional(),
   quotedPrice: z.number().optional(),
   recommendedFrom: z.string().optional(),
+
+  // Stacked add-ons on this visit (preferred over creating a new appointment row).
+  recommendedServices: z
+    .array(
+      z.object({
+        serviceId: z.string(),
+        serviceName: z.string(),
+        category: z.string().optional(),
+        quotedPrice: z.number(),
+        slot: z.object({ date: z.string(), time: z.string() }).optional(),
+        status: z.enum(["pending", "confirmed"]).optional(),
+        recommendedAt: z.string(),
+        recommendedBy: z.string().optional(),
+        confirmedAt: z.string().optional(),
+        confirmedBy: z.string().optional(),
+      }),
+    )
+    .optional(),
 
   // ── Therapist work checklist — completed item keys
   // ("arrived" | "performed" | "payment" | "completed"). ──

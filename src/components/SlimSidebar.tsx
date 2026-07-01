@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Home,
   Inbox,
+  FileText,
   PanelLeft,
   Package,
   PhoneMissed,
@@ -63,6 +64,11 @@ const navLinks = [
     title: "Customers",
     icon: <Users className="h-5 w-5" />,
     href: "/dashboard/customers",
+  },
+  {
+    title: "Invoices",
+    icon: <FileText className="h-5 w-5" />,
+    href: "/dashboard/invoices",
   },
   {
     title: "Services",

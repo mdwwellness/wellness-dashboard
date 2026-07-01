@@ -41,7 +41,14 @@ export async function middleware(request: NextRequest) {
   if (accessToken && !isTokenExpired(accessToken)) {
     return NextResponse.next();
   }
-   
+
+  if (!base_url) {
+    const response = NextResponse.redirect(new URL("/auth/login", request.url));
+    response.cookies.delete("accessToken");
+    response.cookies.delete("refreshToken");
+    return response;
+  }
+
   const refreshRes = await fetch(`${base_url}/api/users/refresh-token`, {
     method: "POST",
     headers: {

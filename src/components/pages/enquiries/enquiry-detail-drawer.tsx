@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format, startOfToday } from "date-fns";
-import { CalendarIcon, Check, Loader2, Pencil, PhoneMissed } from "lucide-react";
+import {
+  CalendarIcon,
+  Check,
+  Loader2,
+  Pencil,
+  PhoneMissed,
+  MessageCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -329,6 +336,23 @@ export function EnquiryDetailDrawer({
       extra.completedAt = undefined;
     }
     save(extra);
+  }
+
+  function sendPaymentConfirmationWa() {
+    if (!draft?.paymentReceived || !draft?.paymentReceivedAt) return;
+
+    const phone = String(draft.phonenumber ?? "").replace(/[^\d]/g, "");
+    if (!phone) return;
+
+    const amt = draft.paymentAmount ? `₹${draft.paymentAmount}` : "";
+    const method = draft.paymentMethod ? ` (${draft.paymentMethod})` : "";
+
+    const msg = `Hi ${draft.name ?? ""},\n\nPayment received${amt ? ` ${amt}` : ""}${method}.\nReceived on: ${new Date(
+      draft.paymentReceivedAt,
+    ).toLocaleString()}\n\nThanks!`;
+
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function toggleCompleted(checked: boolean) {
@@ -699,20 +723,33 @@ export function EnquiryDetailDrawer({
                 </Select>
               </div>
             </div>
-            <label
-              className={cn(
-                "flex items-center gap-2 text-sm",
-                !draft.physioAssignmentConfirmed && "opacity-50",
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={draft.paymentReceived ?? false}
-                disabled={!draft.physioAssignmentConfirmed}
-                onChange={(e) => togglePayment(e.target.checked)}
-              />
-              Payment received
-            </label>
+            <div className="flex items-center justify-between gap-3">
+              <label
+                className={cn(
+                  "flex items-center gap-2 text-sm",
+                  !draft.physioAssignmentConfirmed && "opacity-50",
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={draft.paymentReceived ?? false}
+                  disabled={!draft.physioAssignmentConfirmed}
+                  onChange={(e) => togglePayment(e.target.checked)}
+                />
+                Payment received
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                disabled={!draft.paymentReceived || !draft.paymentReceivedAt}
+                onClick={sendPaymentConfirmationWa}
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Send Payment Confirmation
+              </Button>
+            </div>
             {draft.paymentReceived && draft.paymentReceivedAt && (
               <p className="text-xs text-muted-foreground">
                 Received
