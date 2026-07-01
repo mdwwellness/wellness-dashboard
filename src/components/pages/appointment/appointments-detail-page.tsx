@@ -17,6 +17,7 @@ import { PackageProgressCard } from "./package-progress-badge";
 import { getPackageProgressForAppointment, getConfirmedAddonNames } from "@/lib/package-progress";
 import { Badge } from "@/components/ui/badge";
 import { useGetServices } from "@/data/service/service";
+import { BookNextSessionBlock } from "./book-next-session";
 
 type AppointmentDetailDrawerProps = {
   data: slotBookingZodType | null;
@@ -81,6 +82,11 @@ const AppointmentDetailDrawer = ({
             />
             <RecommendService appointment={live} />
             <WorkChecklist appointment={live} />
+            <BookNextSessionBlock
+              appointment={live}
+              allAppointments={allAppointments}
+              services={services}
+            />
           </div>
         ) : null}
       </SheetContent>

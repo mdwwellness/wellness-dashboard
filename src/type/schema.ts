@@ -99,6 +99,8 @@ export const enquirySchema = z.object({
   service: z.string().optional(),
   // Therapy session package from catalogue (serviceId). Tracks package progress.
   packageServiceId: z.string().optional(),
+  sessionNumber: z.number().int().positive().optional(),
+  packageOriginId: z.string().optional(),
   // ── Vitals Check sub-selections (e.g. "Blood Pressure (BP)", "Other: ..."). ──
   vitals: z.array(z.string()).optional(),
 

@@ -11,7 +11,7 @@ const CHECKLIST = [
   { key: "arrived", label: "Arrived" },
   { key: "performed", label: "Service performed" },
   { key: "payment", label: "Payment collected" },
-  { key: "completed", label: "Work completed" },
+  { key: "completed", label: "Work completed (this session)" },
 ];
 
 /**

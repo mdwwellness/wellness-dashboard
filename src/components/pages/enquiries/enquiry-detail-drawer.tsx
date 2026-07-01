@@ -62,6 +62,12 @@ import type {
 } from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { EnquiryProgressStepper } from "./enquiry-progress-stepper";
+import { useGetServices } from "@/data/service/service";
+import {
+  getSessionPackages,
+  needsTherapyPackage,
+} from "@/lib/package-progress";
+import { THERAPY_CATEGORYES } from "@/lib/constant";
 
 const STATUS_LABELS: Record<string, string> = {
   enquiry: "Enquiry",
@@ -88,6 +94,11 @@ export function EnquiryDetailDrawer({
   const { mutate: del, isPending: isDeleting } = useDeleteAppointment();
   const { data: therapists } = useGetAllTherapist();
   const { data: users } = useGetBackOfficeUsers();
+  const { data: services = [] } = useGetServices();
+  const sessionPackages = useMemo(
+    () => getSessionPackages(services),
+    [services],
+  );
 
   // Local edit buffer keeps the form responsive without writing every keystroke.
   // Re-syncs to the latest record prop whenever the parent re-renders with
@@ -97,6 +108,16 @@ export function EnquiryDetailDrawer({
   useEffect(() => {
     setDraft(record);
   }, [record]);
+
+  const showPackagePicker = useMemo(
+    () => (draft ? needsTherapyPackage(draft) : false),
+    [draft],
+  );
+  const selectedPackage = useMemo(
+    () =>
+      sessionPackages.find((p) => p.serviceId === draft?.packageServiceId),
+    [sessionPackages, draft?.packageServiceId],
+  );
 
   // ── All remaining hooks MUST be declared above the early return so the
   //    hook order is identical every render. (React's rules-of-hooks.)
@@ -304,24 +325,62 @@ export function EnquiryDetailDrawer({
     );
   }
 
+  function selectPackage(serviceId: string) {
+    const pkg = sessionPackages.find((p) => p.serviceId === serviceId);
+    const next: Partial<EnquiryType> = {
+      packageServiceId: serviceId === "none" ? undefined : serviceId,
+    };
+    if (pkg?.price != null) {
+      next.paymentAmount = pkg.price;
+      next.quotedPrice = pkg.price;
+    }
+    save(next);
+  }
+
   function togglePayment(checked: boolean) {
     if (checked && !draft?.physioAssignmentConfirmed) {
       toast.error("Confirm the physio assignment first");
       return;
     }
+    if (checked && showPackagePicker && !draft?.packageServiceId) {
+      toast.error("Select a therapy package before recording payment");
+      return;
+    }
+    if (
+      checked &&
+      (!draft?.physioSlot?.date || !draft?.physioSlot?.time)
+    ) {
+      toast.error("Book the physio slot first — it becomes session 1");
+      return;
+    }
+
     const extra: Partial<EnquiryType> = {
       paymentReceived: checked,
       paymentReceivedAt: checked ? new Date().toISOString() : undefined,
-      // Paying advances to Ongoing; un-paying drops back to Scheduled
-      // (derived stage then falls back to Assigned).
       status: checked ? "ongoing" : "scheduled",
     };
+
+    if (checked && draft?.physioSlot?.date && draft?.physioSlot?.time) {
+      extra.slot = {
+        date: draft.physioSlot.date,
+        time: draft.physioSlot.time,
+      };
+      extra.sessionNumber = 1;
+      extra.typeOfappointment = "appointment";
+      if (draft._id) {
+        extra.packageOriginId = draft._id;
+      }
+    }
+
     if (checked) {
       const amt = draft?.paymentAmount;
       const method = draft?.paymentMethod;
+      const pkgLabel = selectedPackage?.name
+        ? ` · ${selectedPackage.name}`
+        : "";
       const desc = `Payment received${amt ? ` ₹${amt}` : ""}${
         method ? ` (${method})` : ""
-      }`;
+      }${pkgLabel} · Session 1 scheduled`;
       extra.activityLog = [
         ...(draft?.activityLog ?? []),
         {
@@ -332,7 +391,6 @@ export function EnquiryDetailDrawer({
         },
       ];
     } else {
-      // un-paying also clears any completion
       extra.completedAt = undefined;
     }
     save(extra);
@@ -347,9 +405,17 @@ export function EnquiryDetailDrawer({
     const amt = draft.paymentAmount ? `₹${draft.paymentAmount}` : "";
     const method = draft.paymentMethod ? ` (${draft.paymentMethod})` : "";
 
+    const pkgLabel = selectedPackage?.name
+      ? `\nPackage: ${selectedPackage.name}`
+      : "";
+    const sessionLabel =
+      draft.slot?.date && draft.slot?.time
+        ? `\nSession 1: ${draft.slot.date} ${draft.slot.time}`
+        : "";
+
     const msg = `Hi ${draft.name ?? ""},\n\nPayment received${amt ? ` ${amt}` : ""}${method}.\nReceived on: ${new Date(
       draft.paymentReceivedAt,
-    ).toLocaleString()}\n\nThanks!`;
+    ).toLocaleString()}${pkgLabel}${sessionLabel}\n\nThanks!`;
 
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -499,7 +565,7 @@ export function EnquiryDetailDrawer({
             {(draft.service || (draft.vitals && draft.vitals.length > 0)) && (
               <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
                 <div className="text-xs text-muted-foreground">
-                  Requested service
+                  Offering (from website)
                 </div>
                 <div className="font-medium">{draft.service ?? "—"}</div>
                 {draft.vitals && draft.vitals.length > 0 && (
@@ -681,6 +747,64 @@ export function EnquiryDetailDrawer({
             className="space-y-3 border-t pt-4 scroll-mt-4"
           >
             <h3 className="text-sm font-semibold">4. Payment</h3>
+
+            {showPackagePicker && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">
+                    Therapy package
+                  </label>
+                  <Select
+                    value={draft.packageServiceId ?? "none"}
+                    onValueChange={selectPackage}
+                    disabled={draft.paymentReceived}
+                  >
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="Select package" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select a package…</SelectItem>
+                      {sessionPackages.map((pkg) => (
+                        <SelectItem key={pkg.serviceId} value={pkg.serviceId}>
+                          {pkg.name} — {pkg.packageCount} sessions · ₹
+                          {pkg.price}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">
+                    Therapy type (optional)
+                  </label>
+                  <Select
+                    value={draft.category ?? "none"}
+                    onValueChange={(v) =>
+                      save({ category: v === "none" ? "" : v })
+                    }
+                  >
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="e.g. Orthopedic" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Not specified</SelectItem>
+                      {THERAPY_CATEGORYES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedPackage && (
+                  <p className="sm:col-span-2 text-xs text-emerald-700 dark:text-emerald-400">
+                    {selectedPackage.packageCount} sessions · payment amount
+                    auto-filled from catalogue
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground">
@@ -756,6 +880,10 @@ export function EnquiryDetailDrawer({
                 {draft.paymentAmount ? ` ₹${draft.paymentAmount}` : ""}
                 {draft.paymentMethod ? ` via ${draft.paymentMethod}` : ""} on{" "}
                 {new Date(draft.paymentReceivedAt).toLocaleString()}
+                {selectedPackage ? ` · ${selectedPackage.name}` : ""}
+                {draft.slot?.date && draft.slot?.time
+                  ? ` · Session 1: ${draft.slot.date} ${draft.slot.time}`
+                  : ""}
               </p>
             )}
             {!draft.physioAssignmentConfirmed && (
@@ -765,36 +893,70 @@ export function EnquiryDetailDrawer({
             )}
           </section>
 
-          {/* ── Section: Completion ── */}
+          {/* ── Section: Session 1 / funnel close ── */}
           <section
             id="enq-sec-completion"
             className="space-y-2 border-t pt-4 scroll-mt-4"
           >
-            <h3 className="text-sm font-semibold">5. Completion</h3>
-            <label
-              className={cn(
-                "flex items-center gap-2 text-sm",
-                !draft.paymentReceived && "opacity-50",
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={draft.status === "completed"}
-                disabled={!draft.paymentReceived}
-                onChange={(e) => toggleCompleted(e.target.checked)}
-              />
-              Mark completed
-            </label>
-            {draft.status === "completed" && draft.completedAt ? (
-              <p className="text-xs text-muted-foreground">
-                Completed on {new Date(draft.completedAt).toLocaleString()}
-              </p>
+            <h3 className="text-sm font-semibold">
+              5. {showPackagePicker ? "Session 1 scheduled" : "Completion"}
+            </h3>
+            {showPackagePicker ? (
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2 text-sm">
+                {draft.paymentReceived ? (
+                  <>
+                    <p className="text-emerald-800 dark:text-emerald-300 font-medium">
+                      Lead converted — session 1 is on the Appointments page.
+                    </p>
+                    {draft.slot?.date && draft.slot?.time && (
+                      <p className="text-xs text-muted-foreground">
+                        Visit: {draft.slot.date} at {draft.slot.time}
+                        {draft.sessionNumber
+                          ? ` (session ${draft.sessionNumber})`
+                          : ""}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Therapist marks each visit complete on Appointments.
+                      Package progress (e.g. 2 of 6) updates automatically.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Record payment in step 4 to schedule session 1 from the
+                    physio slot above.
+                  </p>
+                )}
+              </div>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                {draft.paymentReceived
-                  ? "Treatment in progress — mark when finished."
-                  : "Record payment first to enable."}
-              </p>
+              <>
+                <label
+                  className={cn(
+                    "flex items-center gap-2 text-sm",
+                    !draft.paymentReceived && "opacity-50",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={draft.status === "completed"}
+                    disabled={!draft.paymentReceived}
+                    onChange={(e) => toggleCompleted(e.target.checked)}
+                  />
+                  Mark completed
+                </label>
+                {draft.status === "completed" && draft.completedAt ? (
+                  <p className="text-xs text-muted-foreground">
+                    Completed on{" "}
+                    {new Date(draft.completedAt).toLocaleString()}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {draft.paymentReceived
+                      ? "Treatment in progress — mark when finished."
+                      : "Record payment first to enable."}
+                  </p>
+                )}
+              </>
             )}
           </section>
 

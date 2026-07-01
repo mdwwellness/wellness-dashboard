@@ -69,8 +69,20 @@ export function makeAppointmentColumns(
           allAppointments,
           services,
         );
-        if (!progress) return <span className="text-muted-foreground/40">—</span>;
-        return <PackageProgressBadge progress={progress} />;
+        const sessionNum = row.original.sessionNumber;
+        if (!progress && !sessionNum) {
+          return <span className="text-muted-foreground/40">—</span>;
+        }
+        return (
+          <div className="flex flex-col gap-1">
+            {sessionNum ? (
+              <Badge variant="outline" className="text-[10px] w-fit">
+                Session {sessionNum}
+              </Badge>
+            ) : null}
+            {progress ? <PackageProgressBadge progress={progress} /> : null}
+          </div>
+        );
       },
     },
     {
