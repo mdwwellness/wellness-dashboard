@@ -179,7 +179,7 @@ export default function AppointmentDetailsPage({
         </div>
 
         {/* form fields */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mx-auto p-6 border rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mx-auto p-6 border rounded-lg [&>*]:min-w-0">
           <FormField
             control={form.control}
             name="name"
