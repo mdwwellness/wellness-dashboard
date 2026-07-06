@@ -100,6 +100,7 @@ export const enquirySchema = z.object({
   // Therapy session package from catalogue (serviceId). Tracks package progress.
   packageServiceId: z.string().optional(),
   sessionNumber: z.number().int().positive().optional(),
+  sessionsCompleted: z.number().int().nonnegative().optional(),
   packageOriginId: z.string().optional(),
   // ── Vitals Check sub-selections (e.g. "Blood Pressure (BP)", "Other: ..."). ──
   vitals: z.array(z.string()).optional(),
@@ -124,6 +125,8 @@ export const enquirySchema = z.object({
         recommendedBy: z.string().optional(),
         confirmedAt: z.string().optional(),
         confirmedBy: z.string().optional(),
+        paymentCollected: z.boolean().optional(),
+        paymentCollectedAt: z.string().optional(),
       }),
     )
     .optional(),

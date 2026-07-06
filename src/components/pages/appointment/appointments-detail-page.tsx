@@ -11,13 +11,10 @@ import {
 } from "../../ui/sheet";
 import { slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "./appointments-details-page";
-import { RecommendService } from "./recommend-service";
 import { WorkChecklist } from "./work-checklist";
-import { PackageProgressCard } from "./package-progress-badge";
-import { getPackageProgressForAppointment, getConfirmedAddonNames } from "@/lib/package-progress";
-import { Badge } from "@/components/ui/badge";
+import { VisitSections } from "./visit-sections";
 import { useGetServices } from "@/data/service/service";
-import { BookNextSessionBlock } from "./book-next-session";
+import { resolvePackageForAppointment } from "@/lib/package-progress";
 
 type AppointmentDetailDrawerProps = {
   data: slotBookingZodType | null;
@@ -41,52 +38,33 @@ const AppointmentDetailDrawer = ({
     );
   }, [data, allAppointments]);
 
-  const packageProgress = useMemo(() => {
-    if (!live) return null;
-    return getPackageProgressForAppointment(live, allAppointments, services);
-  }, [live, allAppointments, services]);
-
-  const confirmedAddons = live ? getConfirmedAddonNames(live) : [];
+  const hasPackage = live
+    ? !!resolvePackageForAppointment(live, services)
+    : false;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Appointment Details</SheetTitle>
+          <SheetTitle>{live?.name ?? "Appointment"}</SheetTitle>
           <SheetDescription>
-            Change the respective fields and click update to save changes.
+            One visit row — package and add-ons update here. Invoice syncs
+            automatically.
           </SheetDescription>
         </SheetHeader>
         {live ? (
           <div className="px-4 pb-6 space-y-4">
-            {packageProgress && (
-              <PackageProgressCard progress={packageProgress} />
-            )}
-            {confirmedAddons.length > 0 && (
-              <div className="rounded-md border bg-muted/30 p-3 space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Confirmed add-ons on this visit
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {confirmedAddons.map((name) => (
-                    <Badge key={name} variant="secondary" className="text-xs">
-                      {name}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            <AppointmentDetailsPage
-              data={live}
-              onClose={() => onOpenChange(false)}
-            />
-            <RecommendService appointment={live} />
-            <WorkChecklist appointment={live} />
-            <BookNextSessionBlock
+            <VisitSections
               appointment={live}
               allAppointments={allAppointments}
               services={services}
             />
+            <AppointmentDetailsPage
+              data={live}
+              onClose={() => onOpenChange(false)}
+              compact={hasPackage}
+            />
+            <WorkChecklist appointment={live} />
           </div>
         ) : null}
       </SheetContent>

@@ -43,12 +43,15 @@ import z from "zod";
 
 interface AppointmentDetailsPageProps {
   data: slotBookingZodType;
-  onClose: () => void; // ← receives close handler from parent
+  onClose: () => void;
+  /** Hides duplicate package/time fields when package block is shown above. */
+  compact?: boolean;
 }
 
 export default function AppointmentDetailsPage({
   data,
   onClose,
+  compact = false,
 }: AppointmentDetailsPageProps) {
   const { mutate: updateMutate, isPending: isUpdating } =
     useUpdateAppointment();
@@ -306,6 +309,7 @@ export default function AppointmentDetailsPage({
             )}
           />
 
+          {!compact && (
           <FormField
             control={form.control}
             name="packageServiceId"
@@ -336,6 +340,7 @@ export default function AppointmentDetailsPage({
               </FormItem>
             )}
           />
+          )}
 
           <FormField
             control={form.control}
@@ -386,6 +391,8 @@ export default function AppointmentDetailsPage({
     </FormItem>
   )}
 />
+          {!compact && (
+          <>
           <FormField
             control={form.control}
             name="therapyStartTime"
@@ -413,6 +420,8 @@ export default function AppointmentDetailsPage({
               </FormItem>
             )}
           />
+          </>
+          )}
 
           <FormField
             control={form.control}

@@ -366,6 +366,7 @@ export function EnquiryDetailDrawer({
         time: draft.physioSlot.time,
       };
       extra.sessionNumber = 1;
+      extra.sessionsCompleted = 0;
       extra.typeOfappointment = "appointment";
       if (draft._id) {
         extra.packageOriginId = draft._id;

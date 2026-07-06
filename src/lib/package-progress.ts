@@ -5,9 +5,11 @@ export type PackageProgress = {
   packageServiceId: string;
   total: number;
   completed: number;
+  currentSession: number;
   /** e.g. "2 of 6 completed" */
   label: string;
   currentLabel?: string;
+  packageDone: boolean;
 };
 
 export function getSessionPackages(services: ServiceType[]): ServiceType[] {
@@ -20,19 +22,7 @@ export function getSessionPackages(services: ServiceType[]): ServiceType[] {
   );
 }
 
-function appointmentMatchesPackage(
-  appointment: slotBookingZodType,
-  pkg: ServiceType,
-): boolean {
-  if (appointment.packageServiceId && appointment.packageServiceId === pkg.serviceId) {
-    return true;
-  }
-  const serviceName = appointment.service?.trim();
-  if (serviceName && serviceName === pkg.name) return true;
-  return false;
-}
-
-function resolvePackageForAppointment(
+export function resolvePackageForAppointment(
   appointment: slotBookingZodType,
   services: ServiceType[],
 ): ServiceType | null {
@@ -55,41 +45,66 @@ function resolvePackageForAppointment(
 }
 
 /**
- * Compute session package progress for a customer (e.g. "2 of 6 completed").
+ * Package progress from this single row (sessionsCompleted counter).
  */
 export function getPackageProgressForAppointment(
   appointment: slotBookingZodType,
-  allAppointments: slotBookingZodType[],
+  _allAppointments: slotBookingZodType[],
   services: ServiceType[],
 ): PackageProgress | null {
   const pkg = resolvePackageForAppointment(appointment, services);
   if (!pkg?.packageCount) return null;
 
   const total = pkg.packageCount;
-  const phone = appointment.phonenumber;
-
-  const completed = allAppointments.filter(
-    (a) =>
-      a.phonenumber === phone &&
-      appointmentMatchesPackage(a, pkg) &&
-      a.status === "completed" &&
-      a.appointmentKind !== "recommended",
-  ).length;
-
+  const completed = appointment.sessionsCompleted ?? 0;
+  const currentSession =
+    appointment.sessionNumber ??
+    Math.min(completed + (appointment.status !== "completed" ? 1 : 0), total);
   const inProgress =
-    appointment.status !== "completed" && appointment.status !== "cancelled";
-  const currentSession = completed + (inProgress ? 1 : 0);
+    appointment.status !== "cancelled" && completed < total;
 
   return {
     packageName: pkg.name,
     packageServiceId: pkg.serviceId,
     total,
     completed,
+    currentSession,
     label: `${completed} of ${total} completed`,
     currentLabel: inProgress
-      ? `This visit: session ${Math.min(currentSession, total)} of ${total}`
-      : undefined,
+      ? `This visit: session ${currentSession} of ${total}`
+      : completed >= total
+        ? "Package complete"
+        : undefined,
+    packageDone: completed >= total,
   };
+}
+export function dedupePackageAppointments(
+  appointments: slotBookingZodType[],
+): slotBookingZodType[] {
+  const nonPackage: slotBookingZodType[] = [];
+  const packageBest = new Map<string, slotBookingZodType>();
+
+  for (const a of appointments) {
+    if (!a.packageServiceId) {
+      nonPackage.push(a);
+      continue;
+    }
+    const key = `${a.phonenumber}-${a.packageServiceId}`;
+    const existing = packageBest.get(key);
+    if (!existing) {
+      packageBest.set(key, a);
+      continue;
+    }
+    const score = (r: slotBookingZodType) =>
+      (r.packageOriginId === r._id ? 1000 : 0) +
+      (r.sessionsCompleted ?? 0) * 10 +
+      (r.sessionNumber ?? 0);
+    if (score(a) >= score(existing)) {
+      packageBest.set(key, a);
+    }
+  }
+
+  return [...nonPackage, ...packageBest.values()];
 }
 
 export function countConfirmedAddons(appointment: slotBookingZodType): number {
@@ -114,7 +129,6 @@ export function getConfirmedAddonNames(appointment: slotBookingZodType): string[
 export function needsTherapyPackage(appointment: slotBookingZodType): boolean {
   if (appointment.service === "Vitals Check") return false;
   if (appointment.service === "Home Therapy") return true;
-  // Consult-first path: physio booked after consult → package required at payment
   if (
     appointment.physioAssignmentConfirmed &&
     appointment.physioSlot?.date
@@ -124,26 +138,17 @@ export function needsTherapyPackage(appointment: slotBookingZodType): boolean {
   return false;
 }
 
-export function canBookNextSession(progress: PackageProgress | null): boolean {
-  return progress != null && progress.completed < progress.total;
-}
-
-export function resolveNextSessionNumber(
-  appointment: slotBookingZodType,
-  allAppointments: slotBookingZodType[],
-  services: ServiceType[],
-): number {
-  const pkg = resolvePackageForAppointment(appointment, services);
-  if (!pkg) return 1;
-
-  const phone = appointment.phonenumber;
-  const related = allAppointments.filter(
-    (a) =>
-      a.phonenumber === phone && appointmentMatchesPackage(a, pkg),
-  );
-  const maxSession = related.reduce(
-    (max, a) => Math.max(max, a.sessionNumber ?? 0),
-    0,
-  );
-  return maxSession > 0 ? maxSession + 1 : 1;
+export function visitStatusLabel(status?: string): string {
+  switch (status) {
+    case "scheduled":
+      return "Scheduled";
+    case "ongoing":
+      return "In progress";
+    case "completed":
+      return "Completed";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return "Unknown";
+  }
 }

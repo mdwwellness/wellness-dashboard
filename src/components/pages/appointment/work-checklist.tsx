@@ -3,21 +3,23 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 
-import { useUpdateAppointment } from "@/data/appointment/appointment";
+import { useCompleteSession, useUpdateAppointment } from "@/data/appointment/appointment";
+import { useGetServices } from "@/data/service/service";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
+import {
+  getPackageProgressForAppointment,
+  resolvePackageForAppointment,
+} from "@/lib/package-progress";
 
 const CHECKLIST = [
   { key: "arrived", label: "Arrived" },
   { key: "performed", label: "Service performed" },
-  { key: "payment", label: "Payment collected" },
-  { key: "completed", label: "Work completed (this session)" },
+  { key: "completed", label: "This session completed" },
 ];
 
 /**
- * Therapist "work done" checklist at the bottom of the appointment drawer.
- * Ticking "Work completed" marks the appointment Completed. Every tick is
- * recorded in the shared activityLog (same format as the enquiry drawer).
+ * Visit workflow only — payment status lives on package / add-on sections above.
  */
 export function WorkChecklist({
   appointment,
@@ -25,10 +27,11 @@ export function WorkChecklist({
   appointment: slotBookingZodType;
 }) {
   const { user } = useAuthStore();
+  const { data: services = [] } = useGetServices();
   const { mutate: update } = useUpdateAppointment({ silent: true });
+  const { mutate: markSessionComplete, isPending: isCompleting } = useCompleteSession();
   const [draft, setDraft] = useState<slotBookingZodType>(appointment);
 
-  // Resync when a different appointment opens in the drawer.
   useEffect(() => {
     setDraft(appointment);
   }, [appointment._id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -36,8 +39,27 @@ export function WorkChecklist({
   const done = new Set(draft.workChecklist ?? []);
   const actor =
     `${user?.userfName ?? ""} ${user?.userlName ?? ""}`.trim() || "Someone";
+  const progress = getPackageProgressForAppointment(
+    draft,
+    [draft],
+    services,
+  );
+  const hasPackage = !!resolvePackageForAppointment(draft, services);
 
   function toggle(key: string, label: string, checked: boolean) {
+    // Package session completion goes through the atomic complete-session
+    // endpoint (server-side $inc), not a client-computed PUT — this is the
+    // only path that can be double-fired by a rapid double-click or two open
+    // tabs, so it must not rely on a client-read-then-write value.
+    if (key === "completed" && checked && hasPackage && appointment._id) {
+      markSessionComplete(appointment._id, {
+        onSuccess: (result) => {
+          if (result.data) setDraft(result.data as slotBookingZodType);
+        },
+      });
+      return;
+    }
+
     const next = new Set(done);
     if (checked) next.add(key);
     else next.delete(key);
@@ -55,9 +77,23 @@ export function WorkChecklist({
       activityLog: [...(draft.activityLog ?? []), entry],
     };
 
-    if (key === "completed") {
-      patch.status = checked ? "completed" : "ongoing";
-      patch.completedAt = checked ? new Date().toISOString() : undefined;
+    if (key === "completed" && checked) {
+      // No package on this row — plain completion, no session counter.
+      patch.status = "completed";
+      patch.completedAt = new Date().toISOString();
+    } else if (key === "completed" && !checked) {
+      if (hasPackage) {
+        const sessionsDone = Math.max((draft.sessionsCompleted ?? 0) - 1, 0);
+        patch.sessionsCompleted = sessionsDone;
+        patch.sessionNumber = Math.max(sessionsDone + 1, 1);
+        patch.status = sessionsDone > 0 ? "scheduled" : "ongoing";
+        patch.completedAt = undefined;
+      } else {
+        patch.status = "ongoing";
+        patch.completedAt = undefined;
+      }
+    } else if (key === "arrived" && checked) {
+      patch.status = "ongoing";
     }
 
     setDraft(patch);
@@ -70,7 +106,10 @@ export function WorkChecklist({
 
   return (
     <div className="mt-4 space-y-3 border-t pt-4">
-      <h3 className="text-sm font-semibold">Work checklist</h3>
+      <h3 className="text-sm font-semibold">Visit checklist</h3>
+      <p className="text-xs text-muted-foreground">
+        Payment is tracked on the package and add-on sections above.
+      </p>
       <div className="space-y-2">
         {CHECKLIST.map((item) => (
           <label
@@ -80,14 +119,10 @@ export function WorkChecklist({
             <input
               type="checkbox"
               checked={done.has(item.key)}
+              disabled={item.key === "completed" && isCompleting}
               onChange={(e) => toggle(item.key, item.label, e.target.checked)}
             />
             {item.label}
-            {item.key === "completed" && (
-              <span className="text-xs text-muted-foreground">
-                (marks appointment completed)
-              </span>
-            )}
           </label>
         ))}
       </div>

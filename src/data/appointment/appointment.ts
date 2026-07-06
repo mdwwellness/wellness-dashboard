@@ -5,10 +5,13 @@ import addAppointmentRecommendation, {
   type AddRecommendationInput,
 } from "@/actions/appointments/add-appointment-recommendation";
 import confirmAppointmentRecommendation from "@/actions/appointments/confirm-appointment-recommendation";
+import setAddonPaymentStatus from "@/actions/appointments/set-addon-payment";
+import completeSession from "@/actions/appointments/complete-session";
 import deleteAppointment from "@/actions/appointments/delete-appointments";
 import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import updateAppointment from "@/actions/appointments/update-appointment";
 import { slotBookingZodType, UserType } from "@/type/schema";
+import { dedupePackageAppointments } from "@/lib/package-progress";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -19,9 +22,10 @@ export const appointmentsQueryOptions = (user: UserType) => ({
     if (!result.success) throw new Error(result.message);
     // Hide enquiry-stage records — they live on /dashboard/enquiries.
     const records = (result.data ?? []) as slotBookingZodType[];
-    return records.filter(
+    const filtered = records.filter(
       (r) => r.status !== "enquiry" && r.appointmentKind !== "recommended",
     );
+    return dedupePackageAppointments(filtered);
   },
   staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
@@ -122,6 +126,59 @@ export function useConfirmAppointmentRecommendation() {
         patchAppointmentInCache(queryClient, result.appointmentId, result.data);
       }
       toast.success("Add-on confirmed", { description: result.message });
+      invalidateAppointmentAndEnquiryQueries(queryClient);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSetAddonPaymentStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      appointmentId,
+      serviceId,
+      recommendedAt,
+      collected,
+    }: {
+      appointmentId: string;
+      serviceId: string;
+      recommendedAt: string;
+      collected: boolean;
+    }) => {
+      const result = await setAddonPaymentStatus(appointmentId, {
+        serviceId,
+        recommendedAt,
+        collected,
+      });
+      if (!result.success) throw new Error(result.message);
+      return { ...result, appointmentId };
+    },
+    onSuccess: (result) => {
+      if (result.data && result.appointmentId) {
+        patchAppointmentInCache(queryClient, result.appointmentId, result.data);
+      }
+      invalidateAppointmentAndEnquiryQueries(queryClient);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCompleteSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (appointmentId: string) => {
+      const result = await completeSession(appointmentId);
+      if (!result.success) throw new Error(result.message);
+      return { ...result, appointmentId };
+    },
+    onSuccess: (result) => {
+      if (result.data && result.appointmentId) {
+        patchAppointmentInCache(queryClient, result.appointmentId, result.data);
+      }
+      toast.success(result.message);
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
     onError: (err: Error) => toast.error(err.message),
