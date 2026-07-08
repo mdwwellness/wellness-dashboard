@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, CirclePlus, Loader2 } from "lucide-react";
+import { CalendarIcon, CirclePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useBookAppointment } from "@/data/appointment/appointment";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
+import { useGetServices } from "@/data/service/service";
+import { CustomerSearchField } from "@/components/pages/invoices/customer-search-field";
 
 type GenderType = "All" | "Male" | "Female";
 
@@ -28,6 +30,7 @@ export default function AppointmentBookingForm() {
 
   const mutation = useBookAppointment();
   const { data: doctorsData, isLoading, isError, refetch } = useGetAllTherapist();
+  const { data: services = [], isLoading: servicesLoading } = useGetServices();
 
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
     resolver: zodResolver(slotBookingZodSchema),
@@ -42,8 +45,8 @@ export default function AppointmentBookingForm() {
         time: "",
       },
       note: "",
-      age: 0,
-      phonenumber: 0,
+      age: undefined,
+      phonenumber: undefined,
       email: "",
       doctor: "",
       therapyEndTime: "",
@@ -53,34 +56,16 @@ export default function AppointmentBookingForm() {
     },
   });
 
-  const watchDoctorId = form.watch("doctorId");
-  const watchCategory = form.watch("category");
-
+  // Therapist list filters by gender only now — the Service field drives
+  // billing, not therapist matching.
   const filteredDoctors = useMemo(() => {
     if (!doctorsData) return [];
-    let list = doctorsData;
-
-    if (selectedGender !== "All") {
-      list = list.filter(
-        (d: TherapistformType) => d.gender?.toLowerCase() === selectedGender.toLowerCase()
-      );
-    }
-
-    if (watchCategory && !watchDoctorId) {
-      list = list.filter((d: TherapistformType) =>
-        d.specialization.includes(watchCategory)
-      );
-    }
-
-    return list;
-  }, [doctorsData, selectedGender, watchCategory, watchDoctorId]);
-
-  const doctorCategories = useMemo(() => {
-    if (!watchDoctorId || !doctorsData) return [];
-    return doctorsData.find(
-      (d: TherapistformType) => d.doctorId === watchDoctorId
-    )?.specialization ?? [];
-  }, [watchDoctorId, doctorsData]);
+    if (selectedGender === "All") return doctorsData;
+    return doctorsData.filter(
+      (d: TherapistformType) =>
+        d.gender?.toLowerCase() === selectedGender.toLowerCase(),
+    );
+  }, [doctorsData, selectedGender]);
 
   function handleGenderChange(gender: GenderType) {
     setSelectedGender(gender);
@@ -173,7 +158,7 @@ export default function AppointmentBookingForm() {
               </div>
 
               {/* therapist selector */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="w-full">
                 <FormField
                   control={form.control}
                   name="doctor"
@@ -231,19 +216,6 @@ export default function AppointmentBookingForm() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="doctorId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Therapist ID</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Therapist ID" readOnly {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               {/* date picker */}
@@ -324,16 +296,29 @@ export default function AppointmentBookingForm() {
             </div>
 
             <div className="w-full space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl><Input placeholder="Your name" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <CustomerSearchField
+                value={{
+                  customer_name: form.watch("name") ?? "",
+                  customer_phone: form.watch("phonenumber"),
+                  email: form.watch("email") ?? "",
+                  address: form.watch("location") ?? "",
+                }}
+                onChange={(sel) => {
+                  form.setValue("name", sel.customer_name, {
+                    shouldValidate: true,
+                  });
+                  // Only prefill the rest when an existing customer is picked,
+                  // so typing a brand-new name never wipes entered details.
+                  if (sel.customer_id) {
+                    form.setValue("location", sel.address ?? "");
+                    form.setValue("email", sel.email ?? "");
+                    if (typeof sel.customer_phone === "number") {
+                      form.setValue("phonenumber", sel.customer_phone, {
+                        shouldValidate: true,
+                      });
+                    }
+                  }
+                }}
               />
 
               <FormField
@@ -341,8 +326,8 @@ export default function AppointmentBookingForm() {
                 name="location"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl><Input placeholder="Your location" {...field} /></FormControl>
+                    <FormLabel>Customer location</FormLabel>
+                    <FormControl><Input placeholder="Customer's location" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -353,23 +338,32 @@ export default function AppointmentBookingForm() {
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    {doctorCategories.length > 0 ? (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {doctorCategories.map((cat: string) => (
-                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <CategoryDropDown field={field} />
-                    )}
+                    <FormLabel>Service</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select service" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {servicesLoading ? (
+                          <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading services...
+                          </div>
+                        ) : services.length > 0 ? (
+                          services.map((s) => (
+                            <SelectItem key={s.serviceId} value={s.name}>
+                              {s.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="p-3 text-sm text-muted-foreground">
+                            No services found
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -398,9 +392,17 @@ export default function AppointmentBookingForm() {
                     <FormControl>
                       <Input
                         type="number"
+                        min={0}
                         placeholder="Age"
                         {...field}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value === ""
+                              ? undefined
+                              : e.target.valueAsNumber,
+                          )
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -416,10 +418,17 @@ export default function AppointmentBookingForm() {
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        placeholder="Phone Number"
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="10-digit mobile number"
                         {...field}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/[^\d]/g, "");
+                          field.onChange(
+                            digits === "" ? undefined : Number(digits),
+                          );
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -449,88 +458,3 @@ export default function AppointmentBookingForm() {
   );
 }
 
-type CategoryData = { [key: string]: { [key: string]: string[] } };
-
-const CategoryDropDown = ({ field }: { field: any }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedSubCategory, setSelectedSubCategory] = useState("");
-
-  const categories: CategoryData = {
-    Therapists: {
-      "Physical Therapy & Rehabilitation": ["Orthopedic Therapy", "Neurological Therapy", "Sports Therapy", "Post-Surgery Rehabilitation", "Posture Correction"],
-      "Massage Therapy": ["Swedish Massage", "Deep Tissue Massage", "Thai Massage", "Aromatherapy Massage", "Hot Stone Massage", "Head/Neck/Shoulder Massage", "Foot & Reflexology Massage"],
-      "Pain Management Therapies": ["Electrotherapy", "Dry Needling/Trigger Point Therapy", "Myofascial Release", "IASTM", "Active Release Therapy"],
-      "Cupping & Alternate Therapies": ["Wet Cupping", "Dry Cupping", "Acupuncture", "Yoga Therapy", "Meditation & Mindfulness Therapy"],
-      "Wellness & Lifestyle Therapies": ["Stress Management Therapy", "Sleep Therapy", "Weight Management Therapy", "Women's Health", "Elderly Care/Geriatric Therapy"],
-    },
-    Nutritionists: {
-      "General Nutritionist": ["Balanced Diet Planning", "Weight Loss/Gain Diets", "Child Nutrition"],
-      "Clinical/Specialized Nutritionist": ["Diabetic Diet Planning", "Cardiac Diet Planning", "Renal Diet", "Gastrointestinal Diet", "Cancer Nutrition", "Pregnancy & Lactation Nutrition", "Pediatric Nutrition", "Geriatric Nutrition"],
-      "Sports & Performance Nutritionists": ["Athlete Performance Diet", "Bodybuilding / Muscle Gain Nutrition", "Endurance & Recovery Diet"],
-      "Lifestyle & Preventive Nutritionist": ["PCOS/PCOD Diet Plans", "Immunity-Boosting Diets", "Stress & Anxiety Food Plans", "Skin & Hair Nutrition"],
-    },
-  };
-
-  const handleSelect = (value: string) => {
-    field.onChange(value);
-    setIsOpen(false);
-    setSelectedCategory("");
-    setSelectedSubCategory("");
-  };
-
-  return (
-    <div className="relative">
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full justify-between h-10 px-3 py-2 text-sm"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <span className="truncate">{field.value || "Select Category"}</span>
-        <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
-      </Button>
-
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border rounded-md shadow-lg max-h-[300px] overflow-y-auto">
-          {!selectedCategory ? (
-            <div className="p-1">
-              {Object.keys(categories).map((cat) => (
-                <button key={cat} type="button" className="w-full text-left px-2 py-2 text-sm hover:bg-accent rounded-sm flex items-center justify-between" onClick={() => setSelectedCategory(cat)}>
-                  {cat}<ChevronDown className="h-4 w-4 -rotate-90" />
-                </button>
-              ))}
-            </div>
-          ) : !selectedSubCategory ? (
-            <div className="p-1">
-              <button type="button" className="w-full text-left px-2 py-2 text-sm text-muted-foreground hover:bg-accent rounded-sm" onClick={() => setSelectedCategory("")}>← Back</button>
-              {Object.keys(categories[selectedCategory] ?? {}).map((sub) => (
-                <button key={sub} type="button" className="w-full text-left px-2 py-2 text-sm hover:bg-accent rounded-sm flex items-center justify-between" onClick={() => setSelectedSubCategory(sub)}>
-                  {sub}<ChevronDown className="h-4 w-4 -rotate-90" />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="p-1">
-              <button type="button" className="w-full text-left px-2 py-2 text-sm text-muted-foreground hover:bg-accent rounded-sm" onClick={() => setSelectedSubCategory("")}>← Back</button>
-              {(categories[selectedCategory]?.[selectedSubCategory] ?? []).map((opt) => (
-                <button key={opt} type="button" className="w-full text-left px-2 py-2 text-sm hover:bg-accent rounded-sm" onClick={() => handleSelect(opt)}>{opt}</button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => {
-            setIsOpen(false);
-            setSelectedCategory("");
-            setSelectedSubCategory("");
-          }}
-        />
-      )}
-    </div>
-  );
-};
