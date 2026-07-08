@@ -1,9 +1,9 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { slotBookingZodSchema, slotBookingZodType } from "@/type/schema";
@@ -15,13 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,14 +30,12 @@ import {
   useDeleteAppointment,
   useUpdateAppointment,
 } from "@/data/appointment/appointment";
-import { useGetServices } from "@/data/service/service";
-import { getSessionPackages } from "@/lib/package-progress";
 import z from "zod";
 
 interface AppointmentDetailsPageProps {
   data: slotBookingZodType;
   onClose: () => void;
-  /** Hides duplicate package/time fields when package block is shown above. */
+  /** Hides the visit date/time when the package block above already manages it. */
   compact?: boolean;
 }
 
@@ -57,60 +48,18 @@ export default function AppointmentDetailsPage({
     useUpdateAppointment();
   const { mutate: deleteMutate, isPending: isDeleting } =
     useDeleteAppointment();
-  const { data: services = [] } = useGetServices();
-  const sessionPackages = getSessionPackages(services);
+
+  // Customer identity is set during the enquiry funnel and rarely edited during
+  // a visit — keep it tucked away so the drawer stays visit-focused.
+  const [showCustomer, setShowCustomer] = useState(false);
 
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
     resolver: zodResolver(slotBookingZodSchema),
-    defaultValues: {
-      _id: data._id,
-      name: data.name,
-      location: data.location,
-      category: data.category,
-      slot: {
-      date: data.slot?.date
-        ? new Date(data.slot.date).toISOString().split("T")[0]
-        : "",
-      time: data.slot?.time ?? "",
-    },
-      note: data.note,
-      age: data.age,
-      phonenumber: data.phonenumber,
-      email: data.email,
-      doctor: data.doctor,
-      doctorId: data.doctorId,
-      status: data.status ?? "scheduled",
-      therapyStartTime: data.therapyStartTime ?? "",
-      therapyEndTime: data.therapyEndTime ?? "",
-      typeOfappointment: data.typeOfappointment ?? "appointment",
-      packageServiceId: data.packageServiceId ?? "",
-    },
+    defaultValues: buildDefaults(data),
   });
 
   useEffect(() => {
-    form.reset({
-      _id: data._id,
-      name: data.name,
-      location: data.location,
-      category: data.category,
-      slot: {
-        date: data.slot?.date
-          ? new Date(data.slot.date).toISOString().split("T")[0]
-          : "",
-        time: data.slot?.time ?? "",
-      },
-      note: data.note,
-      age: data.age,
-      phonenumber: data.phonenumber,
-      email: data.email,
-      doctor: data.doctor,
-      doctorId: data.doctorId,
-      status: data.status ?? "scheduled",
-      therapyStartTime: data.therapyStartTime ?? "",
-      therapyEndTime: data.therapyEndTime ?? "",
-      typeOfappointment: data.typeOfappointment ?? "appointment",
-      packageServiceId: data.packageServiceId ?? "",
-    });
+    form.reset(buildDefaults(data));
   }, [data._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onSubmit(values: slotBookingZodType) {
@@ -120,9 +69,9 @@ export default function AppointmentDetailsPage({
   }
 
   function handleDelete() {
-    if (!data._id) return; // ← guard against undefined _id
+    if (!data._id) return;
     deleteMutate(data._id, {
-      onSuccess: () => onClose(), // ← close only on success
+      onSuccess: () => onClose(),
     });
   }
 
@@ -165,7 +114,6 @@ export default function AppointmentDetailsPage({
             </AlertDialogContent>
           </AlertDialog>
 
-          {/* update */}
           <Button type="submit" size="sm" disabled={isUpdating || isDeleting}>
             {isUpdating ? (
               <>
@@ -178,46 +126,35 @@ export default function AppointmentDetailsPage({
           </Button>
         </div>
 
-        {/* form fields */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mx-auto p-6 border rounded-lg [&>*]:min-w-0">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* Visit-focused details — customer identity is collapsed below. */}
+        <div className="w-full mx-auto p-6 border rounded-lg space-y-5 [&>*]:min-w-0">
+          {data.doctor && (
+            <FormField
+              control={form.control}
+              name="doctor"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Therapist</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Therapist" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <FormControl>
-                  <Input placeholder="Location" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {data.doctor && data.doctorId && (
-            <>
+          {/* Visit date/time only when there's no package block managing it. */}
+          {!compact && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="doctor"
+                name="slot.date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Therapist</FormLabel>
+                    <FormLabel>Date</FormLabel>
                     <FormControl>
-                      <Input placeholder="Therapist" {...field} />
+                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -225,209 +162,25 @@ export default function AppointmentDetailsPage({
               />
               <FormField
                 control={form.control}
-                name="doctorId"
+                name="slot.time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Therapist ID</FormLabel>
+                    <FormLabel>Time</FormLabel>
                     <FormControl>
-                      <Input placeholder="Therapist ID" {...field} />
+                      <Input placeholder="Time" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </>
-          )}
-
-          <FormField
-            control={form.control}
-            name="age"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Age</FormLabel>
-                <FormControl>
-                  <Input placeholder="Age" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="phonenumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone Number</FormLabel>
-                <FormControl>
-                  <Input placeholder="Phone Number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="Email" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="slot.date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="slot.time"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Time</FormLabel>
-                <FormControl>
-                  <Input placeholder="Time" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {!compact && (
-          <FormField
-            control={form.control}
-            name="packageServiceId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Therapy package</FormLabel>
-                <Select
-                  value={field.value || "none"}
-                  onValueChange={(v) =>
-                    field.onChange(v === "none" ? "" : v)
-                  }
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select package (for session progress)" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="none">No package</SelectItem>
-                    {sessionPackages.map((pkg) => (
-                      <SelectItem key={pkg.serviceId} value={pkg.serviceId}>
-                        {pkg.name} ({pkg.packageCount} sessions)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          )}
-
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select
-                  defaultValue={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="scheduled">
-                      Scheduled (Not Started)
-                    </SelectItem>
-                    <SelectItem value="ongoing">Therapy Started</SelectItem>
-                    <SelectItem value="completed">Therapy Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-<FormField
-  control={form.control}
-  name="typeOfappointment"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Appointment Type</FormLabel>
-      <Select defaultValue={field.value} onValueChange={field.onChange}>
-        <FormControl>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select Type" />
-          </SelectTrigger>
-        </FormControl>
-        <SelectContent>
-          <SelectItem value="appointment">Appointment</SelectItem>
-          <SelectItem value="consultation">Consultation</SelectItem>
-        </SelectContent>
-      </Select>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
-          {!compact && (
-          <>
-          <FormField
-            control={form.control}
-            name="therapyStartTime"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Therapy Start Time</FormLabel>
-                <FormControl>
-                  <Input type="datetime-local" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="therapyEndTime"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Therapy End Time</FormLabel>
-                <FormControl>
-                  <Input type="datetime-local" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          </>
+            </div>
           )}
 
           <FormField
             control={form.control}
             name="note"
             render={({ field }) => (
-              <FormItem className="md:col-span-3">
+              <FormItem>
                 <FormLabel>Note</FormLabel>
                 <FormControl>
                   <Textarea placeholder="Note" {...field} />
@@ -436,8 +189,123 @@ export default function AppointmentDetailsPage({
               </FormItem>
             )}
           />
+
+          {/* Customer details — collapsed by default. */}
+          <div className="border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setShowCustomer((s) => !s)}
+              className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              {showCustomer ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+              Customer details
+            </button>
+
+            {showCustomer && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phonenumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Phone Number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Location" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="age"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Age</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Age" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </form>
     </Form>
   );
+}
+
+// Preserve every field on the record (including ones no longer shown in this
+// drawer — therapist id, appointment type, package id, therapy start/end times)
+// so an "Update Details" save never silently wipes them.
+function buildDefaults(data: slotBookingZodType) {
+  return {
+    _id: data._id,
+    name: data.name,
+    location: data.location,
+    category: data.category,
+    slot: {
+      date: data.slot?.date
+        ? new Date(data.slot.date).toISOString().split("T")[0]
+        : "",
+      time: data.slot?.time ?? "",
+    },
+    note: data.note,
+    age: data.age,
+    phonenumber: data.phonenumber,
+    email: data.email,
+    doctor: data.doctor,
+    doctorId: data.doctorId,
+    status: data.status ?? "scheduled",
+    therapyStartTime: data.therapyStartTime ?? "",
+    therapyEndTime: data.therapyEndTime ?? "",
+    typeOfappointment: data.typeOfappointment ?? "appointment",
+    packageServiceId: data.packageServiceId ?? "",
+  };
 }

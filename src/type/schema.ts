@@ -290,6 +290,22 @@ export const serviceFormSchema = z.object({
   isPackage: z.boolean().optional(),
   packageUnit: z.enum(["sessions", "weeks", "months"]).optional(),
   packageCount: z.number().nonnegative().optional(),
+}).superRefine((data, ctx) => {
+  if (!data.isPackage) return;
+  if (data.packageCount === undefined || data.packageCount < 1) {
+    ctx.addIssue({
+      code: "custom",
+      message: "A package needs at least 1 session",
+      path: ["packageCount"],
+    });
+  }
+  if (!data.packageUnit) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Package unit is required",
+      path: ["packageUnit"],
+    });
+  }
 });
 export type ServiceFormType = z.infer<typeof serviceFormSchema>;
 

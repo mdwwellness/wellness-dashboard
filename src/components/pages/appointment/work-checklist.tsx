@@ -45,6 +45,9 @@ export function WorkChecklist({
     services,
   );
   const hasPackage = !!resolvePackageForAppointment(draft, services);
+  // Package is fully delivered — no more sessions may be completed.
+  const packageDone =
+    hasPackage && !!progress && progress.completed >= progress.total;
 
   function toggle(key: string, label: string, checked: boolean) {
     // Package session completion goes through the atomic complete-session
@@ -52,6 +55,10 @@ export function WorkChecklist({
     // only path that can be double-fired by a rapid double-click or two open
     // tabs, so it must not rely on a client-read-then-write value.
     if (key === "completed" && checked && hasPackage && appointment._id) {
+      // Ceiling: once all sessions are done, there is nothing left to complete.
+      // (The backend also rejects this, but we block it in the UI so the box
+      // can't even be ticked.)
+      if (packageDone) return;
       markSessionComplete(appointment._id, {
         onSuccess: (result) => {
           if (result.data) setDraft(result.data as slotBookingZodType);
@@ -110,21 +117,34 @@ export function WorkChecklist({
       <p className="text-xs text-muted-foreground">
         Payment is tracked on the package and add-on sections above.
       </p>
+      {packageDone && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30 px-3 py-2 text-xs font-medium text-emerald-800 dark:text-emerald-300">
+          Package complete — all {progress?.total} sessions done. No further
+          visits to record.
+        </div>
+      )}
       <div className="space-y-2">
-        {CHECKLIST.map((item) => (
-          <label
-            key={item.key}
-            className="flex items-center gap-2 text-sm cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              checked={done.has(item.key)}
-              disabled={item.key === "completed" && isCompleting}
-              onChange={(e) => toggle(item.key, item.label, e.target.checked)}
-            />
-            {item.label}
-          </label>
-        ))}
+        {CHECKLIST.map((item) => {
+          const lockCompleted = item.key === "completed" && packageDone;
+          return (
+            <label
+              key={item.key}
+              className={`flex items-center gap-2 text-sm ${
+                lockCompleted ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={done.has(item.key)}
+                disabled={
+                  item.key === "completed" && (isCompleting || packageDone)
+                }
+                onChange={(e) => toggle(item.key, item.label, e.target.checked)}
+              />
+              {item.label}
+            </label>
+          );
+        })}
       </div>
 
       {activity.length > 0 && (

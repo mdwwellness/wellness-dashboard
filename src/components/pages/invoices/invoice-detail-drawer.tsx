@@ -2,10 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Phone, Mail, BadgeCheck, FileText, ReceiptText, Pencil, Loader2 } from "lucide-react";
+import { Ban, Phone, Mail, BadgeCheck, FileText, ReceiptText, Pencil, Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import type { PersistedInvoice, UpdateInvoiceInput, InvoicePaymentStatus, InvoiceLineItem } from "@/type/invoice";
-import { useUpdateInvoice, useGenerateInvoicePdf } from "@/data/invoice/invoice";
+import { useUpdateInvoice, useGenerateInvoicePdf, useVoidInvoice } from "@/data/invoice/invoice";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import {
   Sheet,
@@ -38,6 +50,12 @@ function safeText(s: unknown): string {
   return typeof s === "string" ? s : "";
 }
 
+function formatInvoiceType(t: string): string {
+  return (t ?? "")
+    .replace(/_/g, " ")
+    .replace(/^\w/, (c) => c.toUpperCase());
+}
+
 export function InvoiceDetailDrawer({
   invoice,
   onClose,
@@ -49,8 +67,11 @@ export function InvoiceDetailDrawer({
 
   const { mutate: updateInvoice, isPending: isUpdating } = useUpdateInvoice();
   const { mutate: generatePdf, isPending: isGeneratingPdf } = useGenerateInvoicePdf();
+  const { mutate: voidInvoiceMut, isPending: isVoiding } = useVoidInvoice();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
   const [draft, setDraft] = useState<PersistedInvoice | null>(invoice);
 
   useEffect(() => {
@@ -103,6 +124,10 @@ export function InvoiceDetailDrawer({
 
   function removeLineItem(i: number) {
     if (!draft) return;
+    if ((draft.line_items ?? []).length <= 1) {
+      toast.error("An invoice needs at least one line item.");
+      return;
+    }
     const next = [...(draft.line_items ?? [])];
     next.splice(i, 1);
     const advancePaid = Number(draft.advance_paid ?? 0) || 0;
@@ -124,6 +149,15 @@ export function InvoiceDetailDrawer({
       description: safeText(li.description).trim() || "Item",
       price: Number(li.price) || 0,
     }));
+
+    if (items.length === 0) {
+      toast.error("An invoice needs at least one line item.");
+      return;
+    }
+    if (items.some((li) => li.price < 0)) {
+      toast.error("Line item prices cannot be negative.");
+      return;
+    }
 
     const { itemsSubtotal, total } = computeTotals(items);
 
@@ -167,6 +201,7 @@ export function InvoiceDetailDrawer({
   }
 
   return (
+    <>
     <Sheet
       open={open}
       onOpenChange={(next) => {
@@ -180,9 +215,19 @@ export function InvoiceDetailDrawer({
               <ReceiptText className="h-4 w-4 text-muted-foreground" />
               {invoice.invoice_id}
             </span>
-            <Badge variant={invoice.payment_status === "paid" ? "default" : "secondary"}>
-              {invoice.payment_status === "paid" ? "Paid" : "Pending"}
-            </Badge>
+            <span className="flex items-center gap-2">
+              {invoice.voided && (
+                <Badge
+                  variant="outline"
+                  className="border-destructive text-destructive"
+                >
+                  Voided
+                </Badge>
+              )}
+              <Badge variant={invoice.payment_status === "paid" ? "default" : "secondary"}>
+                {invoice.payment_status === "paid" ? "Paid" : "Pending"}
+              </Badge>
+            </span>
           </SheetTitle>
           <SheetDescription>
             Invoice for {invoice.customer_name} • {createdAtText}
@@ -190,6 +235,17 @@ export function InvoiceDetailDrawer({
         </SheetHeader>
 
         <div className="p-4 space-y-6">
+          {invoice.voided && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              This invoice was voided
+              {invoice.voided_by ? ` by ${invoice.voided_by}` : ""}
+              {invoice.voided_at
+                ? ` on ${format(new Date(invoice.voided_at), "yyyy-MM-dd HH:mm")}`
+                : ""}
+              .{invoice.void_reason ? ` Reason: ${invoice.void_reason}` : ""}
+            </div>
+          )}
+
           {/* Customer */}
           <section className="space-y-2">
             <div className="flex items-center gap-2 text-sm">
@@ -214,7 +270,9 @@ export function InvoiceDetailDrawer({
           <section className="grid grid-cols-2 gap-3">
             <div className="border rounded-md p-3">
               <div className="text-xs text-muted-foreground">Type</div>
-              <div className="text-sm font-medium">{invoice.invoice_type}</div>
+              <div className="text-sm font-medium">
+                {formatInvoiceType(invoice.invoice_type)}
+              </div>
             </div>
             <div className="border rounded-md p-3">
               <div className="text-xs text-muted-foreground">Total</div>
@@ -232,7 +290,12 @@ export function InvoiceDetailDrawer({
                 Invoice details
               </h3>
               {!isEditing ? (
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={invoice.voided}
+                  onClick={() => setIsEditing(true)}
+                >
                   Edit
                 </Button>
               ) : (
@@ -293,39 +356,51 @@ export function InvoiceDetailDrawer({
 
                 <div className="space-y-2">
                   <div className="text-xs text-muted-foreground">Line items</div>
+
+                  {/* Column headers shown once — the labels no longer repeat per row. */}
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 px-3 text-xs text-muted-foreground">
+                      Description
+                    </div>
+                    <div className="w-28 px-3 text-xs text-muted-foreground">
+                      Price
+                    </div>
+                    {isEditing && <div className="w-9 shrink-0" aria-hidden />}
+                  </div>
+
                   <div className="space-y-2">
                     {(draft.line_items ?? []).map((li, idx) => (
-                      <div key={idx} className="flex gap-2 items-end">
-                        <div className="flex-1 space-y-1">
-                          <div className="text-xs text-muted-foreground">Description</div>
-                          <Input
-                            value={li.description}
-                            onChange={(e) =>
-                              setLineItem(idx, { description: e.target.value })
-                            }
-                            disabled={!isEditing}
-                          />
-                        </div>
-                        <div className="w-28 space-y-1">
-                          <div className="text-xs text-muted-foreground">Price</div>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={Number(li.price) || 0}
-                            onChange={(e) =>
-                              setLineItem(idx, { price: Number(e.target.value) || 0 })
-                            }
-                            disabled={!isEditing}
-                          />
-                        </div>
+                      <div key={idx} className="flex gap-2 items-center">
+                        <Input
+                          className="flex-1"
+                          value={li.description}
+                          onChange={(e) =>
+                            setLineItem(idx, { description: e.target.value })
+                          }
+                          disabled={!isEditing}
+                        />
+                        <Input
+                          className="w-28"
+                          type="number"
+                          min={0}
+                          value={Number(li.price) || 0}
+                          onChange={(e) =>
+                            setLineItem(idx, { price: Math.max(0, Number(e.target.value) || 0) })
+                          }
+                          disabled={!isEditing}
+                        />
                         {isEditing && (
                           <Button
                             type="button"
                             variant="ghost"
-                            className="h-9 px-2"
+                            size="icon"
+                            className="h-9 w-9 shrink-0 text-muted-foreground"
+                            disabled={(draft.line_items ?? []).length <= 1}
                             onClick={() => removeLineItem(idx)}
+                            aria-label="Delete line item"
+                            title="Delete line item"
                           >
-                            Delete
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
@@ -426,9 +501,72 @@ export function InvoiceDetailDrawer({
               </Button>
             </div>
           </section>
+
+          {!invoice.voided && (
+            <>
+              <Separator />
+              <section className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <Ban className="h-4 w-4" />
+                  Void invoice
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Cancels this invoice — it stays on record for the audit trail
+                  but is excluded from live totals. Use for a mistaken or
+                  duplicate invoice.
+                </p>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setVoidOpen(true)}
+                >
+                  Void invoice
+                </Button>
+              </section>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={voidOpen} onOpenChange={setVoidOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Void {invoice.invoice_id}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            It will be marked voided and excluded from totals. This can&apos;t be
+            undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Textarea
+          placeholder="Reason (optional)"
+          value={voidReason}
+          onChange={(e) => setVoidReason(e.target.value)}
+        />
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isVoiding}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={isVoiding}
+            onClick={(e) => {
+              e.preventDefault();
+              voidInvoiceMut(
+                { invoiceId: invoice.invoice_id, reason: voidReason.trim() },
+                {
+                  onSuccess: () => {
+                    setVoidOpen(false);
+                    setVoidReason("");
+                  },
+                },
+              );
+            }}
+          >
+            {isVoiding ? "Voiding…" : "Void invoice"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

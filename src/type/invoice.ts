@@ -38,6 +38,11 @@ export interface PersistedInvoice {
   payment_status: InvoicePaymentStatus;
   pdf_url: string | null;
 
+  voided?: boolean;
+  voided_at?: string | null;
+  voided_by?: string | null;
+  void_reason?: string;
+
   createdAt?: string;
   updatedAt?: string;
 }

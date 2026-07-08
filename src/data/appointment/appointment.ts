@@ -40,9 +40,13 @@ export function useGetAllAppointments(user: UserType) {
 // Appointments and enquiries are the same backend collection, so any
 // mutation must invalidate both query keys — otherwise edits made from
 // the enquiries drawer won't refresh the enquiries page (and vice versa).
+// Invoices are also invalidated because confirming/paying an add-on,
+// completing a session, or editing an appointment all re-sync its invoice
+// on the backend — the invoices list must refresh to show it.
 function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["appointments"] });
   queryClient.invalidateQueries({ queryKey: ["enquiries"] });
+  queryClient.invalidateQueries({ queryKey: ["invoices"] });
 }
 
 export function useBookAppointment() {

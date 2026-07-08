@@ -155,6 +155,20 @@ export function EnquiryDetailDrawer({
   // Only NOW is it safe to early-return — hooks above have all run.
   if (!record || !draft) return null;
 
+  // Only "Online Consultation" leads have the paid therapist-consultation step.
+  // Home Therapy / Vitals leads skip it — the executive reach-out already
+  // captures their needs — so their funnel is Reach-out → Assignment → Payment
+  // and the later steps renumber down by one.
+  const isConsultLead =
+    draft.service !== "Home Therapy" && draft.service !== "Vitals Check";
+  const stepNo = {
+    reach: 1,
+    consult: 2,
+    physio: isConsultLead ? 3 : 2,
+    payment: isConsultLead ? 4 : 3,
+    completion: isConsultLead ? 5 : 4,
+  };
+
   function patch(partial: Partial<EnquiryType>) {
     setDraft({ ...draft!, ...partial });
   }
@@ -596,7 +610,14 @@ export function EnquiryDetailDrawer({
 
           {/* ── Section: Reach out ── */}
           <section id="enq-sec-reach" className="space-y-2 border-t pt-4 scroll-mt-4">
-            <h3 className="text-sm font-semibold">1. Executive reach-out</h3>
+            <h3 className="text-sm font-semibold">
+              {stepNo.reach}. Executive reach-out
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {isConsultLead
+                ? "A quick call to reach the customer and schedule a time — no charge."
+                : "Reach the customer, capture their needs, and schedule a time — no charge."}
+            </p>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -636,14 +657,15 @@ export function EnquiryDetailDrawer({
             )}
           </section>
 
-          {/* ── Section: Online consultation ── */}
+          {/* ── Section: Online consultation (Online Consultation leads only) ── */}
+          {isConsultLead && (
           <section id="enq-sec-consult" className="space-y-3 border-t pt-4 scroll-mt-4">
             <h3 className="text-sm font-semibold">
-              2.{" "}
-              {draft.service === "Vitals Check" || draft.service === "Home Therapy"
-                ? "Consultation call"
-                : "Online consultation"}
+              {stepNo.consult}. Online consultation (with therapist)
             </h3>
+            <p className="text-xs text-muted-foreground">
+              Paid session where the therapist discusses the issue — ₹500.
+            </p>
             <SlotPicker
               label="Consultation slot"
               value={draft.consultationSlot}
@@ -658,6 +680,11 @@ export function EnquiryDetailDrawer({
               />
               Mark consultation done
             </label>
+            {!draft.consultationSlot?.date && (
+              <p className="text-xs text-muted-foreground">
+                Book the consultation slot above to enable this.
+              </p>
+            )}
             {draft.consultationCompletedAt && (
               <p className="text-xs text-muted-foreground">
                 Completed at{" "}
@@ -665,11 +692,12 @@ export function EnquiryDetailDrawer({
               </p>
             )}
           </section>
+          )}
 
           {/* ── Section: Physio assignment ── */}
           <section id="enq-sec-physio" className="space-y-3 border-t pt-4 scroll-mt-4">
             <h3 className="text-sm font-semibold">
-              3.{" "}
+              {stepNo.physio}.{" "}
               {draft.service === "Vitals Check"
                 ? "Vitals visit assignment"
                 : draft.service === "Home Therapy"
@@ -714,41 +742,8 @@ export function EnquiryDetailDrawer({
                 </SelectContent>
               </Select>
             </div>
-            {draft.doctorId &&
-              (!draft.physioSlot?.date || !draft.physioSlot?.time) && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
-                  Pick a physio date &amp; time for{" "}
-                  {draft.doctor || "this therapist"} to confirm the assignment.
-                </p>
-              )}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={draft.physioAssignmentConfirmed ?? false}
-                disabled={
-                  !draft.physioSlot?.date ||
-                  !draft.physioSlot?.time ||
-                  !draft.doctorId
-                }
-                onChange={(e) => toggleAssignmentConfirmed(e.target.checked)}
-              />
-              Confirm assignment (therapist is available)
-            </label>
-            {draft.physioAssignmentConfirmedAt && (
-              <p className="text-xs text-muted-foreground">
-                Confirmed at{" "}
-                {new Date(draft.physioAssignmentConfirmedAt).toLocaleString()}
-              </p>
-            )}
-          </section>
 
-          {/* ── Section: Payment ── */}
-          <section
-            id="enq-sec-payment"
-            className="space-y-3 border-t pt-4 scroll-mt-4"
-          >
-            <h3 className="text-sm font-semibold">4. Payment</h3>
-
+            {/* Treatment package — part of the plan, chosen here (not at payment). */}
             {showPackagePicker && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3">
                 <div>
@@ -804,6 +799,53 @@ export function EnquiryDetailDrawer({
                   </p>
                 )}
               </div>
+            )}
+
+            {draft.doctorId &&
+              (!draft.physioSlot?.date || !draft.physioSlot?.time) && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
+                  Pick a physio date &amp; time for{" "}
+                  {draft.doctor || "this therapist"} to confirm the assignment.
+                </p>
+              )}
+            {!draft.doctorId && (
+              <p className="text-xs text-muted-foreground">
+                Pick a therapist above to confirm the assignment.
+              </p>
+            )}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.physioAssignmentConfirmed ?? false}
+                disabled={
+                  !draft.physioSlot?.date ||
+                  !draft.physioSlot?.time ||
+                  !draft.doctorId
+                }
+                onChange={(e) => toggleAssignmentConfirmed(e.target.checked)}
+              />
+              Confirm assignment (therapist is available)
+            </label>
+            {draft.physioAssignmentConfirmedAt && (
+              <p className="text-xs text-muted-foreground">
+                Confirmed at{" "}
+                {new Date(draft.physioAssignmentConfirmedAt).toLocaleString()}
+              </p>
+            )}
+          </section>
+
+          {/* ── Section: Payment ── */}
+          <section
+            id="enq-sec-payment"
+            className="space-y-3 border-t pt-4 scroll-mt-4"
+          >
+            <h3 className="text-sm font-semibold">{stepNo.payment}. Payment</h3>
+            {showPackagePicker && selectedPackage && (
+              <p className="text-xs text-muted-foreground">
+                Package: <span className="font-medium">{selectedPackage.name}</span>{" "}
+                ({selectedPackage.packageCount} sessions) — chosen in step 3.
+                Amount below is auto-filled from the catalogue.
+              </p>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -900,7 +942,8 @@ export function EnquiryDetailDrawer({
             className="space-y-2 border-t pt-4 scroll-mt-4"
           >
             <h3 className="text-sm font-semibold">
-              5. {showPackagePicker ? "Session 1 scheduled" : "Completion"}
+              {stepNo.completion}.{" "}
+              {showPackagePicker ? "Session 1 scheduled" : "Completion"}
             </h3>
             {showPackagePicker ? (
               <div className="rounded-md border bg-muted/30 p-3 space-y-2 text-sm">

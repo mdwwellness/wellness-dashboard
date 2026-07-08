@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { format } from "date-fns";
 import { CalendarPlus, Check, Loader2, Plus, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
@@ -78,6 +79,20 @@ export function PackageVisitSection({
     progress.completed < progress.total &&
     appointment.status === "scheduled";
 
+  // Map session number → date it was completed, parsed from the activity log
+  // (the backend logs "Session N of M completed" / "Package complete" on each
+  // completion). Used to show a per-session performed/pending breakdown.
+  const sessionDates = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const e of appointment.activityLog ?? []) {
+      const action = e.action ?? "";
+      const m = /Session (\d+) of/.exec(action);
+      if (m) map.set(Number(m[1]), e.at);
+      else if (/Package complete/i.test(action)) map.set(progress.total, e.at);
+    }
+    return map;
+  }, [appointment.activityLog, progress.total]);
+
   function saveNextSlot() {
     if (!nextDate || !nextTime) {
       toast.error("Pick date and time for the next session");
@@ -116,6 +131,67 @@ export function PackageVisitSection({
           className="h-full rounded-full bg-emerald-600 transition-all"
           style={{ width: `${Math.min(pct, 100)}%` }}
         />
+      </div>
+
+      {/* Per-session breakdown — what's performed vs what's left, in points. */}
+      <div className="space-y-1 rounded-md border bg-background/60 p-2.5">
+        <p className="text-xs font-medium">
+          Sessions ({progress.completed} performed ·{" "}
+          {Math.max(progress.total - progress.completed, 0)} left)
+        </p>
+        <ul className="space-y-1">
+          {Array.from({ length: progress.total }, (_, i) => {
+            const n = i + 1;
+            const performed = n <= progress.completed;
+            const date = sessionDates.get(n);
+            return (
+              <li key={n} className="flex items-center gap-2 text-xs">
+                {performed ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                ) : (
+                  <span className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
+                )}
+                <span className={performed ? "" : "text-muted-foreground"}>
+                  Session {n} — {performed ? "performed" : "pending"}
+                  {performed && date
+                    ? ` · ${format(new Date(date), "yyyy-MM-dd")}`
+                    : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+
+        {(appointment.recommendedServices ?? []).length > 0 && (
+          <>
+            <p className="text-xs font-medium pt-1.5 mt-1.5 border-t">
+              Add-on services
+            </p>
+            <ul className="space-y-1">
+              {(appointment.recommendedServices ?? []).map((a, i) => {
+                const confirmed = a.status === "confirmed";
+                return (
+                  <li
+                    key={`${a.serviceId}-${a.recommendedAt}-${i}`}
+                    className="flex items-center gap-2 text-xs"
+                  >
+                    {confirmed ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    ) : (
+                      <span className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
+                    )}
+                    <span className={confirmed ? "" : "text-muted-foreground"}>
+                      {a.serviceName} —{" "}
+                      {confirmed ? "confirmed" : "awaiting customer"}
+                      {a.paymentCollected ? " · paid" : ""} ·{" "}
+                      {formatINR(a.quotedPrice)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
       </div>
 
       {appointment.slot?.date && (

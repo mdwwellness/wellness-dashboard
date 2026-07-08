@@ -37,6 +37,7 @@ export function useAddTherapist() {
       toast.success("Therapist added successfully");
       queryClient.invalidateQueries({ queryKey: ["therapists"] });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -53,6 +54,7 @@ export function useDeleteTherapist() {
       toast.success("Therapist deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["therapists"] });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -69,6 +71,7 @@ export function useUpdateTherapist() {
       toast.success("Therapist updated successfully");
       queryClient.invalidateQueries({ queryKey: ["therapists"] });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

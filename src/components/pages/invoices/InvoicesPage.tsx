@@ -56,6 +56,7 @@ export default function InvoicesPage() {
   const {
     data: invoices = [],
     isLoading,
+    isFetching,
     isError,
     error,
     refetch,
@@ -128,12 +129,13 @@ export default function InvoicesPage() {
               <CreateInvoiceTrigger onOpen={() => setCreateOpen(true)} />
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
                 onClick={() => refetch()}
-                disabled={isLoading}
+                disabled={isFetching}
+                aria-label="Refresh invoices"
+                title="Refresh"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-                Refresh
+                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </CardHeader>

@@ -53,7 +53,16 @@ function scrollToSection(id: string) {
 export function EnquiryProgressStepper({ record }: { record: EnquiryType }) {
   const cancelled = record.status === "cancelled";
 
-  const doneFlags = STEPS.map((s) => s.done(record));
+  // Home Therapy / Vitals leads skip the paid online consultation, so drop the
+  // "Consulted" step from their progress bar too — keeps it in sync with the
+  // adaptive funnel in the drawer.
+  const isConsultLead =
+    record.service !== "Home Therapy" && record.service !== "Vitals Check";
+  const steps = isConsultLead
+    ? STEPS
+    : STEPS.filter((s) => s.key !== "consulted");
+
+  const doneFlags = steps.map((s) => s.done(record));
   // Fill the bar up to the furthest completed step (monotonic, like the funnel).
   let lastDone = -1;
   doneFlags.forEach((d, i) => {
@@ -75,7 +84,7 @@ export function EnquiryProgressStepper({ record }: { record: EnquiryType }) {
   return (
     <div className="space-y-2">
       <div className={cn("flex items-start", cancelled && "opacity-40")}>
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const isDone = i <= lastDone;
           const isCurrent = !cancelled && i === currentIndex;
           return (
@@ -106,7 +115,7 @@ export function EnquiryProgressStepper({ record }: { record: EnquiryType }) {
                   {step.label}
                 </span>
               </button>
-              {i < STEPS.length - 1 && (
+              {i < steps.length - 1 && (
                 <div
                   className={cn(
                     "h-0.5 flex-1 mt-2.5",
