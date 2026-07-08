@@ -40,7 +40,10 @@ export function AppointmentDataTable<TData, TValue>({
   columns,
   data,
 }: AppointmentDataType<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  // Default to newest-first by booking time (the "Booked on" / createdAt column).
+  const [sorting, setSorting] = React.useState<SortingState>([
+    { id: "createdAt", desc: true },
+  ]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );

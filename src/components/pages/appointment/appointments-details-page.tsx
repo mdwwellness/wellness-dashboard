@@ -26,10 +26,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  useDeleteAppointment,
-  useUpdateAppointment,
-} from "@/data/appointment/appointment";
+import { useUpdateAppointment } from "@/data/appointment/appointment";
+import { toast } from "sonner";
 import z from "zod";
 
 interface AppointmentDetailsPageProps {
@@ -46,8 +44,11 @@ export default function AppointmentDetailsPage({
 }: AppointmentDetailsPageProps) {
   const { mutate: updateMutate, isPending: isUpdating } =
     useUpdateAppointment();
-  const { mutate: deleteMutate, isPending: isDeleting } =
-    useDeleteAppointment();
+  // Cancelling is a soft status change (kept silent so we can show our own
+  // "cancelled" toast). The record, add-ons, sessions and customer details are
+  // all preserved; only the status flips to "cancelled".
+  const { mutate: cancelMutate, isPending: isCancelling } =
+    useUpdateAppointment({ silent: true });
 
   // Customer identity is set during the enquiry funnel and rarely edited during
   // a visit — keep it tucked away so the drawer stays visit-focused.
@@ -68,64 +69,24 @@ export default function AppointmentDetailsPage({
     });
   }
 
-  function handleDelete() {
+  function handleCancelAppointment() {
     if (!data._id) return;
-    deleteMutate(data._id, {
-      onSuccess: () => onClose(),
-    });
+    cancelMutate(
+      { ...form.getValues(), status: "cancelled" },
+      {
+        onSuccess: () => {
+          toast.success("Appointment cancelled", {
+            description: "It's kept on record with all its details.",
+          });
+          onClose();
+        },
+      },
+    );
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex justify-end items-center gap-2 mb-4">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                disabled={isDeleting || isUpdating}
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete appointment?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. The appointment will be
-                  permanently removed.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          <Button type="submit" size="sm" disabled={isUpdating || isDeleting}>
-            {isUpdating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Updating...
-              </>
-            ) : (
-              "Update Details"
-            )}
-          </Button>
-        </div>
-
         {/* Visit-focused details — customer identity is collapsed below. */}
         <div className="w-full mx-auto p-6 border rounded-lg space-y-5 [&>*]:min-w-0">
           {data.doctor && (
@@ -275,6 +236,57 @@ export default function AppointmentDetailsPage({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Actions sit under the fields they act on. */}
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="text-muted-foreground"
+                disabled={isCancelling || isUpdating}
+              >
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Cancelling...
+                  </>
+                ) : (
+                  "Cancel appointment"
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel this appointment?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  It will be marked as cancelled and kept on record. Sessions,
+                  add-ons, and customer details all stay saved. It won&apos;t be
+                  deleted.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep it</AlertDialogCancel>
+                <AlertDialogAction onClick={handleCancelAppointment}>
+                  Cancel appointment
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <Button type="submit" size="sm" disabled={isUpdating || isCancelling}>
+            {isUpdating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Saving...
+              </>
+            ) : (
+              "Save changes"
+            )}
+          </Button>
         </div>
       </form>
     </Form>

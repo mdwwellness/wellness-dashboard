@@ -46,7 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
+import { cn, tidyActivityText } from "@/lib/utils";
 
 import {
   useDeleteAppointment,
@@ -1082,7 +1082,7 @@ export function EnquiryDetailDrawer({
                     key={`${e.at}-${i}`}
                     className="text-xs border-l-2 border-muted pl-3 pb-0.5"
                   >
-                    <div className="text-foreground">{e.action}</div>
+                    <div className="text-foreground">{tidyActivityText(e.action)}</div>
                     <div className="text-muted-foreground">
                       {e.name}
                       {" · "}

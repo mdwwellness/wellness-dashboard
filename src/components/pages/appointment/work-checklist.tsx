@@ -11,6 +11,7 @@ import {
   getPackageProgressForAppointment,
   resolvePackageForAppointment,
 } from "@/lib/package-progress";
+import { tidyActivityText } from "@/lib/utils";
 
 const CHECKLIST = [
   { key: "arrived", label: "Arrived" },
@@ -159,7 +160,8 @@ export function WorkChecklist({
                   {format(new Date(e.at), "yyyy-MM-dd HH:mm")}
                 </span>
                 {" · "}
-                <span className="font-medium">{e.name}</span> — {e.action}
+                <span className="font-medium">{e.name}</span>{" - "}
+                {tidyActivityText(e.action)}
               </div>
             ))}
           </div>

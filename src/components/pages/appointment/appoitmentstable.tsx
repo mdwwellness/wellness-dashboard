@@ -6,12 +6,50 @@ import { DataTableColumnHeader } from "@/components/tables/data-table-column-hea
 import { Badge } from "@/components/ui/badge";
 import { getPackageProgressForAppointment, getConfirmedAddonNames } from "@/lib/package-progress";
 import { PackageProgressBadge } from "./package-progress-badge";
+import { format } from "date-fns";
+
+/**
+ * Creation time for a booking, in ms. Prefers the Mongoose `createdAt`
+ * timestamp; falls back to the timestamp embedded in the Mongo ObjectId
+ * (its first 4 bytes are the creation time in seconds) so sorting still
+ * works for any legacy row that has no `createdAt`.
+ */
+function getCreatedMs(row: slotBookingZodType): number {
+  const createdAt = (row as unknown as { createdAt?: string }).createdAt;
+  if (createdAt) {
+    const t = new Date(createdAt).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  const id = row._id ?? "";
+  if (id.length >= 8) {
+    const seconds = parseInt(id.slice(0, 8), 16);
+    if (!Number.isNaN(seconds)) return seconds * 1000;
+  }
+  return 0;
+}
 
 export function makeAppointmentColumns(
   allAppointments: slotBookingZodType[],
   services: ServiceType[],
 ): ColumnDef<slotBookingZodType>[] {
   return [
+    {
+      id: "createdAt",
+      accessorFn: (row) => getCreatedMs(row),
+      sortingFn: "basic",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Booked on" />
+      ),
+      cell: ({ row }) => {
+        const ms = getCreatedMs(row.original);
+        if (!ms) return <span className="text-muted-foreground/40">—</span>;
+        return (
+          <span className="whitespace-nowrap tabular-nums text-xs text-muted-foreground">
+            {format(new Date(ms), "yyyy-MM-dd HH:mm")}
+          </span>
+        );
+      },
+    },
     {
       accessorKey: "name",
       header: ({ column }) => (
