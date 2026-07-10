@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshButton } from "@/components/refresh-button";
 import {
   ColumnDef,
   flexRender,
@@ -473,16 +473,11 @@ export default function EnquiriesPage() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
+            <RefreshButton
               onClick={handleReload}
-              disabled={isFetching}
-              aria-label="Refresh enquiries"
-              title="Refresh"
-            >
-              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-            </Button>
+              isFetching={isFetching}
+              label="Refresh enquiries"
+            />
             <EnquiryIntakeModal />
           </div>
         </CardHeader>

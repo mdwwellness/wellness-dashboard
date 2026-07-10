@@ -11,7 +11,7 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
-import { RefreshCw } from "lucide-react";
+import { RefreshButton } from "@/components/refresh-button";
 
 import {
   Card,
@@ -177,18 +177,11 @@ export default function CustomersPage() {
                 Click a name or the menu to see full booking history.
               </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
+            <RefreshButton
               onClick={() => refetch()}
-              disabled={isLoading}
-              className="shrink-0"
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
+              isFetching={isLoading}
+              withText
+            />
           </CardHeader>
 
           <CardContent>

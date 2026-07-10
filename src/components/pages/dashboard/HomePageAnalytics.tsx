@@ -1,38 +1,21 @@
 "use client";
 
 import React from "react";
-import { subDays, format, isToday } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "../../ui/button";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshButton } from "@/components/refresh-button";
 
 import RecentSalesTable from "./dashboard-recent-sales-table";
+import {
+  deriveDashboardTotals,
+  deriveTherapistPersonal,
+} from "./dashboard-metrics";
 import { MetricCard, MetricCardsRow } from "@/components/metric-card";
 import { QueryWrapper } from "@/components/query-wrapper";
 import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
 import { useGetServices } from "@/data/service/service";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
-import { deriveCustomers } from "@/data/customer/customer";
-import { isFollowUp } from "@/components/pages/enquiries/stage";
-import { isTodayISO } from "@/lib/metrics";
 import type { EnquiryType } from "@/type/schema";
-
-const formSchema = z.object({
-  dateRange: z.object({
-    from: z.date(),
-    to: z.date(),
-  }),
-});
-
-// Statuses that count as a real booked appointment (vs a raw enquiry/lead).
-const APPOINTMENT_STATUSES = ["scheduled", "ongoing", "completed"];
 
 function TotalsSkeleton() {
   return (
@@ -53,6 +36,7 @@ function TotalsSkeleton() {
 const DashboardPageComponents = () => {
   const { user } = useAuthStore();
   const { id, role, userEmail } = user || {};
+  const queryClient = useQueryClient();
 
   // All totals are derived client-side from the lists the app already fetches.
   const enq = useGetAllEnquiries({ role, id, userEmail });
@@ -64,120 +48,45 @@ const DashboardPageComponents = () => {
     [enq.data],
   );
 
-  const totals = React.useMemo(() => {
-    const therapistList = (therapists.data ?? []) as { isActive?: boolean }[];
-    const statusOf = (r: EnquiryType) => r.status ?? "enquiry";
-    return {
-      totalTherapists: therapistList.length,
-      activeTherapists: therapistList.filter((t) => t.isActive).length,
-      totalCustomers: deriveCustomers(records).length,
-      totalEnquiries: records.filter((r) => statusOf(r) === "enquiry").length,
-      totalAppointments: records.filter((r) =>
-        APPOINTMENT_STATUSES.includes(statusOf(r)),
-      ).length,
-      completedAppointments: records.filter((r) => statusOf(r) === "completed")
-        .length,
-      totalServices: services.data?.length ?? 0,
-      openFollowUps: records.filter(isFollowUp).length,
-    };
-  }, [records, therapists.data, services.data]);
-
   const isTherapist = role === "THERAPIST";
 
-  // Therapist personal numbers — derived only from their own appointments
-  // (getAllAppointments is already doctorId-filtered server-side for therapists).
-  const personal = React.useMemo(() => {
-    return {
-      todaySessions: records.filter((r) => {
-        const d = r.slot?.date ? new Date(r.slot.date) : null;
-        return d && !Number.isNaN(d.getTime()) && isToday(d);
-      }).length,
-      completedToday: records.filter((r) => isTodayISO(r.completedAt)).length,
-      recommendations: records.reduce(
-        (sum, r) =>
-          sum +
-          (r.recommendedServices?.length ?? 0) +
-          (r.appointmentKind === "recommended" ? 1 : 0),
-        0,
+  const totals = React.useMemo(
+    () =>
+      deriveDashboardTotals(
+        records,
+        (therapists.data ?? []) as { isActive?: boolean }[],
+        services.data?.length ?? 0,
       ),
-      openAssigned: records.filter((r) =>
-        ["scheduled", "ongoing"].includes(r.status ?? ""),
-      ).length,
-    };
-  }, [records]);
+    [records, therapists.data, services.data],
+  );
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      dateRange: {
-        from: subDays(new Date(), 30),
-        to: new Date(),
-      },
-    },
-  });
+  const personal = React.useMemo(
+    () => deriveTherapistPersonal(records),
+    [records],
+  );
 
   const loading =
     enq.isLoading ||
     (!isTherapist && (therapists.isLoading || services.isLoading));
+  const isFetching =
+    enq.isFetching || therapists.isFetching || services.isFetching;
+
+  function handleRefresh() {
+    for (const key of ["enquiries", "therapists", "services", "appointments"]) {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    }
+  }
 
   return (
     <div className="w-full flex flex-col justify-center items-center gap-6 px-3 sm:px-4 md:px-8 pt-10">
       <div className="flex justify-between items-center w-full">
         <h1 className="text-3xl md:text-4xl font-bold">Dashboard</h1>
 
-        <div className="hidden md:flex justify-center items-center gap-6">
-          <Form {...form}>
-            <form className="flex items-center gap-4">
-              <FormField
-                control={form.control}
-                name="dateRange"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              "w-[300px] h-full justify-start gap-2 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon width={20} />
-                            {field.value?.from ? (
-                              field.value.to ? (
-                                <>{format(field.value.from, "LLL dd, y")} — {format(field.value.to, "LLL dd, y")}</>
-                              ) : (
-                                format(field.value.from, "LLL dd, y")
-                              )
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          initialFocus
-                          mode="range"
-                          defaultMonth={field.value?.from}
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          numberOfMonths={2}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="button" variant="secondary" size="lg" disabled>
-                Apply
-              </Button>
-            </form>
-          </Form>
-        </div>
+        <RefreshButton
+          onClick={handleRefresh}
+          isFetching={isFetching}
+          label="Refresh dashboard"
+        />
       </div>
 
       <QueryWrapper

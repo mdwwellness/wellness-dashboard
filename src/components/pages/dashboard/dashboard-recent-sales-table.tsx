@@ -3,27 +3,13 @@ import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Badge } from "@/components/ui/badge";
 import { useGetAllAppointments } from "@/data/appointment/appointment";
 import { useAuthStore } from "@/providers/permission-provider";
 import { QueryWrapper } from "@/components/query-wrapper";
+import { AppointmentStatusBadge } from "@/components/status-badge";
+import { readCreatedISO } from "@/lib/metrics";
 
 const ITEMS_PER_PAGE = 10;
-
-function StatusBadge({ status }: { status: string | undefined }) {
-  switch (status) {
-    case "scheduled":
-      return <Badge variant="outline" className="border-yellow-600 text-yellow-600">Scheduled</Badge>;
-    case "ongoing":
-      return <Badge variant="outline" className="border-blue-600 text-blue-600">Ongoing</Badge>;
-    case "cancelled":
-      return <Badge variant="destructive">Cancelled</Badge>;
-    case "completed":
-      return <Badge variant="outline" className="border-green-600 text-green-600">Completed</Badge>;
-    default:
-      return <span className="text-muted-foreground">--</span>;
-  }
-}
 
 function AppointmentTableSkeleton() {
   return (
@@ -52,10 +38,23 @@ const DashboardTable = () => {
     refetch,
   } = useGetAllAppointments({ role, id, userEmail });
 
-  const totalAppointments = appointmentData?.length ?? 0;
+  // "Recent" — newest bookings first.
+  const sorted = React.useMemo(() => {
+    const list = appointmentData ?? [];
+    return [...list].sort(
+      (a, b) =>
+        new Date(readCreatedISO(b) ?? 0).getTime() -
+        new Date(readCreatedISO(a) ?? 0).getTime(),
+    );
+  }, [appointmentData]);
+
+  const totalAppointments = sorted.length;
   const totalPages = Math.ceil(totalAppointments / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedAppointments = appointmentData?.slice(startIndex, startIndex + ITEMS_PER_PAGE) ?? [];
+  const paginatedAppointments = sorted.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
 
   return (
     <div className="w-full space-y-6">
@@ -76,12 +75,12 @@ const DashboardTable = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 py-2">
-            {(appointmentData?.length ?? 0) > 0 ? (
+            {totalAppointments > 0 ? (
               <div className="overflow-x-auto">
                 <Table className="min-w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Appointment ID</TableHead>
+                      <TableHead>Booking ID</TableHead>
                       <TableHead>Doctor</TableHead>
                       <TableHead>Patient</TableHead>
                       <TableHead>Email</TableHead>
@@ -94,7 +93,9 @@ const DashboardTable = () => {
                   <TableBody>
                     {paginatedAppointments.map((appt) => (
                       <TableRow key={appt._id}>
-                        <TableCell className="font-medium">{appt._id}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {appt.enquiryId ?? "—"}
+                        </TableCell>
                         <TableCell>{appt.doctor}</TableCell>
                         <TableCell>{appt.name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">{appt.email}</TableCell>
@@ -106,7 +107,7 @@ const DashboardTable = () => {
                         </TableCell>
                         <TableCell>{appt.slot?.time ?? "--"}</TableCell>
                         <TableCell>
-                          <StatusBadge status={appt.status} /> {/* ← consistent badge */}
+                          <AppointmentStatusBadge status={appt.status} />
                         </TableCell>
                       </TableRow>
                     ))}

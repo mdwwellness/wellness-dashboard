@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshButton } from "@/components/refresh-button";
 
 import {
   Card,
@@ -122,16 +122,11 @@ export default function FollowUpsPage() {
               get through.
             </CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
+          <RefreshButton
             onClick={() => refetch()}
-            disabled={isFetching}
-            aria-label="Refresh follow-ups"
-            title="Refresh"
-          >
-            <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-          </Button>
+            isFetching={isFetching}
+            label="Refresh follow-ups"
+          />
         </CardHeader>
         <CardContent>
           <QueryWrapper isLoading={isLoading} isError={isError} error={error}>

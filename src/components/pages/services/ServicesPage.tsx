@@ -12,7 +12,8 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
-import { RefreshCw, X } from "lucide-react";
+import { X } from "lucide-react";
+import { RefreshButton } from "@/components/refresh-button";
 
 import {
   Card,
@@ -140,17 +141,11 @@ export default function ServicesPage() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
+            <RefreshButton
               onClick={() => refetch()}
-              disabled={isLoading}
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
+              isFetching={isLoading}
+              withText
+            />
             <AddServiceForm />
           </div>
         </CardHeader>

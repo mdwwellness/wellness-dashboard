@@ -173,6 +173,7 @@ export const enquirySchema = z.object({
   // Human-readable, e.g. "ENQ-0001". Optional because pre-backfill records
   // may not have one.
   enquiryId: z.string().optional(),
+  customer_id: z.string().optional(),
 
   // ── Back-office assignee (who is handling this lead) ──
   // userId is the assignee's User._id; name is denormalized for display.

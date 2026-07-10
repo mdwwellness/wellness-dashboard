@@ -11,7 +11,7 @@ import {
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { RefreshCw } from "lucide-react";
+import { RefreshButton } from "@/components/refresh-button";
 
 import {
   Card,
@@ -127,16 +127,11 @@ export default function InvoicesPage() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <CreateInvoiceTrigger onOpen={() => setCreateOpen(true)} />
-              <Button
-                variant="outline"
-                size="icon"
+              <RefreshButton
                 onClick={() => refetch()}
-                disabled={isFetching}
-                aria-label="Refresh invoices"
-                title="Refresh"
-              >
-                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
-              </Button>
+                isFetching={isFetching}
+                label="Refresh invoices"
+              />
             </div>
           </CardHeader>
 

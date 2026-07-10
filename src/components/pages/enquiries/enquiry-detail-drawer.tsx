@@ -47,6 +47,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn, tidyActivityText } from "@/lib/utils";
+import { RecordIds } from "@/components/pages/appointment/record-ids";
 
 import {
   useDeleteAppointment,
@@ -501,6 +502,8 @@ export function EnquiryDetailDrawer({
         </SheetHeader>
 
         <div className="p-4 space-y-6">
+          <RecordIds appointment={draft} />
+
           {/* ── Progress overview ── */}
           <EnquiryProgressStepper record={draft} />
 

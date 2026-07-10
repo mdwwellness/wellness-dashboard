@@ -13,6 +13,7 @@ import { slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "./appointments-details-page";
 import { WorkChecklist } from "./work-checklist";
 import { VisitSections } from "./visit-sections";
+import { RecordIds } from "./record-ids";
 import { useGetServices } from "@/data/service/service";
 import { resolvePackageForAppointment } from "@/lib/package-progress";
 
@@ -54,6 +55,7 @@ const AppointmentDetailDrawer = ({
         </SheetHeader>
         {live ? (
           <div className="px-4 pb-6 space-y-4">
+            <RecordIds appointment={live} />
             <VisitSections
               appointment={live}
               allAppointments={allAppointments}

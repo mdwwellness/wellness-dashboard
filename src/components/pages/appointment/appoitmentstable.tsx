@@ -6,6 +6,7 @@ import { DataTableColumnHeader } from "@/components/tables/data-table-column-hea
 import { Badge } from "@/components/ui/badge";
 import { getPackageProgressForAppointment, getConfirmedAddonNames } from "@/lib/package-progress";
 import { PackageProgressBadge } from "./package-progress-badge";
+import { AppointmentStatusBadge } from "@/components/status-badge";
 import { format } from "date-fns";
 
 /**
@@ -47,6 +48,21 @@ export function makeAppointmentColumns(
           <span className="whitespace-nowrap tabular-nums text-xs text-muted-foreground">
             {format(new Date(ms), "yyyy-MM-dd HH:mm")}
           </span>
+        );
+      },
+    },
+    {
+      id: "bookingId",
+      accessorFn: (row) => row.enquiryId ?? "",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Booking ID" />
+      ),
+      cell: ({ row }) => {
+        const id = row.original.enquiryId;
+        return id ? (
+          <span className="font-mono text-xs text-muted-foreground">{id}</span>
+        ) : (
+          <span className="text-muted-foreground/40">—</span>
         );
       },
     },
@@ -197,39 +213,9 @@ export function makeAppointmentColumns(
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => {
-        const status = row.getValue("status");
-        switch (status) {
-          case "scheduled":
-            return (
-              <Badge
-                variant="outline"
-                className="border-yellow-600 text-yellow-600"
-              >
-                Scheduled
-              </Badge>
-            );
-          case "ongoing":
-            return (
-              <Badge variant="outline" className="border-blue-600 text-blue-600">
-                Ongoing
-              </Badge>
-            );
-          case "cancelled":
-            return <Badge variant="destructive">Cancelled</Badge>;
-          case "completed":
-            return (
-              <Badge
-                variant="outline"
-                className="border-green-600 text-green-600"
-              >
-                Completed
-              </Badge>
-            );
-          default:
-            return "N/A";
-        }
-      },
+      cell: ({ row }) => (
+        <AppointmentStatusBadge status={row.getValue("status") as string} />
+      ),
     },
   ];
 }

@@ -26,27 +26,12 @@ import { Separator } from "@/components/ui/separator";
 import { EnquiryIntakeModal } from "@/components/pages/enquiries/enquiry-intake-modal";
 import type { Customer } from "@/data/customer/customer";
 import type { EnquiryType } from "@/type/schema";
+import { AppointmentStatusBadge } from "@/components/status-badge";
 
 interface CustomerDetailDrawerProps {
   customer: Customer | null;
   onClose: () => void;
 }
-
-const STATUS_CLASS: Record<string, string> = {
-  enquiry: "border-yellow-600 text-yellow-700 bg-yellow-50",
-  scheduled: "border-blue-600 text-blue-700 bg-blue-50",
-  ongoing: "border-indigo-600 text-indigo-700 bg-indigo-50",
-  completed: "border-green-700 text-green-800 bg-green-100",
-  cancelled: "border-red-600 text-red-700 bg-red-50",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  enquiry: "Enquiry",
-  scheduled: "Scheduled",
-  ongoing: "Ongoing",
-  completed: "Completed",
-  cancelled: "Cancelled",
-};
 
 const SEGMENT_LABEL: Record<string, string> = {
   new: "New customer",
@@ -103,9 +88,7 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
             <span className="font-mono text-xs text-muted-foreground">
               {booking.enquiryId ?? `#${index + 1}`}
             </span>
-            <Badge variant="outline" className={STATUS_CLASS[status] ?? ""}>
-              {STATUS_LABEL[status] ?? status}
-            </Badge>
+            <AppointmentStatusBadge status={status} />
             {serviceFromNote && (
               <span className="text-xs text-muted-foreground">
                 {serviceFromNote}
