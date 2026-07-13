@@ -212,6 +212,22 @@ export function EnquiryIntakeModal({
               )}
             />
 
+            {/* Read-only IDs — assigned server-side on save */}
+            <div className="rounded-md border bg-muted/30 p-2.5 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Enquiry ID</span>
+                <span className="font-mono text-muted-foreground">
+                  assigned on save
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Customer ID</span>
+                <span className="font-mono text-muted-foreground">
+                  linked by phone on save
+                </span>
+              </div>
+            </div>
+
             <Button
               type="submit"
               className="w-full"
