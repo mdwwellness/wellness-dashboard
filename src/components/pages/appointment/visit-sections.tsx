@@ -28,6 +28,7 @@ import {
   visitStatusLabel,
   type PackageProgress,
 } from "@/lib/package-progress";
+import { addonPrice } from "@/lib/service-pricing";
 
 function formatINR(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -256,13 +257,21 @@ export function AddonsVisitSection({
   const [showAddForm, setShowAddForm] = useState(false);
   const [serviceId, setServiceId] = useState("");
   const [amount, setAmount] = useState("");
+  // Therapist-recommended add-ons are charged the discounted price by default;
+  // uncheck to charge the original (e.g. requested after the therapist left).
+  const [applyDiscount, setApplyDiscount] = useState(true);
 
   const selected = services.find((s) => s.serviceId === serviceId);
 
   function handleSelect(id: string) {
     setServiceId(id);
     const svc = services.find((s) => s.serviceId === id);
-    setAmount(String(svc?.recommendedPrice ?? svc?.price ?? 0));
+    setAmount(String(addonPrice(svc, applyDiscount)));
+  }
+
+  function handleToggleDiscount(next: boolean) {
+    setApplyDiscount(next);
+    setAmount(String(addonPrice(selected, next)));
   }
 
   function handleAdd() {
@@ -278,7 +287,6 @@ export function AddonsVisitSection({
         values: {
           serviceId: selected.serviceId,
           serviceName: selected.name,
-          category: selected.category,
           quotedPrice,
         },
       },
@@ -432,15 +440,21 @@ export function AddonsVisitSection({
               <SelectValue placeholder="Pick a service" />
             </SelectTrigger>
             <SelectContent>
-              {services
-                .filter((s) => !s.isPackage)
-                .map((s) => (
-                  <SelectItem key={s.serviceId} value={s.serviceId}>
-                    {s.name} — ₹{s.recommendedPrice ?? s.price}
-                  </SelectItem>
-                ))}
+              {services.map((s) => (
+                <SelectItem key={s.serviceId} value={s.serviceId}>
+                  {s.name} — ₹{addonPrice(s, applyDiscount)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              checked={applyDiscount}
+              onChange={(e) => handleToggleDiscount(e.target.checked)}
+            />
+            Apply discount (therapist-recommended on the spot)
+          </label>
           <Input
             type="number"
             min={0}

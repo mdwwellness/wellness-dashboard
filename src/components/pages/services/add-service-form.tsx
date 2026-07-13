@@ -22,10 +22,9 @@ import { ServiceFormFields } from "./service-form-fields";
 const emptyValues: ServiceFormType = {
   name: "",
   description: "",
-  price: 0,
-  category: "",
   hsnCode: "",
-  isPackage: false,
+  originalPrice: 0,
+  discountedPrice: 0,
 };
 
 export function AddServiceForm() {

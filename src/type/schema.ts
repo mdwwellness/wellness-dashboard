@@ -276,37 +276,26 @@ export type TherapistformType = z.infer<typeof TherapistformSchema>
 export const serviceFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
-  price: z
-    .number({ error: "Price is required" })
-    .nonnegative("Price can't be negative"),
-  // Discounted price used when a therapist recommends this service in a visit.
-  recommendedPrice: z.number().nonnegative("Can't be negative").optional(),
-  category: z.string().min(1, "Category is required"),
   hsnCode: z
     .string()
     .min(1, "HSN/SAC code is required")
     .regex(/^\d{4,8}$/, "HSN/SAC must be 4–8 digits"),
-  // ── Package metadata (catalogue only) ──
-  // packageUnit picks the metric: "sessions" (therapy) or "weeks"/"months" (vitals).
+  // ── T31: the service's two prices (used when it's added to a visit) ──
+  // discountedPrice when a therapist recommends it + discount applied, else originalPrice.
+  originalPrice: z
+    .number({ error: "Original price is required" })
+    .nonnegative("Can't be negative"),
+  discountedPrice: z
+    .number({ error: "Discounted price is required" })
+    .nonnegative("Can't be negative"),
+
+  // ── DEPRECATED — kept optional until the T31 data migration; not on the form ──
+  category: z.string().optional(),
+  price: z.number().nonnegative().optional(),
+  recommendedPrice: z.number().nonnegative().optional(),
   isPackage: z.boolean().optional(),
   packageUnit: z.enum(["sessions", "weeks", "months"]).optional(),
   packageCount: z.number().nonnegative().optional(),
-}).superRefine((data, ctx) => {
-  if (!data.isPackage) return;
-  if (data.packageCount === undefined || data.packageCount < 1) {
-    ctx.addIssue({
-      code: "custom",
-      message: "A package needs at least 1 session",
-      path: ["packageCount"],
-    });
-  }
-  if (!data.packageUnit) {
-    ctx.addIssue({
-      code: "custom",
-      message: "Package unit is required",
-      path: ["packageUnit"],
-    });
-  }
 });
 export type ServiceFormType = z.infer<typeof serviceFormSchema>;
 
@@ -314,6 +303,16 @@ export type ServiceType = ServiceFormType & {
   _id?: string;
   serviceId: string; // e.g. "SRV-0001"
 };
+
+// ── Global session-rate table (T31) ──────────────────────────────────────────
+// A dynamic list of tiers: a course of N sessions is priced by the tier whose
+// [from, to] range contains N (to: null = open-ended), at `rate` per session.
+export const sessionTierSchema = z.object({
+  from: z.number().int().nonnegative(),
+  to: z.number().int().nonnegative().nullable(),
+  rate: z.number().nonnegative(),
+});
+export type SessionRateTier = z.infer<typeof sessionTierSchema>;
 
 export type UserType = {
   id: string | undefined;

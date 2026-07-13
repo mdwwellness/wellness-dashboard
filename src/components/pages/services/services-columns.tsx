@@ -3,7 +3,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
-import { Badge } from "@/components/ui/badge";
 import type { ServiceType } from "@/type/schema";
 
 export const formatINR = (n: number) =>
@@ -35,23 +34,19 @@ export const ServiceColumns: ColumnDef<ServiceType>[] = [
     ),
   },
   {
-    accessorKey: "category",
-    header: "Category",
+    id: "price",
+    header: "Price (orig → disc)",
     cell: ({ row }) => {
-      const c = row.getValue("category") as string;
-      return c ? <Badge variant="secondary">{c}</Badge> : "--";
+      const s = row.original;
+      return (
+        <span className="tabular-nums text-sm">
+          <span className="text-muted-foreground line-through mr-1">
+            {formatINR(s.originalPrice ?? 0)}
+          </span>
+          {formatINR(s.discountedPrice ?? 0)}
+        </span>
+      );
     },
-    filterFn: (row, id, value: string[]) =>
-      value.includes(row.getValue(id)),
-  },
-  {
-    accessorKey: "price",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Price" />
-    ),
-    cell: ({ row }) => (
-      <span className="tabular-nums">{formatINR(row.getValue("price"))}</span>
-    ),
   },
   {
     accessorKey: "hsnCode",

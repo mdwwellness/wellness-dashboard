@@ -46,6 +46,10 @@ docs/superpowers/
 CLAUDE.md
 AGENTS.md
 .claude/
+.mcp.json
 
 # Local one-off ops / DB scripts (run by hand, not for the shared repo)
 scripts/*.cjs
+
+# Graphify generated knowledge graph (regenerate offline with `graphify update .`)
+/graphify-out/

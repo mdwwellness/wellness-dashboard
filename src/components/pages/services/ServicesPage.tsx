@@ -34,10 +34,8 @@ import {
 } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/tables/data-table-pagination";
 import { DataTableViewOptions } from "@/components/tables/data-table-view-options";
-import { DataTableFacetedFilter } from "@/components/tables/data-table-faceted-filter";
 import { QueryWrapper } from "@/components/query-wrapper";
 
-import { SERVICE_CATEGORIES } from "@/lib/constant";
 import {
   computeServiceStats,
   useGetServices,
@@ -46,6 +44,7 @@ import type { ServiceType } from "@/type/schema";
 import { ServiceColumns, formatINR } from "./services-columns";
 import { AddServiceForm } from "./add-service-form";
 import { ServiceDetailDrawer } from "./service-detail-drawer";
+import { SessionRatesCard } from "./session-rates-card";
 import { MetricCard } from "@/components/metric-card";
 
 export default function ServicesPage() {
@@ -121,16 +120,18 @@ export default function ServicesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <MetricCard label="Total Services" value={stats.totalServices} />
           <MetricCard
-            label="Categories"
-            value={stats.categories}
-            hint="distinct"
+            label="Avg price"
+            value={formatINR(stats.avgPrice)}
+            hint="original"
           />
           <MetricCard
-            label="Average Price"
-            value={formatINR(stats.avgPrice)}
+            label="With add-on discount"
+            value={stats.withDiscount}
           />
         </div>
       </QueryWrapper>
+
+      <SessionRatesCard />
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -170,15 +171,7 @@ export default function ServicesPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="max-w-sm"
-              />
-              {table.getColumn("category") && (
-                <DataTableFacetedFilter
-                  column={table.getColumn("category")}
-                  title="Category"
-                  options={SERVICE_CATEGORIES}
-                />
-              )}
-              {isFiltered && (
+              />              {isFiltered && (
                 <Button
                   variant="ghost"
                   onClick={() => table.resetColumnFilters()}

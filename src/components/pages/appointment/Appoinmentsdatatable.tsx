@@ -24,10 +24,8 @@ import {
 } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/tables/data-table-pagination";
 import { DataTableViewOptions } from "@/components/tables/data-table-view-options";
-import { DataTableFacetedFilter } from "@/components/tables/data-table-faceted-filter";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { THERAPY_CATEGORYES } from "@/lib/constant";
 import AppointmentDetailDrawer from "./appointments-detail-page";
 import { slotBookingZodType } from "@/type/schema";
 
@@ -90,13 +88,6 @@ export function AppointmentDataTable<TData, TValue>({
               }
               className="max-w-sm mb-2 md:mb-0"
             />
-            {table.getColumn("category") && (
-              <DataTableFacetedFilter
-                column={table.getColumn("category")}
-                title="Category"
-                options={THERAPY_CATEGORYES}
-              />
-            )}
             {isFiltered && (
               <Button
                 variant="ghost"

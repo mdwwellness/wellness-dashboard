@@ -1,6 +1,6 @@
 "use client";
 
-import { useWatch, type Control } from "react-hook-form";
+import { type Control } from "react-hook-form";
 
 import {
   FormControl,
@@ -11,22 +11,60 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { SERVICE_CATEGORIES } from "@/lib/constant";
 import type { ServiceFormType } from "@/type/schema";
+
+type PriceFieldName = "originalPrice" | "discountedPrice";
+
+// A ₹ number input wired to a react-hook-form numeric field. Empty → undefined.
+function PriceField({
+  control,
+  name,
+  label,
+}: {
+  control: Control<ServiceFormType>;
+  name: PriceFieldName;
+  label: string;
+}) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              placeholder="0"
+              name={field.name}
+              ref={field.ref}
+              onBlur={field.onBlur}
+              value={
+                field.value === undefined || Number.isNaN(field.value)
+                  ? ""
+                  : field.value
+              }
+              onChange={(e) =>
+                field.onChange(
+                  e.target.value === "" ? undefined : e.target.valueAsNumber,
+                )
+              }
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
 
 export function ServiceFormFields({
   control,
 }: {
   control: Control<ServiceFormType>;
 }) {
-  const isPackage = useWatch({ control, name: "isPackage" });
   return (
     <>
       <FormField
@@ -36,96 +74,7 @@ export function ServiceFormFields({
           <FormItem className="md:col-span-2">
             <FormLabel>Service name</FormLabel>
             <FormControl>
-              <Input placeholder="e.g. Deep Tissue Massage (60 min)" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={control}
-        name="category"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Category</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value || undefined}>
-              <FormControl>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {SERVICE_CATEGORIES.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={control}
-        name="price"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Price (₹)</FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                placeholder="0"
-                name={field.name}
-                ref={field.ref}
-                onBlur={field.onBlur}
-                value={
-                  field.value === undefined || Number.isNaN(field.value)
-                    ? ""
-                    : field.value
-                }
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value === "" ? undefined : e.target.valueAsNumber,
-                  )
-                }
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={control}
-        name="recommendedPrice"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Recommended price (₹)</FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                placeholder="Discounted (optional)"
-                name={field.name}
-                ref={field.ref}
-                onBlur={field.onBlur}
-                value={
-                  field.value === undefined || Number.isNaN(field.value)
-                    ? ""
-                    : field.value
-                }
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value === "" ? undefined : e.target.valueAsNumber,
-                  )
-                }
-              />
+              <Input placeholder="e.g. Dry Needling" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -136,7 +85,7 @@ export function ServiceFormFields({
         control={control}
         name="hsnCode"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="md:col-span-2">
             <FormLabel>HSN / SAC code</FormLabel>
             <FormControl>
               <Input placeholder="e.g. 999319" {...field} />
@@ -146,88 +95,17 @@ export function ServiceFormFields({
         )}
       />
 
-      <div className="md:col-span-2 space-y-3 rounded-md border p-3">
-        <FormField
-          control={control}
-          name="isPackage"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-              <FormControl>
-                <input
-                  type="checkbox"
-                  checked={field.value ?? false}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                />
-              </FormControl>
-              <FormLabel className="!mt-0">
-                This is a package (bundled sessions / recurring plan)
-              </FormLabel>
-            </FormItem>
-          )}
-        />
-
-        {isPackage ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              control={control}
-              name="packageCount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>How many</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      placeholder="e.g. 6"
-                      name={field.name}
-                      ref={field.ref}
-                      onBlur={field.onBlur}
-                      value={
-                        field.value === undefined || Number.isNaN(field.value)
-                          ? ""
-                          : field.value
-                      }
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value === ""
-                            ? undefined
-                            : e.target.valueAsNumber,
-                        )
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name="packageUnit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Measured in</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value || undefined}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Sessions / Weeks / Months" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="sessions">Sessions (therapy)</SelectItem>
-                      <SelectItem value="weeks">Weeks (vitals)</SelectItem>
-                      <SelectItem value="months">Months (vitals)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        ) : null}
+      {/* The service's two prices — used when it's added to a visit */}
+      <div className="md:col-span-2 rounded-md border p-3 space-y-3">
+        <p className="text-sm font-medium">Pricing</p>
+        <p className="text-xs text-muted-foreground">
+          Charged when this service is added during a visit — discounted when a
+          therapist recommends it on the spot, otherwise original.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <PriceField control={control} name="originalPrice" label="Original price (₹)" />
+          <PriceField control={control} name="discountedPrice" label="Discounted price (₹)" />
+        </div>
       </div>
 
       <FormField

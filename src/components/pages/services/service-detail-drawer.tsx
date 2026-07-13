@@ -35,10 +35,9 @@ import { ServiceFormFields } from "./service-form-fields";
 const emptyValues: ServiceFormType = {
   name: "",
   description: "",
-  price: 0,
-  category: "",
   hsnCode: "",
-  isPackage: false,
+  originalPrice: 0,
+  discountedPrice: 0,
 };
 
 interface ServiceDetailDrawerProps {
@@ -64,13 +63,11 @@ export function ServiceDetailDrawer({
       form.reset({
         name: service.name,
         description: service.description ?? "",
-        price: service.price,
-        recommendedPrice: service.recommendedPrice,
-        category: service.category,
-        hsnCode: service.hsnCode,
-        isPackage: service.isPackage ?? false,
-        packageUnit: service.packageUnit,
-        packageCount: service.packageCount,
+        hsnCode: service.hsnCode ?? "",
+        // Old services fall back to the deprecated price / recommendedPrice.
+        originalPrice: service.originalPrice ?? service.price ?? 0,
+        discountedPrice:
+          service.discountedPrice ?? service.recommendedPrice ?? 0,
       });
     }
   }, [service, form]);

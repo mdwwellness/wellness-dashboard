@@ -79,10 +79,15 @@ export function useDeleteService() {
 // ── Derived stats for the KPI cards ──────────────────────────────────────────
 export function computeServiceStats(services: ServiceType[]) {
   const totalServices = services.length;
-  const categories = new Set(services.map((s) => s.category)).size;
-  const prices = services.map((s) => s.price).filter((p) => p > 0);
+  const prices = services.map((s) => s.originalPrice ?? 0).filter((p) => p > 0);
   const avgPrice = prices.length
     ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length)
     : 0;
-  return { totalServices, categories, avgPrice };
+  const withDiscount = services.filter(
+    (s) =>
+      (s.originalPrice ?? 0) > 0 &&
+      (s.discountedPrice ?? 0) > 0 &&
+      (s.discountedPrice as number) < (s.originalPrice as number),
+  ).length;
+  return { totalServices, avgPrice, withDiscount };
 }

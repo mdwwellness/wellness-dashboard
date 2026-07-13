@@ -157,11 +157,16 @@ export function makeAppointmentColumns(
       cell: ({ row }) => row.getValue("phonenumber"),
     },
     {
-      accessorKey: "category",
-      header: "Category",
+      id: "service",
+      header: "Service",
       cell: ({ row }) => {
-        const category = row.getValue("category");
-        return category ? category : "--";
+        // New bookings store the service in `service`; old rows kept it in the
+        // now-deprecated `category`. A pure session booking has neither — show
+        // its session count instead.
+        const s = row.original.service || row.original.category;
+        if (s) return s;
+        const n = row.original.sessionNumber;
+        return n ? `Session ×${n}` : "--";
       },
     },
     {
