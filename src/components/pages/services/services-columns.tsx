@@ -34,16 +34,25 @@ export const ServiceColumns: ColumnDef<ServiceType>[] = [
     ),
   },
   {
-    id: "price",
-    header: "Price (orig → disc)",
+    id: "originalPrice",
+    header: "Original (₹)",
     cell: ({ row }) => {
       const s = row.original;
       return (
-        <span className="tabular-nums text-sm">
-          <span className="text-muted-foreground line-through mr-1">
-            {formatINR(s.originalPrice ?? 0)}
-          </span>
-          {formatINR(s.discountedPrice ?? 0)}
+        <span className="tabular-nums">
+          {formatINR(s.originalPrice ?? s.price ?? 0)}
+        </span>
+      );
+    },
+  },
+  {
+    id: "discountedPrice",
+    header: "Discounted (₹)",
+    cell: ({ row }) => {
+      const s = row.original;
+      return (
+        <span className="tabular-nums">
+          {formatINR(s.discountedPrice ?? s.recommendedPrice ?? s.price ?? 0)}
         </span>
       );
     },

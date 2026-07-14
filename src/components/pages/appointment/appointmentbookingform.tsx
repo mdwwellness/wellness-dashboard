@@ -199,7 +199,7 @@ export default function AppointmentBookingForm() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-3xl h-[92vh] md:h-fit overflow-y-scroll">
+      <DialogContent className="w-full max-w-3xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Book an Appointment</DialogTitle>
           <p className="text-sm text-muted-foreground">Pick a date, then a therapist — the list shows who&apos;s free that day.</p>

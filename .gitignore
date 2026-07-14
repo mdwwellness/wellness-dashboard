@@ -52,4 +52,4 @@ AGENTS.md
 scripts/*.cjs
 
 # Graphify generated knowledge graph (regenerate offline with `graphify update .`)
-/graphify-out/
+graphify-out/

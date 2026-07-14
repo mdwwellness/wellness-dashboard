@@ -4,8 +4,7 @@ import { slotBookingZodType, type ServiceType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
-import { getPackageProgressForAppointment, getConfirmedAddonNames } from "@/lib/package-progress";
-import { PackageProgressBadge } from "./package-progress-badge";
+import { getConfirmedAddonNames } from "@/lib/package-progress";
 import { AppointmentStatusBadge } from "@/components/status-badge";
 import { format } from "date-fns";
 
@@ -29,9 +28,12 @@ function getCreatedMs(row: slotBookingZodType): number {
   return 0;
 }
 
+// `_allAppointments` + `_services` stay on the signature for the parked
+// session-progress column (T2), which needs them to compute "session X of Y"
+// across a customer's visits. Not referenced today.
 export function makeAppointmentColumns(
-  allAppointments: slotBookingZodType[],
-  services: ServiceType[],
+  _allAppointments: slotBookingZodType[],
+  _services: ServiceType[],
 ): ColumnDef<slotBookingZodType>[] {
   return [
     {
@@ -71,23 +73,17 @@ export function makeAppointmentColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Name" />
       ),
-      cell: ({ row }) => {
-        const recCount = row.original.recommendedServices?.length ?? 0;
-        const pending = (row.original.recommendedServices ?? []).filter(
-          (r) => r.status === "pending",
-        ).length;
-        return (
-          <span className="inline-flex items-center gap-1.5 flex-wrap">
-            {row.getValue("name")}
-            {recCount > 0 && (
-              <Badge variant="secondary" className="text-[10px]">
-                +{recCount} add-on{recCount > 1 ? "s" : ""}
-                {pending > 0 ? ` (${pending} pending)` : ""}
-              </Badge>
-            )}
-          </span>
-        );
-      },
+      // Add-on count lives in its own "Add-ons" column — no badge here.
+      cell: ({ row }) => row.getValue("name"),
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) => (
+        <AppointmentStatusBadge status={row.getValue("status") as string} />
+      ),
     },
     {
       id: "addOns",
@@ -115,27 +111,16 @@ export function makeAppointmentColumns(
       },
     },
     {
-      id: "packageProgress",
-      header: "Package",
+      id: "session",
+      header: "Session",
       cell: ({ row }) => {
-        const progress = getPackageProgressForAppointment(
-          row.original,
-          allAppointments,
-          services,
-        );
         const sessionNum = row.original.sessionNumber;
-        if (!progress && !sessionNum) {
-          return <span className="text-muted-foreground/40">—</span>;
-        }
-        return (
-          <div className="flex flex-col gap-1">
-            {sessionNum ? (
-              <Badge variant="outline" className="text-[10px] w-fit">
-                Session {sessionNum}
-              </Badge>
-            ) : null}
-            {progress ? <PackageProgressBadge progress={progress} /> : null}
-          </div>
+        return sessionNum ? (
+          <Badge variant="outline" className="text-[10px] w-fit">
+            Session {sessionNum}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground/40">—</span>
         );
       },
     },
@@ -215,16 +200,9 @@ export function makeAppointmentColumns(
       header: "Note",
       cell: ({ row }) => row.getValue("note"),
     },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <AppointmentStatusBadge status={row.getValue("status") as string} />
-      ),
-    },
   ];
 }
 
-/** @deprecated Use makeAppointmentColumns() for package progress column */
+/** @deprecated Prefer makeAppointmentColumns(allAppointments, services). */
 export const AppointmentBookingColumn: ColumnDef<slotBookingZodType>[] =
   makeAppointmentColumns([], []);

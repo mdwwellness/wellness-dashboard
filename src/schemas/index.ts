@@ -30,6 +30,17 @@ export const addUserSchema = z.object({
   }),
 });
 
+// Admin edit — same fields minus password; phone optional so partially-filled
+// records can still have their role/name edited.
+export const editUserSchema = z.object({
+  userfName: z.string().min(1, "First name is required"),
+  userlName: z.string().min(1, "Last name is required"),
+  userEmail: z.string().email("Invalid email address"),
+  userPhone: z.string().optional(),
+  role: z.enum(ROLES),
+});
+export type EditUserFormType = z.infer<typeof editUserSchema>;
+
 export const NewPasswordSchema = z.object({
   password: z.string().min(6, {
     message: "Password must be atleast 6 character long",
@@ -84,6 +95,7 @@ export type UserRow = {
   gender?: string;
   role?: string;
   userEmail?: string;
+  userPhone?: string;
   createdAt?: string;
   emailVerified?:boolean;
   userPassword?: string;

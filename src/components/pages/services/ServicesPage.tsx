@@ -41,7 +41,7 @@ import {
   useGetServices,
 } from "@/data/service/service";
 import type { ServiceType } from "@/type/schema";
-import { ServiceColumns, formatINR } from "./services-columns";
+import { ServiceColumns } from "./services-columns";
 import { AddServiceForm } from "./add-service-form";
 import { ServiceDetailDrawer } from "./service-detail-drawer";
 import { SessionRatesCard } from "./session-rates-card";
@@ -117,13 +117,8 @@ export default function ServicesPage() {
           </div>
         }
       >
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <MetricCard label="Total Services" value={stats.totalServices} />
-          <MetricCard
-            label="Avg price"
-            value={formatINR(stats.avgPrice)}
-            hint="original"
-          />
           <MetricCard
             label="With add-on discount"
             value={stats.withDiscount}

@@ -78,6 +78,15 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+// Reason options when reassigning an already-assigned therapist (T4).
+const REASSIGN_REASONS = [
+  "Therapist unavailable / on leave",
+  "Customer requested a different therapist",
+  "Gender preference",
+  "Load / schedule balancing",
+  "Other",
+];
+
 interface EnquiryDetailDrawerProps {
   record: EnquiryType | null;
   onClose: () => void;
@@ -108,6 +117,7 @@ export function EnquiryDetailDrawer({
   const [draft, setDraft] = useState<EnquiryType | null>(record);
   useEffect(() => {
     setDraft(record);
+    setOverrideReason("");
   }, [record]);
 
   const showPackagePicker = useMemo(
@@ -134,6 +144,16 @@ export function EnquiryDetailDrawer({
     return draft?.reachedOutBy?.userId === currentUser.id;
   }, [currentUser, isAdmin, draft?.reachedOutBy?.userId]);
 
+  // Broader edit gate (T3/T5): admins, the owner, or anyone while the lead is
+  // still unclaimed. A non-owner exec must supply a reason (captured below).
+  const canEdit = useMemo(() => {
+    if (!currentUser) return false;
+    if (isAdmin) return true;
+    const owner = draft?.reachedOutBy?.userId;
+    return !owner || owner === currentUser.id;
+  }, [currentUser, isAdmin, draft?.reachedOutBy?.userId]);
+  const ownerName = draft?.reachedOutBy?.name ?? "another executive";
+
   // Editable inline state for the admin reachedOutBy override.
   const [editingReachedBy, setEditingReachedBy] = useState(false);
 
@@ -152,6 +172,24 @@ export function EnquiryDetailDrawer({
   const [pendingStatus, setPendingStatus] =
     useState<EnquiryType["status"] | null>(null);
   const [overrideNote, setOverrideNote] = useState("");
+
+  // ── Executive-lock (T3/T4/T5) local state ──
+  // Once a non-owner supplies an override reason, it rides along with saves for
+  // the rest of this drawer session (so they aren't re-prompted per field).
+  const [overrideReason, setOverrideReason] = useState("");
+  const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
+  const [reasonDraft, setReasonDraft] = useState("");
+  const [pendingSave, setPendingSave] = useState<{
+    extra?: Partial<EnquiryType>;
+    advance: boolean;
+  } | null>(null);
+  // Therapist reassignment reason (dropdown) for non-admins.
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignReasonSel, setReassignReasonSel] = useState("");
+  const [pendingTherapist, setPendingTherapist] = useState<{
+    doctorId: string;
+    doctor: string;
+  } | null>(null);
 
   // Only NOW is it safe to early-return — hooks above have all run.
   if (!record || !draft) return null;
@@ -216,15 +254,48 @@ export function EnquiryDetailDrawer({
     return out;
   }
 
-  function save(extra?: Partial<EnquiryType>, isFunnelAdvance = false) {
+  function save(
+    extra?: Partial<EnquiryType>,
+    isFunnelAdvance = false,
+    reason?: string,
+  ) {
     const merged = extra ? withCascade(extra, isFunnelAdvance) : {};
     const next = { ...draft!, ...merged };
-    update(next, {
+    const effectiveReason = (reason ?? overrideReason).trim();
+
+    // Soft lock (T3/T5): a non-owner exec must give a reason before editing.
+    if (!canEdit && !effectiveReason) {
+      toast.warning(`This lead is owned by ${ownerName} — add a reason to edit.`);
+      setPendingSave({ extra, advance: isFunnelAdvance });
+      setReasonDraft("");
+      setReasonDialogOpen(true);
+      return;
+    }
+
+    const payload: EnquiryType = effectiveReason
+      ? { ...next, overrideReason: effectiveReason }
+      : next;
+    update(payload, {
       onSuccess: () => {
         setDraft(next);
         setSavedOnce(true);
       },
+      onError: (e: Error) => toast.error(e.message),
     });
+  }
+
+  // Confirm the override-reason dialog → remember it + run the deferred save.
+  function confirmOverrideReason() {
+    const r = reasonDraft.trim();
+    if (!r) {
+      toast.error("Add a reason to edit this lead");
+      return;
+    }
+    setOverrideReason(r);
+    setReasonDialogOpen(false);
+    const p = pendingSave;
+    setPendingSave(null);
+    if (p) save(p.extra, p.advance, r);
   }
 
   function currentActorName() {
@@ -722,13 +793,17 @@ export function EnquiryDetailDrawer({
                   const t = therapists?.find(
                     (x: TherapistformType) => x.doctorId === id,
                   );
-                  save(
-                    {
-                      doctorId: id,
-                      doctor: t?.name ?? "",
-                    },
-                    true,
-                  );
+                  const change = { doctorId: id, doctor: t?.name ?? "" };
+                  const isReassign = !!draft.doctorId && id !== draft.doctorId;
+                  // T4: reassigning an existing therapist needs a reason
+                  // (dropdown) from non-admins.
+                  if (isReassign && !isAdmin) {
+                    setPendingTherapist(change);
+                    setReassignReasonSel("");
+                    setReassignOpen(true);
+                    return;
+                  }
+                  save(change, true);
                 }}
               >
                 <SelectTrigger className="w-full">
@@ -1237,6 +1312,83 @@ export function EnquiryDetailDrawer({
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={handleDelete}>
             Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* T3/T5: reason required to edit another exec's lead */}
+    <AlertDialog open={reasonDialogOpen} onOpenChange={setReasonDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Editing {ownerName}&apos;s lead</AlertDialogTitle>
+          <AlertDialogDescription>
+            This lead is owned by {ownerName}. Add a reason to edit it — it&apos;s
+            recorded in the activity trail.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Textarea
+          autoFocus
+          placeholder="Reason for editing this lead (required)"
+          value={reasonDraft}
+          onChange={(e) => setReasonDraft(e.target.value)}
+        />
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPendingSave(null)}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              confirmOverrideReason();
+            }}
+          >
+            Save with reason
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* T4: reason required to reassign an already-assigned therapist */}
+    <AlertDialog open={reassignOpen} onOpenChange={setReassignOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reassign therapist</AlertDialogTitle>
+          <AlertDialogDescription>
+            Changing the assigned therapist needs a reason — it&apos;s recorded
+            in the activity trail.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Select value={reassignReasonSel} onValueChange={setReassignReasonSel}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Pick a reason" />
+          </SelectTrigger>
+          <SelectContent>
+            {REASSIGN_REASONS.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPendingTherapist(null)}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              if (!reassignReasonSel) {
+                toast.error("Pick a reason for the reassignment");
+                return;
+              }
+              const p = pendingTherapist;
+              setReassignOpen(false);
+              setPendingTherapist(null);
+              if (p) save(p, true, reassignReasonSel);
+            }}
+          >
+            Reassign
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

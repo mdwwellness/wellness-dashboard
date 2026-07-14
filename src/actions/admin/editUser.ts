@@ -3,12 +3,12 @@ import { base_url } from "@/constant";
 import { fetchWithAuth } from "@/lib/fetchwithauth";
 import { ApiResponse } from "@/type/api";
 
-export const deleteUser = async (values: any): Promise<ApiResponse<any>> => {
+export const editUser = async (values: any): Promise<ApiResponse<any>> => {
   try {
     const response = await fetchWithAuth(
-      `${base_url}/api/users/admin/delete-user`,
+      `${base_url}/api/users/admin/update-user`,
       {
-        method: "DELETE",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           accept: "application/json",
@@ -28,14 +28,11 @@ export const deleteUser = async (values: any): Promise<ApiResponse<any>> => {
     const result = await response.json();
     return {
       success: true,
-      message: result.message || "user deleted successfully",
+      message: result.message || "User updated",
       data: result.data,
     };
   } catch (error) {
-    console.error("[deleteUser]", error);
-    return {
-      success: false,
-      message: "network error",
-    };
+    console.error("[editUser]", error);
+    return { success: false, message: "network error" };
   }
 };

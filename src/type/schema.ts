@@ -224,6 +224,11 @@ export const enquirySchema = z.object({
   // ── Reason captured when a status is manually overridden. ──
   statusNote: z.string().optional(),
 
+  // ── Transient override reasons (T3/T4/T5): sent with a save, logged +
+  // stripped server-side, never stored as columns. ──
+  overrideReason: z.string().optional(),
+  reassignReason: z.string().optional(),
+
   // ── Legacy fields preserved for back-compat with existing appointment records ──
   slot: z.object({ date: z.string(), time: z.string() }).optional(),
   therapyStartTime: z.string().optional(),
