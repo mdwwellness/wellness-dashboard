@@ -5,6 +5,8 @@ import { deleteUser } from "@/actions/admin/deleteUser";
 import { editUser } from "@/actions/admin/editUser";
 import getAllUsers from "@/actions/admin/get-all-users";
 import { Login } from "@/actions/user/login";
+import { forgotPassword } from "@/actions/user/forgot-password";
+import { resetPassword } from "@/actions/user/reset-password";
 import updateProfile from "@/actions/user/update-profile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -74,6 +76,36 @@ export function useEditUser() {
     onSuccess: () => {
       toast.success("User updated");
       queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (userEmail: string) => {
+      const result = await forgotPassword(userEmail);
+      if (!result.success) {
+        throw new Error(result.message || "failed to send reset code");
+      }
+      return result;
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async (values: {
+      userEmail: string;
+      otp: string;
+      newPassword: string;
+    }) => {
+      const result = await resetPassword(values);
+      if (!result.success) {
+        throw new Error(result.message || "failed to reset password");
+      }
+      return result;
     },
     onError: (e: Error) => toast.error(e.message),
   });
