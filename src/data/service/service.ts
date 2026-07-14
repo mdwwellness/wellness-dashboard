@@ -65,7 +65,13 @@ export function useDeleteService() {
   return useMutation({
     mutationFn: async (serviceId: string) => {
       const result = await deleteService(serviceId);
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) {
+        // Carry the blocking booking/invoice IDs on the error so the drawer
+        // can list them; the toast still shows result.message.
+        throw Object.assign(new Error(result.message), {
+          blockedBy: result.data,
+        });
+      }
       return result;
     },
     onSuccess: () => {

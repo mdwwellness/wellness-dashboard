@@ -13,7 +13,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
           },
         }),
         mutationCache: new MutationCache({
-          onError: (error: Error) => {
+          onError: (error: Error, _variables, _context, mutation) => {
+            // Only toast here when the mutation has no onError of its own —
+            // otherwise both fire and the user sees a duplicate toast.
+            if (mutation.options.onError) return;
             toast.error(error.message);
           },
         }),

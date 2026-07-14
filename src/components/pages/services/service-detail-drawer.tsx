@@ -50,6 +50,10 @@ export function ServiceDetailDrawer({
   onClose,
 }: ServiceDetailDrawerProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [blockedBy, setBlockedBy] = useState<{
+    appointments: string[];
+    invoices: string[];
+  } | null>(null);
   const { mutate: updateMutate, isPending: isUpdating } = useUpdateService();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteService();
 
@@ -59,6 +63,7 @@ export function ServiceDetailDrawer({
   });
 
   useEffect(() => {
+    setBlockedBy(null);
     if (service) {
       form.reset({
         name: service.name,
@@ -84,10 +89,20 @@ export function ServiceDetailDrawer({
 
   function handleDelete() {
     if (!service) return;
+    setBlockedBy(null);
     deleteMutate(service.serviceId, {
       onSuccess: () => {
         setConfirmDelete(false);
         onClose();
+      },
+      onError: (error) => {
+        setBlockedBy(
+          (
+            error as {
+              blockedBy?: { appointments: string[]; invoices: string[] };
+            }
+          ).blockedBy ?? null,
+        );
       },
     });
   }
@@ -115,6 +130,35 @@ export function ServiceDetailDrawer({
                 </SheetHeader>
 
                 <div className="flex-1 overflow-y-auto p-4">
+                  {blockedBy &&
+                    (blockedBy.appointments.length > 0 ||
+                      blockedBy.invoices.length > 0) && (
+                      <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                        <p className="text-sm font-medium text-destructive">
+                          Can’t delete — remove or reassign these first:
+                        </p>
+                        {blockedBy.appointments.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-muted-foreground">
+                              Bookings ({blockedBy.appointments.length})
+                            </p>
+                            <p className="font-mono text-xs break-all">
+                              {blockedBy.appointments.join(", ")}
+                            </p>
+                          </div>
+                        )}
+                        {blockedBy.invoices.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-muted-foreground">
+                              Invoices ({blockedBy.invoices.length})
+                            </p>
+                            <p className="font-mono text-xs break-all">
+                              {blockedBy.invoices.join(", ")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ServiceFormFields control={form.control} />
                   </div>

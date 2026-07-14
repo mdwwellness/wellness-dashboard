@@ -24,6 +24,8 @@ export default async function deleteService(
         success: false,
         message:
           result.message ?? `Request failed with status ${response.status}`,
+        // Bookings/invoices blocking the delete, so the UI can list them.
+        data: result.blockedBy,
       };
     }
 
