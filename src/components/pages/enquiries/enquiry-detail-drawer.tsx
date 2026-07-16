@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn, tidyActivityText } from "@/lib/utils";
 import { RecordIds } from "@/components/pages/appointment/record-ids";
+import { formatTimeRange } from "./time-range";
 
 import {
   useDeleteAppointment,
@@ -156,6 +157,9 @@ export function EnquiryDetailDrawer({
 
   // Editable inline state for the admin reachedOutBy override.
   const [editingReachedBy, setEditingReachedBy] = useState(false);
+  // Lead info is what the customer already told us — read-only by default.
+  // Editing is deliberate: a phone typo silently splits one customer in two.
+  const [editingLead, setEditingLead] = useState(false);
 
   // Delete confirmation modal open state. Lifted to React state (instead of
   // Radix AlertDialogTrigger) so the dialog can be rendered OUTSIDE the Sheet —
@@ -579,9 +583,57 @@ export function EnquiryDetailDrawer({
           <EnquiryProgressStepper record={draft} />
 
           {/* ── Section: Lead info ── */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold">Lead info</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <section className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Lead info</h3>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => setEditingLead((v) => !v)}
+              >
+                {editingLead ? (
+                  "Done"
+                ) : (
+                  <>
+                    <Pencil className="mr-1 h-3 w-3" />
+                    Edit
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {!editingLead && (
+              <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                {(
+                  [
+                    ["Name", draft.name],
+                    ["Phone", draft.phonenumber ? String(draft.phonenumber) : ""],
+                    ["Email", draft.email],
+                    ["Age", draft.age ? String(draft.age) : ""],
+                    ["Location", draft.location],
+                    ["Preferred call", formatTimeRange(draft.preferredReachOutTime)],
+                  ] as [string, string | undefined][]
+                ).map(([label, value]) => (
+                  <div key={label} className="min-w-0">
+                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {label}
+                    </dt>
+                    <dd className="truncate text-sm" title={value || undefined}>
+                      {value?.trim() || "—"}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+
+            <div
+              className={cn(
+                "grid grid-cols-1 sm:grid-cols-2 gap-3",
+                !editingLead && "hidden",
+              )}
+            >
               <LabeledInput
                 label="Name"
                 value={draft.name ?? ""}
@@ -652,29 +704,30 @@ export function EnquiryDetailDrawer({
             </div>
 
             {(draft.service || (draft.vitals && draft.vitals.length > 0)) && (
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                <div className="text-xs text-muted-foreground">
-                  Offering (from website)
-                </div>
-                <div className="font-medium">{draft.service ?? "—"}</div>
-                {draft.vitals && draft.vitals.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {draft.vitals.map((v) => (
-                      <span
-                        key={v}
-                        className="inline-flex items-center rounded-full border bg-background px-2 py-0.5 text-xs"
-                      >
-                        {v}
-                      </span>
-                    ))}
-                  </div>
-                )}
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border bg-muted/30 px-2.5 py-1.5">
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Offering
+                </span>
+                <span className="text-sm font-medium">
+                  {draft.service ?? "—"}
+                </span>
+                {draft.vitals?.map((v) => (
+                  <span
+                    key={v}
+                    className="rounded-full border bg-background px-1.5 py-0.5 text-[10px]"
+                  >
+                    {v}
+                  </span>
+                ))}
               </div>
             )}
 
             <div>
-              <label className="text-xs text-muted-foreground">Note</label>
+              <label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Note
+              </label>
               <Textarea
+                className="min-h-[56px] text-sm"
                 value={draft.note ?? ""}
                 onChange={(e) => patch({ note: e.target.value })}
                 onBlur={() => save()}
