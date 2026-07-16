@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import type { PersistedInvoice, UpdateInvoiceInput, InvoicePaymentStatus, InvoiceLineItem } from "@/type/invoice";
 import { useUpdateInvoice, useGenerateInvoicePdf, useVoidInvoice } from "@/data/invoice/invoice";
+import { whatsAppLink } from "@/lib/whatsapp";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -185,11 +186,13 @@ export function InvoiceDetailDrawer({
   function handleWhatsAppSend() {
     if (!invoice?.pdf_url) return;
     const msg = `Hi ${invoice.customer_name},\n\nPlease find your invoice ${invoice.invoice_id}.\nTotal: ${formatINR(invoice.total)}.\nDownload: ${invoice.pdf_url}\n\nThank you.`;
-    const phone = String(invoice.customer_phone ?? "").replace(/[^\d]/g, "");
-    if (!phone) return;
 
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    const wa = whatsAppLink(invoice.customer_phone, msg);
+    if (!wa) {
+      toast.error("This customer has no usable phone number");
+      return;
+    }
+    window.open(wa, "_blank", "noopener,noreferrer");
   }
 
   if (!invoice) {

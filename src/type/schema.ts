@@ -160,6 +160,10 @@ export const enquirySchema = z.object({
   // ── Checkpoint: payment (patient → clinic) ──
   // Recording payment auto-advances status to "ongoing". Fields persist only
   // once the backend model accepts them (see FUNNEL_COMPLETION_BACKEND_PATCH.md).
+  // Unguessable token for the customer-facing /pay/<token> page. Minted by the
+  // backend on demand (POST /api/appointments/:id/pay-link) — never set here.
+  payToken: z.string().optional(),
+
   paymentReceived: z.boolean().optional(),
   paymentAmount: z.number().nonnegative().optional(),
   paymentMethod: z.enum(["cash", "upi", "card", "bank", "other"]).optional(),

@@ -18,8 +18,6 @@ export default async function createEnquiry(
       ...values,
       status: "enquiry",
       executiveReachedOut: false,
-      consultationCompleted: false,
-      physioAssignmentConfirmed: false,
     };
 
     const response = await fetchWithAuth(`${base_url}/api/appointments`, {

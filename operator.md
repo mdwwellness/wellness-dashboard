@@ -11,6 +11,31 @@ Legend: `[ ]` = todo · `[x]` = done · `[~]` = in progress
 
 ---
 
+## Customer payment link — UPI details (added 2026-07-17)
+
+The enquiry funnel is now **pay-first**: payment must clear before a therapist is
+assigned. A home-visit customer therefore can't "pay at the clinic" first, so the
+drawer's **Request payment** button sends them a WhatsApp memo linking to
+`/pay/<token>` — a public page showing the booking, the itemised service, and the
+amount, with a UPI button + QR.
+
+Until the two env vars are set, the page still renders correctly (booking, item,
+amount) but shows *"Please call us on …"* instead of a pay button. Nothing breaks;
+it just can't collect.
+
+- [ ] **Pick the receiving UPI ID** — the clinic VPA payments should land in (e.g. `mydawaiwala@okhdfcbank`)
+- [ ] **Local env** — add to `.env.local`:
+      `NEXT_PUBLIC_UPI_VPA=<vpa>`
+      `NEXT_PUBLIC_UPI_PAYEE_NAME=My Dawai Wala Healthcare Services`
+      _The payee name must match what the customer's UPI app will display — the page tells them to check it, so a mismatch reads as a scam._
+- [ ] **Vercel env** — add both to Production **and** Preview. They're `NEXT_PUBLIC_*`, so they're inlined at **build** time: redeploy after adding, don't just restart.
+- [ ] **Check `NEXT_PUBLIC_APP_URL` is the customer-facing domain** — the pay link is built from it. It must be the domain customers already know from the website and their invoices (`wellness.mydawaiwala.com`), **not** a `*.vercel.app` preview URL. An unfamiliar domain in a payment link is the loudest phishing signal there is, and no amount of page design compensates.
+- [ ] **Verify the payee name your VPA resolves to** — send ₹1 to the VPA from your own phone and read the name your UPI app displays. It comes from the bank's records, **not** from our page. The page tells the customer to check that name matches — if it shows a personal name instead of the business, that copy backfires. Fix the VPA registration, or change the name shown on the page to match reality.
+- [ ] **Backend deploy (Render)** — `payToken` field + `GET /api/appointments/pay/:token` (public) + `POST /api/appointments/:id/pay-link` (authed). Push WellnessBackend to main → Render auto-deploys. _Until this ships, "Request payment" will error — the token can't be minted._
+- [ ] **Smoke test** — open a paid-pending enquiry → Request payment → WhatsApp opens with the memo → open the link on a phone → confirm the payee name in your UPI app is right → pay ₹1 to yourself → tick "Payment received" → reopen the link → it should read "Payment received — thank you".
+
+---
+
 ## Therapist profile pic + certificates (added 2026-06-13)
 
 Frontend code is fully built and the production build is green. These steps make it live.

@@ -4,22 +4,25 @@ export type FunnelStage =
   | "enquiry"
   | "follow_up"
   | "reached_out"
-  | "consult_booked"
-  | "consult_done"
-  | "physio_booked"
+  | "booked"
+  | "paid"
   | "assigned"
-  | "ongoing"
   | "completed"
   | "cancelled";
 
+/**
+ * Where a lead sits in the client-approved funnel. Ordered most-advanced first:
+ * reach out → confirm the booking → payment clears → assign a therapist.
+ *
+ * "assigned" is the terminal enquiry stage — once a therapist is on it the
+ * booking belongs to the Appointments page.
+ */
 export function deriveStage(r: EnquiryType): FunnelStage {
   if (r.status === "cancelled") return "cancelled";
   if (r.status === "completed") return "completed";
-  if (r.paymentReceived) return "ongoing";
-  if (r.physioAssignmentConfirmed) return "assigned";
-  if (r.physioSlot?.date && r.physioSlot?.time) return "physio_booked";
-  if (r.consultationCompleted) return "consult_done";
-  if (r.consultationSlot?.date && r.consultationSlot?.time) return "consult_booked";
+  if (r.doctorId && r.slot?.time) return "assigned";
+  if (r.paymentReceived) return "paid";
+  if (r.typeOfappointment) return "booked";
   if (r.executiveReachedOut) return "reached_out";
   // Tried to call but couldn't connect yet → needs a follow-up.
   if ((r.reachAttempts ?? 0) > 0) return "follow_up";
@@ -33,11 +36,9 @@ export const STAGE_LABELS: Record<FunnelStage, string> = {
   enquiry: "Enquiry",
   follow_up: "Follow-up",
   reached_out: "Reached out",
-  consult_booked: "Consult booked",
-  consult_done: "Consult done",
-  physio_booked: "Physio booked",
+  booked: "Booked",
+  paid: "Paid",
   assigned: "Assigned",
-  ongoing: "Ongoing",
   completed: "Completed",
   cancelled: "Cancelled",
 };
@@ -46,11 +47,9 @@ export const STAGE_ORDER: FunnelStage[] = [
   "enquiry",
   "follow_up",
   "reached_out",
-  "consult_booked",
-  "consult_done",
-  "physio_booked",
+  "booked",
+  "paid",
   "assigned",
-  "ongoing",
   "completed",
   "cancelled",
 ];

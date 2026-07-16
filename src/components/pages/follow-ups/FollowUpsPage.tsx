@@ -30,11 +30,11 @@ const HIDDEN_COLUMN_IDS = [
   "enquiryId",
   "status",
   "reach",
-  "consultSlot",
-  "consultDone",
-  "physioSlot",
+  "bookingType",
+  "fee",
+  "paid",
   "physioTherapist",
-  "assigned",
+  "visitSlot",
 ];
 
 // A follow-up is "going cold" if we haven't tried it again in over a day.

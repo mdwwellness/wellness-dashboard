@@ -11,9 +11,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
+import { formatINR } from "@/components/pages/services/services-columns";
 import type { EnquiryType } from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { formatTimeRange } from "./time-range";
+import { bookingTypeLabel, toDayKey } from "./booking";
 
 /**
  * Read the Mongoose-side updatedAt timestamp (created/updatedAt aren't in the
@@ -109,12 +111,14 @@ function SlotCell({
 }: {
   slot: { date: string; time: string } | undefined;
 }) {
-  if (!slot?.date || !slot?.time) {
+  // `slot.date` is a Date backend-side, so it arrives as a full ISO string.
+  const day = toDayKey(slot?.date);
+  if (!day || !slot?.time) {
     return <span className="text-muted-foreground">—</span>;
   }
   return (
     <div className="leading-tight whitespace-nowrap">
-      {slot.date} {slot.time}
+      {day} {slot.time}
     </div>
   );
 }
@@ -271,16 +275,17 @@ export function makeEnquiryColumns({
       ? [
           {
             id: "typeOfappointment",
-            accessorFn: (r: EnquiryType) => r.typeOfappointment ?? "",
+            accessorFn: (r: EnquiryType) =>
+              bookingTypeLabel(r.typeOfappointment) ?? "",
             header: "Type",
-            cell: ({ row }: { row: { original: EnquiryType } }) =>
-              row.original.typeOfappointment ? (
-                <span className="text-sm capitalize whitespace-nowrap">
-                  {row.original.typeOfappointment}
-                </span>
+            cell: ({ row }: { row: { original: EnquiryType } }) => {
+              const label = bookingTypeLabel(row.original.typeOfappointment);
+              return label ? (
+                <span className="text-sm whitespace-nowrap">{label}</span>
               ) : (
                 <span className="text-muted-foreground/40">—</span>
-              ),
+              );
+            },
           } as ColumnDef<EnquiryType>,
         ]
       : []),
@@ -289,58 +294,70 @@ export function makeEnquiryColumns({
       id: "reach",
       header: () => (
         <HeaderHint
-          label="① Reached"
-          hint="Step 1 — an executive has phoned/contacted the lead"
+          label="② Reached"
+          hint="Step 2 — an executive has phoned/contacted the lead"
         />
       ),
       cell: ({ row }) => (
         <CheckOrDash checked={row.original.executiveReachedOut} />
       ),
     },
-    // ── Stage ② Consultation ──
+    // ── Stage ③ Confirm booking ──
     {
-      id: "consultSlot",
+      id: "bookingType",
+      accessorFn: (r) => bookingTypeLabel(r.typeOfappointment) ?? "",
       header: () => (
         <HeaderHint
-          label="② Consult booked"
-          hint="Step 2 — online consultation slot has been scheduled"
+          label="③ Booking"
+          hint="Step 3 — the booking the executive confirmed: online consultation or home visit"
         />
       ),
-      cell: ({ row }) => <SlotCell slot={row.original.consultationSlot} />,
+      cell: ({ row }) => {
+        const label = bookingTypeLabel(row.original.typeOfappointment);
+        return label ? (
+          <span className="text-sm whitespace-nowrap">{label}</span>
+        ) : (
+          <span className="text-muted-foreground/40">—</span>
+        );
+      },
     },
     {
-      id: "consultDone",
+      id: "fee",
+      accessorFn: (r) => r.quotedPrice ?? 0,
       header: () => (
         <HeaderHint
-          label="② Consult done"
-          hint="Step 2 — the online consultation has taken place"
+          label="③ Fee"
+          hint="Step 3 — the agreed fee, pre-filled from the Services catalogue"
         />
       ),
-      cell: ({ row }) => (
-        <CheckOrDash
-          checked={row.original.consultationCompleted}
-          disabled={!row.original.consultationSlot?.date}
-        />
-      ),
+      cell: ({ row }) =>
+        row.original.quotedPrice ? (
+          <span className="text-sm tabular-nums whitespace-nowrap">
+            {formatINR(row.original.quotedPrice)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/40">—</span>
+        ),
     },
-    // ── Stage ③ Physiotherapy ──
+    // ── Stage ④ Payment ──
     {
-      id: "physioSlot",
+      id: "paid",
       header: () => (
         <HeaderHint
-          label="③ Physio slot"
-          hint="Step 3 — in-person physiotherapy session date/time"
+          label="④ Paid"
+          hint="Step 4 — payment has cleared; this unlocks the therapist assignment"
         />
       ),
-      cell: ({ row }) => <SlotCell slot={row.original.physioSlot} />,
+      cell: ({ row }) => <CheckOrDash checked={row.original.paymentReceived} />,
     },
+    // ── Stage ⑤ Assign therapist ──
     {
       id: "physioTherapist",
       accessorFn: (r) => r.doctor ?? "",
       header: () => (
         <HeaderHint
-          label="③ Therapist"
-          hint="Step 3 — the therapist assigned to the physio session"
+          label="⑤ Therapist"
+          hint="Step 5 — the therapist assigned to the visit"
         />
       ),
       cell: ({ row }) =>
@@ -351,21 +368,14 @@ export function makeEnquiryColumns({
         ),
     },
     {
-      id: "assigned",
+      id: "visitSlot",
       header: () => (
         <HeaderHint
-          label="③ Confirmed"
-          hint="Step 3 — therapist confirmed available and the assignment is locked in"
+          label="⑤ Visit"
+          hint="Step 5 — the confirmed date and time; the booking now shows on Appointments"
         />
       ),
-      cell: ({ row }) => (
-        <CheckOrDash
-          checked={row.original.physioAssignmentConfirmed}
-          disabled={
-            !row.original.physioSlot?.date || !row.original.doctorId
-          }
-        />
-      ),
+      cell: ({ row }) => <SlotCell slot={row.original.slot} />,
     },
     // ── Tracking ──
     {

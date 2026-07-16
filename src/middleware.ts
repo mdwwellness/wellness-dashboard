@@ -21,6 +21,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
     pathname.startsWith('/api/uploadthing') ||
+    // Customer-facing payment page — the whole point is that the customer,
+    // who has no dashboard login, can open it. Guarded by an unguessable
+    // token instead (see /pay/[token]).
+    pathname.startsWith('/pay') ||
     pathname.includes('.') ||
     pathname === '/favicon.ico'
   ) {

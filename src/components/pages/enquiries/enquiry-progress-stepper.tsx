@@ -12,6 +12,9 @@ type Step = {
   done: (r: EnquiryType) => boolean;
 };
 
+// Mirrors the client-approved funnel: reach out → confirm the booking →
+// payment clears → assign a therapist. The enquiry's job ends there; what
+// happens on the visit is Appointments work.
 const STEPS: Step[] = [
   {
     key: "reached",
@@ -20,16 +23,10 @@ const STEPS: Step[] = [
     done: (r) => !!r.executiveReachedOut,
   },
   {
-    key: "consulted",
-    label: "Consulted",
-    section: "enq-sec-consult",
-    done: (r) => !!r.consultationCompleted,
-  },
-  {
-    key: "physio",
-    label: "Physio set",
-    section: "enq-sec-physio",
-    done: (r) => !!r.physioAssignmentConfirmed,
+    key: "booked",
+    label: "Booked",
+    section: "enq-sec-booking",
+    done: (r) => !!r.typeOfappointment,
   },
   {
     key: "paid",
@@ -38,10 +35,10 @@ const STEPS: Step[] = [
     done: (r) => !!r.paymentReceived,
   },
   {
-    key: "completed",
-    label: "Completed",
-    section: "enq-sec-completion",
-    done: (r) => r.status === "completed",
+    key: "assigned",
+    label: "Assigned",
+    section: "enq-sec-therapist",
+    done: (r) => !!r.doctorId && !!r.slot?.time,
   },
 ];
 
@@ -52,15 +49,7 @@ function scrollToSection(id: string) {
 
 export function EnquiryProgressStepper({ record }: { record: EnquiryType }) {
   const cancelled = record.status === "cancelled";
-
-  // Home Therapy / Vitals leads skip the paid online consultation, so drop the
-  // "Consulted" step from their progress bar too — keeps it in sync with the
-  // adaptive funnel in the drawer.
-  const isConsultLead =
-    record.service !== "Home Therapy" && record.service !== "Vitals Check";
-  const steps = isConsultLead
-    ? STEPS
-    : STEPS.filter((s) => s.key !== "consulted");
+  const steps = STEPS;
 
   const doneFlags = steps.map((s) => s.done(record));
   // Fill the bar up to the furthest completed step (monotonic, like the funnel).

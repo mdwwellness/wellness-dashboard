@@ -54,16 +54,24 @@ import {
   useDeleteAppointment,
   useUpdateAppointment,
 } from "@/data/appointment/appointment";
-import { useGetAllTherapist } from "@/data/therapist/therapist";
+import createPaymentLink from "@/actions/appointments/create-payment-link";
+import { useGetServices } from "@/data/service/service";
 import { useGetBackOfficeUsers } from "@/data/user/user-list";
 import { useAuthStore } from "@/providers/permission-provider";
-import type {
-  ActivityEntry,
-  EnquiryType,
-  TherapistformType,
-} from "@/type/schema";
+import { formatINR } from "@/components/pages/services/services-columns";
+import { BRAND, publicOrigin } from "@/lib/brand";
+import { toWhatsAppNumber, whatsAppLink } from "@/lib/whatsapp";
+import type { ActivityEntry, EnquiryType } from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { EnquiryProgressStepper } from "./enquiry-progress-stepper";
+import {
+  BOOKING_TYPES,
+  bookingTypeLabel,
+  catalogueFee,
+  toDayKey,
+  type BookingType,
+} from "./booking";
+import { TherapistAvailabilityGrid } from "./therapist-availability-grid";
 
 const STATUS_LABELS: Record<string, string> = {
   enquiry: "Enquiry",
@@ -97,26 +105,14 @@ export function EnquiryDetailDrawer({
     silent: true,
   });
   const { mutate: del, isPending: isDeleting } = useDeleteAppointment();
-  const { data: therapists } = useGetAllTherapist();
   const { data: users } = useGetBackOfficeUsers();
+  const { data: services = [] } = useGetServices();
 
   // Local edit buffer keeps the form responsive without writing every keystroke.
   // Re-syncs to the latest record prop whenever the parent re-renders with
   // fresh data (e.g. after a server update). Unsaved local edits are lost on
   // re-sync — acceptable for MVP because saves happen on every blur and toggle.
   const [draft, setDraft] = useState<EnquiryType | null>(record);
-  useEffect(() => {
-    setDraft(record);
-    setOverrideReason("");
-  }, [record]);
-
-  // A therapy lead converts into a scheduled visit; a single-visit lead
-  // (e.g. Vitals Check) just gets marked complete. Replaces the old
-  // package-based branch now that packages are gone.
-  const isTherapyLead = Boolean(
-    draft?.service === "Home Therapy" || draft?.physioSlot?.date,
-  );
-
 
   // ── All remaining hooks MUST be declared above the early return so the
   //    hook order is identical every render. (React's rules-of-hooks.)
@@ -158,6 +154,9 @@ export function EnquiryDetailDrawer({
   // "All changes saved" label so it doesn't show before any edit happens.
   const [savedOnce, setSavedOnce] = useState(false);
 
+  // Minting the pay link is a server round-trip — don't let it be double-fired.
+  const [requestingPayment, setRequestingPayment] = useState(false);
+
   // Status-override flow: picking a new status stages it here and reveals a
   // required reason note; nothing is written until the note is filled + applied.
   const [pendingStatus, setPendingStatus] =
@@ -177,27 +176,59 @@ export function EnquiryDetailDrawer({
   // Therapist reassignment reason (dropdown) for non-admins.
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignReasonSel, setReassignReasonSel] = useState("");
-  const [pendingTherapist, setPendingTherapist] = useState<{
+  const [pendingAssignment, setPendingAssignment] =
+    useState<Partial<EnquiryType> | null>(null);
+
+  // ── Step 5 staging ──
+  // The therapist assignment is composed locally (day → free cell) and written
+  // in ONE save on confirm. Every PUT re-derives the invoice and re-uploads the
+  // PDF, so a field-by-field autosave here would hammer UploadThing.
+  const [assignDate, setAssignDate] = useState("");
+  const [assignDateOpen, setAssignDateOpen] = useState(false);
+  const [assignPick, setAssignPick] = useState<{
     doctorId: string;
     doctor: string;
+    time: string;
   } | null>(null);
+  // Once assigned the grid collapses to a summary; "Change" re-opens it. Keeps
+  // a settled booking from being one stray click away from a reassignment.
+  const [editingAssignment, setEditingAssignment] = useState(false);
+
+  // Re-seed every local buffer when the drawer switches record.
+  useEffect(() => {
+    setDraft(record);
+    setOverrideReason("");
+    setAssignDate(toDayKey(record?.slot?.date));
+    setAssignPick(
+      record?.doctorId && record?.slot?.time
+        ? {
+            doctorId: record.doctorId,
+            doctor: record.doctor ?? "",
+            time: record.slot.time,
+          }
+        : null,
+    );
+    setEditingAssignment(false);
+  }, [record]);
 
   // Only NOW is it safe to early-return — hooks above have all run.
   if (!record || !draft) return null;
 
-  // Only "Online Consultation" leads have the paid therapist-consultation step.
-  // Home Therapy / Vitals leads skip it — the executive reach-out already
-  // captures their needs — so their funnel is Reach-out → Assignment → Payment
-  // and the later steps renumber down by one.
-  const isConsultLead =
-    draft.service !== "Home Therapy" && draft.service !== "Vitals Check";
-  const stepNo = {
-    reach: 1,
-    consult: 2,
-    physio: isConsultLead ? 3 : 2,
-    payment: isConsultLead ? 4 : 3,
-    completion: isConsultLead ? 5 : 4,
-  };
+  const bookingFee = draft.typeOfappointment
+    ? catalogueFee(draft.typeOfappointment, services)
+    : undefined;
+
+  // A therapist is already locked in on the saved record.
+  const hasAssignment = Boolean(draft.doctorId && draft.slot?.time);
+  // The staged pick already matches what's saved — nothing left to confirm.
+  const isAssigned = Boolean(
+    assignPick &&
+      draft.doctorId === assignPick.doctorId &&
+      draft.slot?.time === assignPick.time &&
+      toDayKey(draft.slot?.date) === assignDate,
+  );
+  // Collapse to a summary once settled, until the user asks to change it.
+  const showPicker = !hasAssignment || editingAssignment;
 
   function patch(partial: Partial<EnquiryType>) {
     setDraft({ ...draft!, ...partial });
@@ -369,132 +400,186 @@ export function EnquiryDetailDrawer({
     });
   }
 
-  function toggleConsultDone(checked: boolean) {
-    if (checked && !draft?.consultationSlot?.date) {
-      toast.error("Book the consultation slot first");
-      return;
-    }
+  // ── Step 3: confirm the booking ──
+  // The fee belongs to the type, so switching type re-prices from the
+  // catalogue. It stays editable afterwards — exceptions happen.
+  function chooseBookingType(t: BookingType) {
+    const fee = catalogueFee(t, services);
     save(
       {
-        consultationCompleted: checked,
-        consultationCompletedAt: checked ? new Date().toISOString() : undefined,
+        typeOfappointment: t,
+        ...(fee !== undefined ? { quotedPrice: fee } : {}),
       },
-      checked,
+      true,
     );
   }
 
-  function toggleAssignmentConfirmed(checked: boolean) {
-    if (
-      checked &&
-      (!draft?.physioSlot?.date || !draft?.physioSlot?.time || !draft?.doctorId)
-    ) {
-      toast.error("Book the physio slot and pick a therapist first");
-      return;
-    }
-    save(
-      {
-        physioAssignmentConfirmed: checked,
-        physioAssignmentConfirmedAt: checked
-          ? new Date().toISOString()
-          : undefined,
-      },
-      checked,
-    );
-  }
-
+  // ── Step 4: payment — the gate for step 5 ──
   function togglePayment(checked: boolean) {
-    if (checked && !draft?.physioAssignmentConfirmed) {
-      toast.error("Confirm the physio assignment first");
+    if (!checked) {
+      // Un-ticking re-locks the therapist step; the assignment itself stands.
+      save({
+        paymentReceived: false,
+        paymentReceivedAt: undefined,
+        status: "scheduled",
+      });
       return;
     }
-    if (
-      checked &&
-      (!draft?.physioSlot?.date || !draft?.physioSlot?.time)
-    ) {
-      toast.error("Book the physio slot first — it becomes session 1");
+    if (!draft?.typeOfappointment) {
+      toast.error("Confirm the booking type first");
+      return;
+    }
+    // The amount field shows the fee until the executive overrides it.
+    const amount = draft.paymentAmount ?? draft.quotedPrice;
+    if (!amount) {
+      toast.error("Enter the amount received");
       return;
     }
 
-    const extra: Partial<EnquiryType> = {
-      paymentReceived: checked,
-      paymentReceivedAt: checked ? new Date().toISOString() : undefined,
-      status: checked ? "ongoing" : "scheduled",
-    };
+    save(
+      {
+        paymentReceived: true,
+        paymentReceivedAt: new Date().toISOString(),
+        paymentAmount: amount,
+        // Paid but not yet assigned — step 5 moves it to "ongoing".
+        status: "scheduled",
+        activityLog: [
+          ...(draft.activityLog ?? []),
+          {
+            at: new Date().toISOString(),
+            userId: currentUser?.id,
+            name: currentActorName(),
+            action: `Payment received ${formatINR(amount)}${
+              draft.paymentMethod ? ` (${draft.paymentMethod})` : ""
+            }`,
+          },
+        ],
+      },
+      true,
+    );
+  }
 
-    if (checked && draft?.physioSlot?.date && draft?.physioSlot?.time) {
-      extra.slot = {
-        date: draft.physioSlot.date,
-        time: draft.physioSlot.time,
-      };
-      extra.sessionNumber = 1;
-      extra.sessionsCompleted = 0;
-      extra.typeOfappointment = "appointment";
+  // ── Step 5: assign the therapist → the booking lands on Appointments ──
+  function confirmAssignment() {
+    if (!assignDate || !assignPick) return;
+    // The backend never prices from the rate table — if the frontend doesn't
+    // send a quotedPrice the record is unpriceable and generates NO invoice.
+    if (!draft?.quotedPrice) {
+      toast.error("Set the booking fee in step 3 — without it no invoice is raised.");
+      return;
     }
 
-    if (checked) {
-      const amt = draft?.paymentAmount;
-      const method = draft?.paymentMethod;
-      const desc = `Payment received${amt ? ` ₹${amt}` : ""}${
-        method ? ` (${method})` : ""
-      } · Session 1 scheduled`;
-      extra.activityLog = [
-        ...(draft?.activityLog ?? []),
+    const change: Partial<EnquiryType> = {
+      slot: { date: assignDate, time: assignPick.time },
+      doctorId: assignPick.doctorId,
+      doctor: assignPick.doctor,
+      status: "ongoing",
+      activityLog: [
+        ...(draft.activityLog ?? []),
         {
           at: new Date().toISOString(),
           userId: currentUser?.id,
           name: currentActorName(),
-          action: desc,
+          action: `Assigned ${assignPick.doctor} — ${assignDate} ${assignPick.time}`,
         },
-      ];
-    } else {
-      extra.completedAt = undefined;
+      ],
+    };
+
+    // Touching a booking that's already settled always confirms first — a
+    // stray click must never silently move a customer's visit. Non-admins
+    // additionally have to give a reason for the trail.
+    if (hasAssignment) {
+      setPendingAssignment(change);
+      setReassignReasonSel("");
+      setReassignOpen(true);
+      return;
     }
-    save(extra);
+    save(change, true);
+  }
+
+  /**
+   * Ask the customer to pay: mint the booking's payment link and open WhatsApp
+   * with a short, factual memo.
+   *
+   * Tone is deliberate. The customer just spoke to this executive, so the memo
+   * names the clinic, quotes the booking ID and the exact item and amount, and
+   * sends them to a page that shows the same before any money moves. It never
+   * invents urgency and never asks for a credential — that's what separates it
+   * from the scam texts everyone gets.
+   */
+  async function requestPaymentWa() {
+    if (!draft?._id) return;
+    const amount = draft.paymentAmount ?? draft.quotedPrice;
+    if (!draft.typeOfappointment || !amount) {
+      toast.error("Confirm the booking type and fee first");
+      return;
+    }
+    if (!toWhatsAppNumber(draft.phonenumber)) {
+      toast.error("This lead has no usable phone number");
+      return;
+    }
+
+    setRequestingPayment(true);
+    const result = await createPaymentLink(draft._id);
+    setRequestingPayment(false);
+    if (!result.success || !result.data?.payToken) {
+      toast.error(result.message || "Couldn't create the payment link");
+      return;
+    }
+
+    const url = `${publicOrigin()}/pay/${result.data.payToken}`;
+    const item = bookingTypeLabel(draft.typeOfappointment);
+    const msg =
+      `Hi ${draft.name ?? ""} — this is ${BRAND.name}, following up on our call.\n\n` +
+      `Booking ${draft.enquiryId ?? ""}\n` +
+      `${item} — ${formatINR(amount)}\n\n` +
+      `View the details and pay here:\n${url}\n\n` +
+      `We'll confirm your therapist and visit time once the payment clears. ` +
+      `Any questions, just reply here.`;
+
+    const wa = whatsAppLink(draft.phonenumber, msg);
+    if (!wa) {
+      toast.error("This lead has no usable phone number");
+      return;
+    }
+    window.open(wa, "_blank", "noopener,noreferrer");
+    save({
+      activityLog: [
+        ...(draft.activityLog ?? []),
+        {
+          at: new Date().toISOString(),
+          userId: currentUser?.id,
+          name: currentActorName(),
+          action: `Sent payment request ${formatINR(amount)} (${item})`,
+        },
+      ],
+    });
   }
 
   function sendPaymentConfirmationWa() {
     if (!draft?.paymentReceived || !draft?.paymentReceivedAt) return;
 
-    const phone = String(draft.phonenumber ?? "").replace(/[^\d]/g, "");
-    if (!phone) return;
-
-    const amt = draft.paymentAmount ? `₹${draft.paymentAmount}` : "";
+    const amt = draft.paymentAmount ? ` ${formatINR(draft.paymentAmount)}` : "";
     const method = draft.paymentMethod ? ` (${draft.paymentMethod})` : "";
 
-    const sessionLabel =
+    // Only mention the visit once a therapist has actually been assigned.
+    const visitLabel =
       draft.slot?.date && draft.slot?.time
-        ? `\nSession 1: ${draft.slot.date} ${draft.slot.time}`
+        ? `\n${bookingTypeLabel(draft.typeOfappointment) ?? "Visit"}: ${toDayKey(
+            draft.slot.date,
+          )} ${draft.slot.time}${draft.doctor ? ` with ${draft.doctor}` : ""}`
         : "";
 
-    const msg = `Hi ${draft.name ?? ""},\n\nPayment received${amt ? ` ${amt}` : ""}${method}.\nReceived on: ${new Date(
+    const msg = `Hi ${draft.name ?? ""},\n\nPayment received${amt}${method}.\nReceived on: ${new Date(
       draft.paymentReceivedAt,
-    ).toLocaleString()}${sessionLabel}\n\nThanks!`;
+    ).toLocaleString()}${visitLabel}\n\nThanks!`;
 
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  function toggleCompleted(checked: boolean) {
-    if (checked && !draft?.paymentReceived) {
-      toast.error("Record payment first");
+    const wa = whatsAppLink(draft.phonenumber, msg);
+    if (!wa) {
+      toast.error("This lead has no usable phone number");
       return;
     }
-    const extra: Partial<EnquiryType> = {
-      status: checked ? "completed" : "ongoing",
-      completedAt: checked ? new Date().toISOString() : undefined,
-    };
-    if (checked) {
-      extra.activityLog = [
-        ...(draft?.activityLog ?? []),
-        {
-          at: new Date().toISOString(),
-          userId: currentUser?.id,
-          name: currentActorName(),
-          action: "Marked completed",
-        },
-      ];
-    }
-    save(extra);
+    window.open(wa, "_blank", "noopener,noreferrer");
   }
 
   const activity = buildActivity(draft);
@@ -507,7 +592,9 @@ export function EnquiryDetailDrawer({
         if (!next) onClose();
       }}
     >
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      {/* Wide enough for the therapist × time-slot grid to breathe — 12 slots
+          plus a therapist name column don't fit in the default sm:max-w-xl. */}
+      <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             {draft.enquiryId && (
@@ -547,7 +634,7 @@ export function EnquiryDetailDrawer({
           {/* ── Section: Lead info ── */}
           <section className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Lead info</h3>
+              <h3 className="text-sm font-semibold">1. Lead info</h3>
               <Button
                 type="button"
                 variant="ghost"
@@ -699,13 +786,10 @@ export function EnquiryDetailDrawer({
 
           {/* ── Section: Reach out ── */}
           <section id="enq-sec-reach" className="space-y-2 border-t pt-4 scroll-mt-4">
-            <h3 className="text-sm font-semibold">
-              {stepNo.reach}. Executive reach-out
-            </h3>
+            <h3 className="text-sm font-semibold">2. Executive reach-out</h3>
             <p className="text-xs text-muted-foreground">
-              {isConsultLead
-                ? "A quick call to reach the customer and schedule a time — no charge."
-                : "Reach the customer, capture their needs, and schedule a time — no charge."}
+              A quick call to reach the customer and agree what they need — no
+              charge.
             </p>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -746,135 +830,94 @@ export function EnquiryDetailDrawer({
             )}
           </section>
 
-          {/* ── Section: Online consultation (Online Consultation leads only) ── */}
-          {isConsultLead && (
-          <section id="enq-sec-consult" className="space-y-3 border-t pt-4 scroll-mt-4">
-            <h3 className="text-sm font-semibold">
-              {stepNo.consult}. Online consultation (with therapist)
-            </h3>
+          {/* ── Section: Confirm booking ── */}
+          <section
+            id="enq-sec-booking"
+            className="space-y-3 border-t pt-4 scroll-mt-4"
+          >
+            <h3 className="text-sm font-semibold">3. Confirm booking</h3>
             <p className="text-xs text-muted-foreground">
-              Paid session where the therapist discusses the issue — ₹500.
+              What the customer agreed to on the call.
             </p>
-            <SlotPicker
-              label="Consultation slot"
-              value={draft.consultationSlot}
-              onChange={(slot) => save({ consultationSlot: slot }, true)}
-            />
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={draft.consultationCompleted ?? false}
-                disabled={!draft.consultationSlot?.date}
-                onChange={(e) => toggleConsultDone(e.target.checked)}
-              />
-              Mark consultation done
-            </label>
-            {!draft.consultationSlot?.date && (
-              <p className="text-xs text-muted-foreground">
-                Book the consultation slot above to enable this.
-              </p>
-            )}
-            {draft.consultationCompletedAt && (
-              <p className="text-xs text-muted-foreground">
-                Completed at{" "}
-                {new Date(draft.consultationCompletedAt).toLocaleString()}
-              </p>
-            )}
-          </section>
-          )}
 
-          {/* ── Section: Physio assignment ── */}
-          <section id="enq-sec-physio" className="space-y-3 border-t pt-4 scroll-mt-4">
-            <h3 className="text-sm font-semibold">
-              {stepNo.physio}.{" "}
-              {draft.service === "Vitals Check"
-                ? "Vitals visit assignment"
-                : draft.service === "Home Therapy"
-                  ? "Therapist (home visit)"
-                  : "Physiotherapist assignment"}
-            </h3>
-            <SlotPicker
-              label="Physio slot"
-              value={draft.physioSlot}
-              onChange={(slot) => save({ physioSlot: slot }, true)}
-            />
-            <div>
-              <label className="text-xs text-muted-foreground">
-                Therapist
-              </label>
-              <Select
-                value={draft.doctorId ?? ""}
-                onValueChange={(id) => {
-                  const t = therapists?.find(
-                    (x: TherapistformType) => x.doctorId === id,
-                  );
-                  const change = { doctorId: id, doctor: t?.name ?? "" };
-                  const isReassign = !!draft.doctorId && id !== draft.doctorId;
-                  // T4: reassigning an existing therapist needs a reason
-                  // (dropdown) from non-admins.
-                  if (isReassign && !isAdmin) {
-                    setPendingTherapist(change);
-                    setReassignReasonSel("");
-                    setReassignOpen(true);
-                    return;
-                  }
-                  save(change, true);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pick a therapist" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(therapists ?? [])
-                    .filter((t: TherapistformType) => t.doctorId)
-                    .map((t: TherapistformType) => (
-                      <SelectItem key={t.doctorId} value={t.doctorId as string}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-2">
+              {BOOKING_TYPES.map((b) => {
+                const fee = catalogueFee(b.value, services);
+                const active = draft.typeOfappointment === b.value;
+                return (
+                  <button
+                    key={b.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => chooseBookingType(b.value)}
+                    className={cn(
+                      "rounded-md border px-3 py-2 text-left transition-colors",
+                      active
+                        ? "border-primary bg-primary/10"
+                        : "hover:bg-muted/50",
+                    )}
+                  >
+                    <span className="block text-sm font-medium">{b.label}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {fee !== undefined ? formatINR(fee) : "Not in catalogue"}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
-            {draft.doctorId &&
-              (!draft.physioSlot?.date || !draft.physioSlot?.time) && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
-                  Pick a physio date &amp; time for{" "}
-                  {draft.doctor || "this therapist"} to confirm the assignment.
-                </p>
-              )}
-            {!draft.doctorId && (
-              <p className="text-xs text-muted-foreground">
-                Pick a therapist above to confirm the assignment.
-              </p>
-            )}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={draft.physioAssignmentConfirmed ?? false}
-                disabled={
-                  !draft.physioSlot?.date ||
-                  !draft.physioSlot?.time ||
-                  !draft.doctorId
+            <div>
+              <label className="text-xs text-muted-foreground">Fee (₹)</label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0"
+                disabled={!draft.typeOfappointment}
+                value={draft.quotedPrice ?? ""}
+                onChange={(e) =>
+                  patch({
+                    quotedPrice:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
                 }
-                onChange={(e) => toggleAssignmentConfirmed(e.target.checked)}
+                onBlur={() => save()}
               />
-              Confirm assignment (therapist is available)
-            </label>
-            {draft.physioAssignmentConfirmedAt && (
-              <p className="text-xs text-muted-foreground">
-                Confirmed at{" "}
-                {new Date(draft.physioAssignmentConfirmedAt).toLocaleString()}
-              </p>
-            )}
+              {!draft.typeOfappointment ? (
+                <p className="text-xs text-muted-foreground pt-1">
+                  Pick a booking type — the fee pre-fills from the Services
+                  catalogue.
+                </p>
+              ) : bookingFee === undefined ? (
+                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
+                  &ldquo;
+                  {
+                    BOOKING_TYPES.find(
+                      (b) => b.value === draft.typeOfappointment,
+                    )?.serviceName
+                  }
+                  &rdquo; isn&apos;t on the Services page — add it there so the
+                  fee pre-fills, or type it in here.
+                </p>
+              ) : draft.quotedPrice !== bookingFee ? (
+                <p className="text-xs text-muted-foreground pt-1">
+                  Catalogue price is {formatINR(bookingFee)} — this booking is
+                  an exception.
+                </p>
+              ) : null}
+            </div>
           </section>
 
-          {/* ── Section: Payment ── */}
+          {/* ── Section: Payment — the gate for the therapist step ── */}
           <section
             id="enq-sec-payment"
             className="space-y-3 border-t pt-4 scroll-mt-4"
           >
-            <h3 className="text-sm font-semibold">{stepNo.payment}. Payment</h3>
+            <h3 className="text-sm font-semibold">4. Payment</h3>
+            <p className="text-xs text-muted-foreground">
+              Payment must be clear before a therapist is assigned.
+            </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -885,7 +928,7 @@ export function EnquiryDetailDrawer({
                   type="number"
                   min={0}
                   placeholder="0"
-                  value={draft.paymentAmount ?? ""}
+                  value={draft.paymentAmount ?? draft.quotedPrice ?? ""}
                   onChange={(e) =>
                     patch({
                       paymentAmount:
@@ -922,110 +965,200 @@ export function EnquiryDetailDrawer({
               <label
                 className={cn(
                   "flex items-center gap-2 text-sm",
-                  !draft.physioAssignmentConfirmed && "opacity-50",
+                  !draft.typeOfappointment && "opacity-50",
                 )}
               >
                 <input
                   type="checkbox"
                   checked={draft.paymentReceived ?? false}
-                  disabled={!draft.physioAssignmentConfirmed}
+                  disabled={!draft.typeOfappointment}
                   onChange={(e) => togglePayment(e.target.checked)}
                 />
                 Payment received
               </label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9"
-                disabled={!draft.paymentReceived || !draft.paymentReceivedAt}
-                onClick={sendPaymentConfirmationWa}
-              >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Send Payment Confirmation
-              </Button>
+              {/* Before the money lands, the useful action is asking for it;
+                  afterwards, it's acknowledging it. Only ever show one. */}
+              {draft.paymentReceived ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  disabled={!draft.paymentReceivedAt}
+                  onClick={sendPaymentConfirmationWa}
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Send confirmation
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  disabled={
+                    !draft.typeOfappointment ||
+                    !(draft.paymentAmount ?? draft.quotedPrice) ||
+                    requestingPayment
+                  }
+                  onClick={requestPaymentWa}
+                >
+                  {requestingPayment ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Request payment
+                </Button>
+              )}
             </div>
-            {draft.paymentReceived && draft.paymentReceivedAt && (
+            {draft.paymentReceived && draft.paymentReceivedAt ? (
               <p className="text-xs text-muted-foreground">
                 Received
-                {draft.paymentAmount ? ` ₹${draft.paymentAmount}` : ""}
+                {draft.paymentAmount
+                  ? ` ${formatINR(draft.paymentAmount)}`
+                  : ""}
                 {draft.paymentMethod ? ` via ${draft.paymentMethod}` : ""} on{" "}
                 {new Date(draft.paymentReceivedAt).toLocaleString()}
-                {draft.slot?.date && draft.slot?.time
-                  ? ` · Session 1: ${draft.slot.date} ${draft.slot.time}`
-                  : ""}
               </p>
-            )}
-            {!draft.physioAssignmentConfirmed && (
+            ) : !draft.typeOfappointment ? (
               <p className="text-xs text-muted-foreground">
-                Confirm the physio assignment before recording payment.
+                Confirm the booking type in step 3 before recording payment.
               </p>
-            )}
+            ) : null}
           </section>
 
-          {/* ── Section: Session 1 / funnel close ── */}
+          {/* ── Section: Assign therapist — the last step of the enquiry ── */}
           <section
-            id="enq-sec-completion"
-            className="space-y-2 border-t pt-4 scroll-mt-4"
+            id="enq-sec-therapist"
+            className="space-y-3 border-t pt-4 scroll-mt-4"
           >
-            <h3 className="text-sm font-semibold">
-              {stepNo.completion}.{" "}
-              {isTherapyLead ? "Session 1 scheduled" : "Completion"}
-            </h3>
-            {isTherapyLead ? (
-              <div className="rounded-md border bg-muted/30 p-3 space-y-2 text-sm">
-                {draft.paymentReceived ? (
-                  <>
-                    <p className="text-emerald-800 dark:text-emerald-300 font-medium">
-                      Lead converted — session 1 is on the Appointments page.
-                    </p>
-                    {draft.slot?.date && draft.slot?.time && (
-                      <p className="text-xs text-muted-foreground">
-                        Visit: {draft.slot.date} at {draft.slot.time}
-                        {draft.sessionNumber
-                          ? ` (session ${draft.sessionNumber})`
-                          : ""}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Therapist marks each visit complete on Appointments.
-                      Package progress (e.g. 2 of 6) updates automatically.
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Record payment in step 4 to schedule session 1 from the
-                    physio slot above.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <>
-                <label
-                  className={cn(
-                    "flex items-center gap-2 text-sm",
-                    !draft.paymentReceived && "opacity-50",
-                  )}
+            <h3 className="text-sm font-semibold">5. Assign therapist</h3>
+            <p className="text-xs text-muted-foreground">
+              Confirming puts this booking on the Appointments page — the
+              enquiry is then done.
+            </p>
+
+            {!draft.paymentReceived && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
+                Record payment first.
+              </p>
+            )}
+
+            {/* Settled booking — collapsed. The grid is one deliberate click away. */}
+            {hasAssignment && !editingAssignment && (
+              <div className="flex items-center justify-between gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2">
+                <p className="min-w-0 text-sm">
+                  <span className="font-medium">{draft.doctor}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {toDayKey(draft.slot?.date)} at {draft.slot?.time}
+                  </span>
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setEditingAssignment(true)}
                 >
-                  <input
-                    type="checkbox"
-                    checked={draft.status === "completed"}
-                    disabled={!draft.paymentReceived}
-                    onChange={(e) => toggleCompleted(e.target.checked)}
+                  <Pencil className="mr-1 h-3 w-3" />
+                  Change
+                </Button>
+              </div>
+            )}
+
+            {showPicker && (
+              <>
+                <div>
+                  <label className="text-xs text-muted-foreground">
+                    Visit date
+                  </label>
+                  <Popover
+                    open={assignDateOpen}
+                    onOpenChange={setAssignDateOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!draft.paymentReceived}
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {assignDate ? (
+                          format(new Date(assignDate), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={assignDate ? new Date(assignDate) : undefined}
+                        disabled={{ before: startOfToday() }}
+                        onSelect={(d) => {
+                          if (d) setAssignDate(format(d, "yyyy-MM-dd"));
+                          setAssignDateOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {draft.paymentReceived && assignDate && (
+                  <TherapistAvailabilityGrid
+                    date={assignDate}
+                    selectedDoctorId={assignPick?.doctorId}
+                    selectedTime={assignPick?.time}
+                    excludeRecordId={draft._id}
+                    onPick={setAssignPick}
                   />
-                  Mark completed
-                </label>
-                {draft.status === "completed" && draft.completedAt ? (
-                  <p className="text-xs text-muted-foreground">
-                    Completed on{" "}
-                    {new Date(draft.completedAt).toLocaleString()}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {draft.paymentReceived
-                      ? "Treatment in progress — mark when finished."
-                      : "Record payment first to enable."}
-                  </p>
+                )}
+
+                {draft.paymentReceived && assignDate && assignPick && (
+                  <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-2.5 py-2">
+                    <p className="min-w-0 text-sm">
+                      <span className="font-medium">{assignPick.doctor}</span>
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · {assignDate} at {assignPick.time}
+                      </span>
+                    </p>
+                    <div className="flex shrink-0 gap-2">
+                      {hasAssignment && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingAssignment(false);
+                            setAssignDate(toDayKey(draft.slot?.date));
+                            setAssignPick(
+                              draft.doctorId && draft.slot?.time
+                                ? {
+                                    doctorId: draft.doctorId,
+                                    doctor: draft.doctor ?? "",
+                                    time: draft.slot.time,
+                                  }
+                                : null,
+                            );
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isAssigned || isUpdating}
+                        onClick={confirmAssignment}
+                      >
+                        {isAssigned ? "Assigned" : "Confirm assignment"}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </>
             )}
@@ -1298,46 +1431,67 @@ export function EnquiryDetailDrawer({
       </AlertDialogContent>
     </AlertDialog>
 
-    {/* T4: reason required to reassign an already-assigned therapist */}
+    {/* Changing a settled booking always confirms. Non-admins also give a reason. */}
     <AlertDialog open={reassignOpen} onOpenChange={setReassignOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Reassign therapist</AlertDialogTitle>
+          <AlertDialogTitle>Move this booking?</AlertDialogTitle>
           <AlertDialogDescription>
-            Changing the assigned therapist needs a reason — it&apos;s recorded
-            in the activity trail.
+            This visit is already confirmed. The customer has been told who is
+            coming and when — only change it if that&apos;s really what you
+            mean to do.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <Select value={reassignReasonSel} onValueChange={setReassignReasonSel}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Pick a reason" />
-          </SelectTrigger>
-          <SelectContent>
-            {REASSIGN_REASONS.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm space-y-1">
+          <p>
+            <span className="text-muted-foreground">Now: </span>
+            {draft?.doctor} · {toDayKey(draft?.slot?.date)} at{" "}
+            {draft?.slot?.time}
+          </p>
+          <p>
+            <span className="text-muted-foreground">Change to: </span>
+            <span className="font-medium">
+              {pendingAssignment?.doctor} · {assignDate} at{" "}
+              {pendingAssignment?.slot?.time}
+            </span>
+          </p>
+        </div>
+
+        {!isAdmin && (
+          <Select value={reassignReasonSel} onValueChange={setReassignReasonSel}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Pick a reason" />
+            </SelectTrigger>
+            <SelectContent>
+              {REASSIGN_REASONS.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setPendingTherapist(null)}>
-            Cancel
+          <AlertDialogCancel onClick={() => setPendingAssignment(null)}>
+            Keep it as it is
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
-              if (!reassignReasonSel) {
+              if (!isAdmin && !reassignReasonSel) {
                 toast.error("Pick a reason for the reassignment");
                 return;
               }
-              const p = pendingTherapist;
+              const p = pendingAssignment;
               setReassignOpen(false);
-              setPendingTherapist(null);
-              if (p) save(p, true, reassignReasonSel);
+              setPendingAssignment(null);
+              setEditingAssignment(false);
+              if (p) save(p, true, reassignReasonSel || undefined);
             }}
           >
-            Reassign
+            Yes, move it
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -1370,22 +1524,6 @@ function buildActivity(d: EnquiryType): ActivityEntry[] {
         userId: handlerId,
         name: handler,
         action: "Reached out to lead",
-      });
-    }
-    if (d.consultationCompletedAt) {
-      entries.push({
-        at: d.consultationCompletedAt,
-        userId: handlerId,
-        name: handler,
-        action: "Marked consultation done",
-      });
-    }
-    if (d.physioAssignmentConfirmedAt) {
-      entries.push({
-        at: d.physioAssignmentConfirmedAt,
-        userId: handlerId,
-        name: handler,
-        action: `Confirmed assignment${d.doctor ? ` (${d.doctor})` : ""}`,
       });
     }
   }
@@ -1425,76 +1563,3 @@ function LabeledInput({
   );
 }
 
-const TIME_SLOTS = [
-  "9:30", "10:30", "11:30", "12:30", "13:30", "14:30",
-  "15:30", "16:30", "17:30", "18:30", "19:30", "20:30",
-];
-
-function SlotPicker({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: { date: string; time: string } | undefined;
-  onChange: (slot: { date: string; time: string }) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const date = value?.date ? new Date(value.date) : undefined;
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      <div>
-        <label className="text-xs text-muted-foreground">{label} date</label>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              className={cn("w-full justify-start text-left font-normal")}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP") : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={date}
-              // Block past dates — slots can only be booked today or later.
-              disabled={{ before: startOfToday() }}
-              onSelect={(d) => {
-                if (d)
-                  onChange({
-                    date: format(d, "yyyy-MM-dd"),
-                    time: value?.time ?? "",
-                  });
-                setOpen(false);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-      <div>
-        <label className="text-xs text-muted-foreground">Time</label>
-        <Select
-          value={value?.time ?? ""}
-          onValueChange={(t) =>
-            onChange({ date: value?.date ?? "", time: t })
-          }
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Time" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIME_SLOTS.map((t) => (
-              <SelectItem key={t} value={t}>
-                {t}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
-}

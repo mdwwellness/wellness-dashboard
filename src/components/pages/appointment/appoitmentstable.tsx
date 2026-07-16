@@ -86,6 +86,29 @@ export function makeAppointmentColumns(
       ),
     },
     {
+      id: "advancePayment",
+      accessorFn: (row) => (row.paymentReceived ? "Paid" : "Pending"),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Advance payment" />
+      ),
+      cell: ({ row }) =>
+        row.original.paymentReceived ? (
+          <Badge
+            variant="outline"
+            className="text-[10px] border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+          >
+            Paid
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400"
+          >
+            Pending
+          </Badge>
+        ),
+    },
+    {
       id: "addOns",
       header: "Add-ons",
       cell: ({ row }) => {

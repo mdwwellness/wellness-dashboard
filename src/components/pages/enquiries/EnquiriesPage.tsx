@@ -66,12 +66,13 @@ const COLLAPSED_ATTENDED_ROWS = 5;
 const UNTOUCHED_STALE_MS = 24 * 60 * 60 * 1000; // 1 day
 const ATTENDED_STALE_MS = 48 * 60 * 60 * 1000; // 2 days
 
-/** Stages considered "active" in the attended pile (i.e. still need work). */
+/** Stages considered "active" in the attended pile (i.e. still need work).
+ *  "assigned" is terminal here — the enquiry's job ends once a therapist is
+ *  on it; the booking is Appointments work from then on. */
 const ATTENDED_NON_TERMINAL_STAGES = new Set<FunnelStage>([
   "reached_out",
-  "consult_booked",
-  "consult_done",
-  "physio_booked",
+  "booked",
+  "paid",
 ]);
 
 function readTimestamp(
@@ -380,19 +381,11 @@ export default function EnquiriesPage() {
   }, [attendedRecords]);
 
   // Per-stage counts within attended only — used by the stage filter dropdown.
+  // Seeded from STAGE_ORDER so adding a stage can't leave a hole here.
   const attendedStageCounts = useMemo(() => {
-    const counts: Record<FunnelStage, number> = {
-      enquiry: 0,
-      follow_up: 0,
-      reached_out: 0,
-      consult_booked: 0,
-      consult_done: 0,
-      physio_booked: 0,
-      assigned: 0,
-      ongoing: 0,
-      completed: 0,
-      cancelled: 0,
-    };
+    const counts = Object.fromEntries(
+      STAGE_ORDER.map((s) => [s, 0]),
+    ) as Record<FunnelStage, number>;
     for (const r of attendedRecords) counts[deriveStage(r)]++;
     return counts;
   }, [attendedRecords]);
@@ -521,11 +514,11 @@ export default function EnquiriesPage() {
                 // Name, Phone, Preferred, Status, Last active.
                 hiddenColumnIds={[
                   "reach",
-                  "consultSlot",
-                  "consultDone",
-                  "physioSlot",
+                  "bookingType",
+                  "fee",
+                  "paid",
                   "physioTherapist",
-                  "assigned",
+                  "visitSlot",
                   "reachedOutBy",
                 ]}
               />

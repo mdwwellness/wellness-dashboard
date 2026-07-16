@@ -125,19 +125,6 @@ export function getConfirmedAddonNames(appointment: slotBookingZodType): string[
     .map((r) => r.serviceName);
 }
 
-/** Home-therapy funnel should pick a session package before payment. */
-export function needsTherapyPackage(appointment: slotBookingZodType): boolean {
-  if (appointment.service === "Vitals Check") return false;
-  if (appointment.service === "Home Therapy") return true;
-  if (
-    appointment.physioAssignmentConfirmed &&
-    appointment.physioSlot?.date
-  ) {
-    return true;
-  }
-  return false;
-}
-
 export function visitStatusLabel(status?: string): string {
   switch (status) {
     case "scheduled":
