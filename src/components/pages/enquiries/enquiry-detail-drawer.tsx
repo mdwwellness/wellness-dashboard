@@ -64,12 +64,6 @@ import type {
 } from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { EnquiryProgressStepper } from "./enquiry-progress-stepper";
-import { useGetServices } from "@/data/service/service";
-import {
-  getSessionPackages,
-  needsTherapyPackage,
-} from "@/lib/package-progress";
-import { THERAPY_CATEGORYES } from "@/lib/constant";
 
 const STATUS_LABELS: Record<string, string> = {
   enquiry: "Enquiry",
@@ -105,11 +99,6 @@ export function EnquiryDetailDrawer({
   const { mutate: del, isPending: isDeleting } = useDeleteAppointment();
   const { data: therapists } = useGetAllTherapist();
   const { data: users } = useGetBackOfficeUsers();
-  const { data: services = [] } = useGetServices();
-  const sessionPackages = useMemo(
-    () => getSessionPackages(services),
-    [services],
-  );
 
   // Local edit buffer keeps the form responsive without writing every keystroke.
   // Re-syncs to the latest record prop whenever the parent re-renders with
@@ -121,15 +110,13 @@ export function EnquiryDetailDrawer({
     setOverrideReason("");
   }, [record]);
 
-  const showPackagePicker = useMemo(
-    () => (draft ? needsTherapyPackage(draft) : false),
-    [draft],
+  // A therapy lead converts into a scheduled visit; a single-visit lead
+  // (e.g. Vitals Check) just gets marked complete. Replaces the old
+  // package-based branch now that packages are gone.
+  const isTherapyLead = Boolean(
+    draft?.service === "Home Therapy" || draft?.physioSlot?.date,
   );
-  const selectedPackage = useMemo(
-    () =>
-      sessionPackages.find((p) => p.serviceId === draft?.packageServiceId),
-    [sessionPackages, draft?.packageServiceId],
-  );
+
 
   // ── All remaining hooks MUST be declared above the early return so the
   //    hook order is identical every render. (React's rules-of-hooks.)
@@ -415,25 +402,9 @@ export function EnquiryDetailDrawer({
     );
   }
 
-  function selectPackage(serviceId: string) {
-    const pkg = sessionPackages.find((p) => p.serviceId === serviceId);
-    const next: Partial<EnquiryType> = {
-      packageServiceId: serviceId === "none" ? undefined : serviceId,
-    };
-    if (pkg?.price != null) {
-      next.paymentAmount = pkg.price;
-      next.quotedPrice = pkg.price;
-    }
-    save(next);
-  }
-
   function togglePayment(checked: boolean) {
     if (checked && !draft?.physioAssignmentConfirmed) {
       toast.error("Confirm the physio assignment first");
-      return;
-    }
-    if (checked && showPackagePicker && !draft?.packageServiceId) {
-      toast.error("Select a therapy package before recording payment");
       return;
     }
     if (
@@ -458,20 +429,14 @@ export function EnquiryDetailDrawer({
       extra.sessionNumber = 1;
       extra.sessionsCompleted = 0;
       extra.typeOfappointment = "appointment";
-      if (draft._id) {
-        extra.packageOriginId = draft._id;
-      }
     }
 
     if (checked) {
       const amt = draft?.paymentAmount;
       const method = draft?.paymentMethod;
-      const pkgLabel = selectedPackage?.name
-        ? ` · ${selectedPackage.name}`
-        : "";
       const desc = `Payment received${amt ? ` ₹${amt}` : ""}${
         method ? ` (${method})` : ""
-      }${pkgLabel} · Session 1 scheduled`;
+      } · Session 1 scheduled`;
       extra.activityLog = [
         ...(draft?.activityLog ?? []),
         {
@@ -496,9 +461,6 @@ export function EnquiryDetailDrawer({
     const amt = draft.paymentAmount ? `₹${draft.paymentAmount}` : "";
     const method = draft.paymentMethod ? ` (${draft.paymentMethod})` : "";
 
-    const pkgLabel = selectedPackage?.name
-      ? `\nPackage: ${selectedPackage.name}`
-      : "";
     const sessionLabel =
       draft.slot?.date && draft.slot?.time
         ? `\nSession 1: ${draft.slot.date} ${draft.slot.time}`
@@ -506,7 +468,7 @@ export function EnquiryDetailDrawer({
 
     const msg = `Hi ${draft.name ?? ""},\n\nPayment received${amt ? ` ${amt}` : ""}${method}.\nReceived on: ${new Date(
       draft.paymentReceivedAt,
-    ).toLocaleString()}${pkgLabel}${sessionLabel}\n\nThanks!`;
+    ).toLocaleString()}${sessionLabel}\n\nThanks!`;
 
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -874,64 +836,6 @@ export function EnquiryDetailDrawer({
               </Select>
             </div>
 
-            {/* Treatment package — part of the plan, chosen here (not at payment). */}
-            {showPackagePicker && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">
-                    Therapy package
-                  </label>
-                  <Select
-                    value={draft.packageServiceId ?? "none"}
-                    onValueChange={selectPackage}
-                    disabled={draft.paymentReceived}
-                  >
-                    <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Select package" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Select a package…</SelectItem>
-                      {sessionPackages.map((pkg) => (
-                        <SelectItem key={pkg.serviceId} value={pkg.serviceId}>
-                          {pkg.name} — {pkg.packageCount} sessions · ₹
-                          {pkg.price}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">
-                    Therapy type (optional)
-                  </label>
-                  <Select
-                    value={draft.category ?? "none"}
-                    onValueChange={(v) =>
-                      save({ category: v === "none" ? "" : v })
-                    }
-                  >
-                    <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="e.g. Orthopedic" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Not specified</SelectItem>
-                      {THERAPY_CATEGORYES.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {selectedPackage && (
-                  <p className="sm:col-span-2 text-xs text-emerald-700 dark:text-emerald-400">
-                    {selectedPackage.packageCount} sessions · payment amount
-                    auto-filled from catalogue
-                  </p>
-                )}
-              </div>
-            )}
-
             {draft.doctorId &&
               (!draft.physioSlot?.date || !draft.physioSlot?.time) && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
@@ -971,13 +875,6 @@ export function EnquiryDetailDrawer({
             className="space-y-3 border-t pt-4 scroll-mt-4"
           >
             <h3 className="text-sm font-semibold">{stepNo.payment}. Payment</h3>
-            {showPackagePicker && selectedPackage && (
-              <p className="text-xs text-muted-foreground">
-                Package: <span className="font-medium">{selectedPackage.name}</span>{" "}
-                ({selectedPackage.packageCount} sessions) — chosen in step 3.
-                Amount below is auto-filled from the catalogue.
-              </p>
-            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -1054,7 +951,6 @@ export function EnquiryDetailDrawer({
                 {draft.paymentAmount ? ` ₹${draft.paymentAmount}` : ""}
                 {draft.paymentMethod ? ` via ${draft.paymentMethod}` : ""} on{" "}
                 {new Date(draft.paymentReceivedAt).toLocaleString()}
-                {selectedPackage ? ` · ${selectedPackage.name}` : ""}
                 {draft.slot?.date && draft.slot?.time
                   ? ` · Session 1: ${draft.slot.date} ${draft.slot.time}`
                   : ""}
@@ -1074,9 +970,9 @@ export function EnquiryDetailDrawer({
           >
             <h3 className="text-sm font-semibold">
               {stepNo.completion}.{" "}
-              {showPackagePicker ? "Session 1 scheduled" : "Completion"}
+              {isTherapyLead ? "Session 1 scheduled" : "Completion"}
             </h3>
-            {showPackagePicker ? (
+            {isTherapyLead ? (
               <div className="rounded-md border bg-muted/30 p-3 space-y-2 text-sm">
                 {draft.paymentReceived ? (
                   <>
