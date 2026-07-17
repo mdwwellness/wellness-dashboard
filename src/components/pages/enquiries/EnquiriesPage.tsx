@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Volume2, VolumeX } from "lucide-react";
 import { RefreshButton } from "@/components/refresh-button";
+import {
+  playEnquiryBeep,
+  isEnquirySoundMuted,
+  setEnquirySoundMuted,
+} from "@/lib/notification-sound";
 import {
   ColumnDef,
   flexRender,
@@ -321,11 +327,29 @@ export default function EnquiriesPage() {
     setNewCount(0);
   }, [refetch]);
 
+  // Sound-on-new-enquiry, with a persisted mute toggle. Read the stored pref on
+  // mount (not during render) so server and first client render agree — reading
+  // localStorage in the initializer would trip a hydration mismatch.
+  const [soundMuted, setSoundMuted] = useState(false);
+  useEffect(() => setSoundMuted(isEnquirySoundMuted()), []);
+
+  const toggleSound = useCallback(() => {
+    setSoundMuted((prev) => {
+      const next = !prev;
+      setEnquirySoundMuted(next);
+      // Unmuting is a click — a user gesture — so it both confirms audibly and
+      // primes the AudioContext, making the later focus-triggered beeps land.
+      if (!next) playEnquiryBeep();
+      return next;
+    });
+  }, []);
+
   // Surface the new-enquiry count as a colored, top-right toast (see the root
   // <Toaster position="top-right" richColors /> in layout.tsx). A stable id
   // means repeat focus-peeks UPDATE this one toast instead of stacking copies.
   useEffect(() => {
     if (newCount <= 0) return;
+    playEnquiryBeep(); // no-ops when muted or audio is blocked
     toast.info(`${newCount} new ${newCount === 1 ? "enquiry" : "enquiries"}`, {
       id: "new-enquiries",
       description: "The server has newer records than shown here.",
@@ -480,6 +504,27 @@ export default function EnquiriesPage() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={toggleSound}
+              aria-pressed={soundMuted}
+              title={
+                soundMuted
+                  ? "New-enquiry sound is off — click to turn on"
+                  : "New-enquiry sound is on — click to mute"
+              }
+              aria-label={
+                soundMuted ? "Turn new-enquiry sound on" : "Mute new-enquiry sound"
+              }
+            >
+              {soundMuted ? (
+                <VolumeX className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
+            </Button>
             <RefreshButton
               onClick={handleReload}
               isFetching={isFetching}
