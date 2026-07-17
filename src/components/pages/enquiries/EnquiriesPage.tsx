@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { RefreshButton } from "@/components/refresh-button";
 import {
   ColumnDef,
@@ -315,10 +316,23 @@ export default function EnquiriesPage() {
     return () => window.removeEventListener("focus", peek);
   }, [role, id, userEmail]);
 
-  function handleReload() {
+  const handleReload = useCallback(() => {
     refetch();
     setNewCount(0);
-  }
+  }, [refetch]);
+
+  // Surface the new-enquiry count as a colored, top-right toast (see the root
+  // <Toaster position="top-right" richColors /> in layout.tsx). A stable id
+  // means repeat focus-peeks UPDATE this one toast instead of stacking copies.
+  useEffect(() => {
+    if (newCount <= 0) return;
+    toast.info(`${newCount} new ${newCount === 1 ? "enquiry" : "enquiries"}`, {
+      id: "new-enquiries",
+      description: "The server has newer records than shown here.",
+      duration: 10000,
+      action: { label: "Reload", onClick: handleReload },
+    });
+  }, [newCount, handleReload]);
 
   // Frontend-side scoping: surface records that participate in the enquiry funnel.
   // A record counts as "enquiry-funnel" if its status is "enquiry" OR it has
@@ -629,23 +643,6 @@ export default function EnquiriesPage() {
         record={openDetail}
         onClose={() => setOpenDetail(null)}
       />
-
-      {/* Minimal floating "new enquiries" notice — appears on focus when the
-          server has more than we're showing. Click Reload to pull them in. */}
-      {newCount > 0 && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-lg border bg-background px-4 py-2.5 text-sm shadow-md">
-          <span>
-            {newCount} new {newCount === 1 ? "enquiry" : "enquiries"}
-          </span>
-          <button
-            type="button"
-            onClick={handleReload}
-            className="font-medium text-primary hover:underline"
-          >
-            Reload
-          </button>
-        </div>
-      )}
     </>
   );
 }
