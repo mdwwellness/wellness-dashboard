@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { PersistedInvoice, UpdateInvoiceInput, InvoicePaymentStatus, InvoiceLineItem } from "@/type/invoice";
 import { useUpdateInvoice, useGenerateInvoicePdf, useVoidInvoice } from "@/data/invoice/invoice";
 import { whatsAppLink } from "@/lib/whatsapp";
+import { diffInvoice, type InvoiceChange } from "./invoice-diff";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -75,9 +76,23 @@ export function InvoiceDetailDrawer({
   const [voidReason, setVoidReason] = useState("");
   const [draft, setDraft] = useState<PersistedInvoice | null>(invoice);
 
+  // ── Guards on a settled invoice ──
+  // A paid invoice is a document the customer already holds a copy of, so it
+  // isn't editable by a stray click: entering edit mode asks first, and saving
+  // shows exactly what's about to move.
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [pendingSave, setPendingSave] = useState<{
+    values: UpdateInvoiceInput;
+    changes: InvoiceChange[];
+  } | null>(null);
+
+  const isPaid = invoice?.payment_status === "paid" && !invoice?.voided;
+
   useEffect(() => {
     setDraft(invoice);
     setIsEditing(false);
+    setConfirmEditOpen(false);
+    setPendingSave(null);
   }, [invoice?.invoice_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createdAtText = useMemo(() => {
@@ -138,13 +153,9 @@ export function InvoiceDetailDrawer({
     setDraft({ ...draft, line_items: next, items_subtotal: subtotal, total, balance_due: balanceDue });
   }
 
-  function computeTotals(items: InvoiceLineItem[]) {
-    const subtotal = items.reduce((sum, li) => sum + (Number(li.price) || 0), 0);
-    return { itemsSubtotal: subtotal, total: subtotal };
-  }
-
-  function handleSave() {
-    if (!draft || !invoice) return;
+  /** The normalised payload, or null when the draft isn't valid to save. */
+  function buildValues(): UpdateInvoiceInput | null {
+    if (!draft) return null;
 
     const items = (draft.line_items ?? []).map((li) => ({
       description: safeText(li.description).trim() || "Item",
@@ -153,16 +164,14 @@ export function InvoiceDetailDrawer({
 
     if (items.length === 0) {
       toast.error("An invoice needs at least one line item.");
-      return;
+      return null;
     }
     if (items.some((li) => li.price < 0)) {
       toast.error("Line item prices cannot be negative.");
-      return;
+      return null;
     }
 
-    const { itemsSubtotal, total } = computeTotals(items);
-
-    const values: UpdateInvoiceInput = {
+    return {
       therapist_name: safeText(draft.therapist_name).trim(),
       session_number: draft.session_number ?? null,
       package_type: draft.package_type ?? null,
@@ -171,16 +180,41 @@ export function InvoiceDetailDrawer({
       payment_status: draft.payment_status,
       line_items: items,
     };
+  }
 
+  function commitSave(values: UpdateInvoiceInput) {
+    if (!invoice) return;
     updateInvoice(
       { invoiceId: invoice.invoice_id, values },
       {
         onSuccess: () => {
           setIsEditing(false);
+          setPendingSave(null);
           // The invoices query will be invalidated in data hook on success.
         },
       },
     );
+  }
+
+  function handleSave() {
+    const values = buildValues();
+    if (!values || !invoice) return;
+
+    // Diff the NORMALISED payload, not the raw draft: buildValues trims
+    // descriptions and coerces prices to numbers, so comparing the raw draft
+    // would report whitespace and "1200" vs 1200 as changes and prompt on a
+    // no-op save.
+    const changes = isPaid
+      ? diffInvoice(invoice, { ...invoice, ...values } as PersistedInvoice)
+      : [];
+
+    // Nothing actually moved (or the invoice isn't settled) — just save. The
+    // confirm only earns its keep when it has something real to show.
+    if (changes.length === 0) {
+      commitSave(values);
+      return;
+    }
+    setPendingSave({ values, changes });
   }
 
   function handleWhatsAppSend() {
@@ -297,7 +331,9 @@ export function InvoiceDetailDrawer({
                   variant="outline"
                   size="sm"
                   disabled={invoice.voided}
-                  onClick={() => setIsEditing(true)}
+                  onClick={() =>
+                    isPaid ? setConfirmEditOpen(true) : setIsEditing(true)
+                  }
                 >
                   Edit
                 </Button>
@@ -565,6 +601,76 @@ export function InvoiceDetailDrawer({
             }}
           >
             {isVoiding ? "Voiding…" : "Void invoice"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* Gate 1 — entering edit on a settled invoice. */}
+    <AlertDialog open={confirmEditOpen} onOpenChange={setConfirmEditOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>This invoice is already paid</AlertDialogTitle>
+          <AlertDialogDescription>
+            {invoice.customer_name} has a copy showing{" "}
+            {formatINR(invoice.total)}. Editing it changes your books and the
+            PDF they were sent — only continue if that&apos;s really what you
+            mean to do.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              setConfirmEditOpen(false);
+              setIsEditing(true);
+            }}
+          >
+            Edit anyway
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* Gate 2 — the itemised diff, only ever shown when something really moved. */}
+    <AlertDialog
+      open={pendingSave !== null}
+      onOpenChange={(o) => {
+        if (!o) setPendingSave(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Change this paid invoice?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {invoice.invoice_id} is settled. You&apos;re about to change:
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <ul className="space-y-1.5 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+          {(pendingSave?.changes ?? []).map((c, i) => (
+            <li key={`${c.label}-${i}`} className="flex flex-wrap gap-x-1.5">
+              <span className="text-muted-foreground">{c.label}</span>
+              {c.from && <span className="line-through opacity-60">{c.from}</span>}
+              {c.from && c.to && <span className="text-muted-foreground">→</span>}
+              {c.to && <span className="font-medium">{c.to}</span>}
+            </li>
+          ))}
+        </ul>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isUpdating}>
+            Keep it as it is
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={isUpdating}
+            onClick={(e) => {
+              e.preventDefault();
+              if (pendingSave) commitSave(pendingSave.values);
+            }}
+          >
+            {isUpdating ? "Saving…" : "Yes, change it"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
