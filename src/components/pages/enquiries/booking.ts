@@ -72,3 +72,16 @@ export function toDayKey(d: string | undefined): string {
   if (Number.isNaN(parsed.getTime())) return "";
   return parsed.toISOString().split("T")[0];
 }
+
+/**
+ * Map a client-site `service` offering to the booking type it implies, for
+ * auto-selecting step 3. Conservative: only the unambiguous "Online
+ * Consultation" seeds; Home Therapy / Vitals / anything else is left for the
+ * executive to pick.
+ */
+export function bookingTypeFromService(
+  service: string | undefined,
+): BookingType | undefined {
+  if (service === "Online Consultation") return "consultation";
+  return undefined;
+}

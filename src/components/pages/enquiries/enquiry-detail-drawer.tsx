@@ -67,6 +67,7 @@ import { EnquiryProgressStepper } from "./enquiry-progress-stepper";
 import {
   BOOKING_TYPES,
   bookingTypeLabel,
+  bookingTypeFromService,
   catalogueFee,
   toDayKey,
   type BookingType,
@@ -197,6 +198,28 @@ export function EnquiryDetailDrawer({
   // Re-seed every local buffer when the drawer switches record.
   useEffect(() => {
     setDraft(record);
+
+    // Auto-select the booking type from the customer's original ask so the fee
+    // pre-fills without a click. Local seed only — it persists on the first real
+    // save (every save sends the full draft), so opening a lead writes nothing.
+    if (record && !record.typeOfappointment) {
+      const seeded = bookingTypeFromService(record.service);
+      if (seeded) {
+        const fee = catalogueFee(seeded, services);
+        setDraft((d) =>
+          d
+            ? {
+                ...d,
+                typeOfappointment: seeded,
+                ...(fee !== undefined && d.quotedPrice == null
+                  ? { quotedPrice: fee }
+                  : {}),
+              }
+            : d,
+        );
+      }
+    }
+
     setOverrideReason("");
     setAssignDate(toDayKey(record?.slot?.date));
     setAssignPick(
