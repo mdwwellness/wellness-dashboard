@@ -32,6 +32,10 @@ export function deriveDashboardTotals(
       .length,
     totalServices: serviceCount,
     openFollowUps: records.filter(isFollowUp).length,
+    totalRevenue: records.reduce((sum, r) => {
+      if (!r.paymentReceived || statusOf(r) === "cancelled") return sum;
+      return sum + (r.paymentAmount ?? r.quotedPrice ?? 0);
+    }, 0),
   };
 }
 

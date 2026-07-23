@@ -3,6 +3,7 @@
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshButton } from "@/components/refresh-button";
+import { formatINR } from "@/components/pages/services/services-columns";
 
 import RecentSalesTable from "./dashboard-recent-sales-table";
 import {
@@ -108,6 +109,10 @@ const DashboardPageComponents = () => {
           </MetricCardsRow>
         ) : (
           <MetricCardsRow className="w-full">
+            <MetricCard
+              label="Revenue"
+              value={formatINR(totals.totalRevenue)}
+            />
             <MetricCard label="Total Therapists" value={totals.totalTherapists} />
             <MetricCard label="Active Therapists" value={totals.activeTherapists} />
             <MetricCard label="Total Customers" value={totals.totalCustomers} />

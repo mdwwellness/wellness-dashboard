@@ -35,6 +35,18 @@ describe("deriveDashboardTotals", () => {
     expect(t.totalEnquiries).toBe(1);
     expect(t.totalAppointments).toBe(0);
   });
+
+  it("sums received payments as revenue, ignoring unpaid and cancelled", () => {
+    const records = [
+      rec({ status: "ongoing", paymentReceived: true, paymentAmount: 1200 }),
+      rec({ status: "completed", paymentReceived: true, paymentAmount: 500 }),
+      rec({ status: "scheduled", paymentReceived: false, paymentAmount: 999 }), // unpaid → ignored
+      rec({ status: "cancelled", paymentReceived: true, paymentAmount: 999 }), // cancelled → ignored
+      rec({ status: "ongoing", paymentReceived: true, quotedPrice: 700 }), // no paymentAmount → falls back to quotedPrice
+    ];
+    const t = deriveDashboardTotals(records, [], 0);
+    expect(t.totalRevenue).toBe(1200 + 500 + 700);
+  });
 });
 
 describe("deriveTherapistPersonal", () => {
