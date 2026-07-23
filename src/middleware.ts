@@ -54,9 +54,20 @@ export async function middleware(request: NextRequest) {
   }
 
   // fetch() THROWS when the backend is unreachable (local dev with the server
-  // down, a Render cold start, a network blip) — it does not return a non-ok
-  // response. Unguarded, that surfaces as a raw "TypeError: fetch failed"
-  // crash page instead of any useful behaviour.
+  // down, a network blip) — it does not return a non-ok response. It also
+  // HANGS when the backend accepts the connection but is slow to answer (a
+  // Render cold start takes 30-50s after idle). A hang is the dangerous case:
+  // this runs in middleware, on every authenticated navigation once the access
+  // token expires, and Vercel kills the whole invocation at its time budget —
+  // surfacing as a 504 MIDDLEWARE_INVOCATION_TIMEOUT crash page for the user.
+  //
+  // So the fetch is bounded by an abort timeout. No timeout under the middleware
+  // budget could actually WAIT OUT a cold backend anyway, so the right move is
+  // to give up quickly and let the page through; the data layer (and
+  // fetchWithAuth's own 401-retry) recover once the backend is warm. The
+  // timeout rejects the fetch, taking the same graceful path as any other
+  // failure below.
+  const REFRESH_TIMEOUT_MS = 3000;
   let refreshRes: Response;
   try {
     refreshRes = await fetch(`${base_url}/api/users/refresh-token`, {
@@ -66,12 +77,14 @@ export async function middleware(request: NextRequest) {
         Cookie: `refreshToken=${refreshToken}`,
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     });
   } catch {
-    // We never reached the backend, so we don't know whether this session is
-    // valid — and signing the user out over a transient blip would be wrong.
-    // Let the request through with cookies intact: the data layer surfaces the
-    // failure, and the next navigation refreshes cleanly once it's back.
+    // Unreachable OR too slow to answer in time — either way we don't know
+    // whether this session is valid, and signing the user out over a transient
+    // blip (or a cold start) would be wrong. Let the request through with
+    // cookies intact: the data layer surfaces the failure, and the next
+    // navigation refreshes cleanly once the backend is back.
     //
     // NOTE: redirecting to /auth/login here would infinite-loop — the
     // refreshToken is still set, so the isAuthPage branch above bounces it
