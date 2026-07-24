@@ -12,12 +12,23 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { slotBookingZodSchema, TherapistformType } from "@/type/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,14 +36,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { useBookAppointment, useGetAllAppointments } from "@/data/appointment/appointment";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { useGetServices } from "@/data/service/service";
+import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { CustomerSearchField } from "@/components/pages/invoices/customer-search-field";
 import { sessionRate, sessionTotal, addonPrice } from "@/lib/service-pricing";
+import {
+  checkConflict,
+  toMinutes,
+  type ConflictResult,
+} from "@/lib/booking-conflicts";
 import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
 
 type GenderType = "All" | "Male" | "Female";
 type StackedService = { serviceId: string; discount: boolean };
+
+/** Assignable visit lengths, in minutes — same options and default as the
+ * enquiry-side control (therapist-availability-grid.tsx / enquiry-detail-drawer.tsx). */
+const DURATION_OPTIONS = [30, 60, 90, 120];
 
 export default function AppointmentBookingForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -41,19 +62,31 @@ export default function AppointmentBookingForm() {
   // Session-only by default; flip on to attach (stack) services.
   const [attachServices, setAttachServices] = useState(false);
   const [stacked, setStacked] = useState<StackedService[]>([]);
+  // Visit length that drives the therapy span (therapyStartTime/EndTime) and
+  // the conflict check below — same control + default as the enquiry side.
+  const [durationMin, setDurationMin] = useState(60);
+  // A too-close candidate is staged here (with its already-built payload)
+  // until the exec confirms the soft-warn dialog.
+  const [pendingTooClose, setPendingTooClose] = useState<{
+    payload: z.infer<typeof slotBookingZodSchema>;
+    conflict: ConflictResult;
+  } | null>(null);
 
   const mutation = useBookAppointment();
   const { data: doctorsData, isLoading, isError, refetch } = useGetAllTherapist();
   const { data: services = [], isLoading: servicesLoading } = useGetServices();
   const { data: rateCard } = useGetSessionRates();
 
-  // Appointments (reused from the list) power the per-therapist day load.
+  // Appointments (reused from the list) power the per-therapist day load AND
+  // the pre-submit conflict check in onSubmit below.
   const authUser = useAuthStore((s) => s.user);
   const { data: appointments = [] } = useGetAllAppointments({
     id: authUser?.id,
     role: authUser?.role,
     userEmail: authUser?.userEmail,
   });
+  const { data: clinicSettings } = useGetClinicSettings();
+  const gapMinutes = clinicSettings?.bookingGapMinutes ?? 60;
 
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
     resolver: zodResolver(slotBookingZodSchema),
@@ -150,7 +183,12 @@ export default function AppointmentBookingForm() {
   const patchStacked = (i: number, patch: Partial<StackedService>) =>
     setStacked((s) => s.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
-  function onSubmit(values: z.infer<typeof slotBookingZodSchema>) {
+  // Builds the final payload: stacked services (if any) + the therapy span
+  // computed from the picked start time + durationMin, zero-padded exactly
+  // like enquiry-detail-drawer.tsx's confirmAssignment.
+  function buildPayload(
+    values: z.infer<typeof slotBookingZodSchema>,
+  ): z.infer<typeof slotBookingZodSchema> {
     const payload = { ...values };
     if (attachServices) {
       const now = new Date().toISOString();
@@ -167,6 +205,20 @@ export default function AppointmentBookingForm() {
           };
         });
     }
+
+    const startMin = toMinutes(values.slot?.time ?? "");
+    if (!Number.isNaN(startMin)) {
+      const endMin = startMin + durationMin;
+      payload.therapyStartTime = values.slot?.time;
+      payload.therapyEndTime = `${String(Math.floor(endMin / 60)).padStart(
+        2,
+        "0",
+      )}:${String(endMin % 60).padStart(2, "0")}`;
+    }
+    return payload;
+  }
+
+  function submitBooking(payload: z.infer<typeof slotBookingZodSchema>) {
     mutation.mutate(payload, {
       onSuccess: () => {
         setIsDialogOpen(false);
@@ -174,8 +226,41 @@ export default function AppointmentBookingForm() {
         setSelectedGender("All");
         setAttachServices(false);
         setStacked([]);
+        setDurationMin(60);
       },
     });
+  }
+
+  // Run the conflict check over the FULL candidate span, then gate the save:
+  //   overlap   → blocked with a toast (never reaches the warn dialog),
+  //   too-close → stage the payload and open the soft-warn dialog,
+  //   ok        → submit straight through.
+  // Mirrors enquiry-detail-drawer.tsx's attemptSave.
+  function onSubmit(values: z.infer<typeof slotBookingZodSchema>) {
+    const conflict = checkConflict(
+      {
+        doctorId: values.doctorId ?? "",
+        date: values.slot?.date ?? "",
+        startTime: values.slot?.time ?? "",
+        durationMin,
+      },
+      appointments,
+      gapMinutes,
+    );
+
+    if (conflict.status === "overlap") {
+      toast.error(
+        `${durationMin} min from ${values.slot?.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit — shorten it or pick another start.`,
+      );
+      return;
+    }
+
+    const payload = buildPayload(values);
+    if (conflict.status === "too-close") {
+      setPendingTooClose({ payload, conflict });
+      return;
+    }
+    submitBooking(payload);
   }
 
   function handleDialogChange(open: boolean) {
@@ -185,10 +270,13 @@ export default function AppointmentBookingForm() {
       setSelectedGender("All");
       setAttachServices(false);
       setStacked([]);
+      setDurationMin(60);
+      setPendingTooClose(null);
     }
   }
 
   return (
+    <>
     <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
         <Button className="flex justify-center items-center gap-1">
@@ -378,6 +466,31 @@ export default function AppointmentBookingForm() {
                   </FormItem>
                 )}
               />
+
+              {/* Visit length — drives the therapy span (therapyStartTime/
+                  therapyEndTime) and the conflict check on submit. Same
+                  control as the enquiry-side availability grid. */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Duration</label>
+                <div className="flex items-center gap-1.5 text-xs">
+                  {DURATION_OPTIONS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDurationMin(d)}
+                      aria-pressed={durationMin === d}
+                      className={cn(
+                        "rounded border px-2 py-1",
+                        durationMin === d
+                          ? "border-primary bg-primary/10"
+                          : "hover:bg-muted/50",
+                      )}
+                    >
+                      {d}m
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <FormField
                 control={form.control}
@@ -688,5 +801,44 @@ export default function AppointmentBookingForm() {
         </Form>
       </DialogContent>
     </Dialog>
+
+    {/* Soft-warn when the start is within the booking gap of another visit.
+        Overlap never reaches here — it's blocked with a toast in onSubmit.
+        Rendered as a sibling of Dialog (not nested in DialogContent) so it
+        isn't caught in the Dialog overlay's pointer-events trap — same
+        pattern as enquiry-detail-drawer.tsx. */}
+    <AlertDialog
+      open={pendingTooClose !== null}
+      onOpenChange={(o) => {
+        if (!o) setPendingTooClose(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Within the booking gap</AlertDialogTitle>
+          <AlertDialogDescription>
+            This start is within {gapMinutes} min of{" "}
+            {pendingTooClose?.conflict.with?.name}&apos;s{" "}
+            {pendingTooClose?.conflict.with?.time} visit. Book anyway?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPendingTooClose(null)}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              const p = pendingTooClose;
+              setPendingTooClose(null);
+              if (p) submitBooking(p.payload);
+            }}
+          >
+            Book anyway
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
