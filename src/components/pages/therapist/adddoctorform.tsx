@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -252,7 +253,7 @@ export default function AddDoctorForm() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="Phone number" {...field} />
+                          <PhoneInput {...field} asString placeholder="Phone number" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

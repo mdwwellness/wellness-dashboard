@@ -10,6 +10,7 @@ import { DataTableColumnHeader } from "@/components/tables/data-table-column-hea
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   Dialog,
   DialogContent,
@@ -151,12 +152,7 @@ function EditUserDialog({
                 <FormItem>
                   <FormLabel>Phone</FormLabel>
                   <FormControl>
-                    <Input
-                      type="tel"
-                      placeholder="Phone number"
-                      {...field}
-                      value={field.value ?? ""}
-                    />
+                    <PhoneInput {...field} asString placeholder="Phone number" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

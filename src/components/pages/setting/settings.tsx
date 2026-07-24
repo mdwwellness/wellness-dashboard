@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -221,7 +222,7 @@ const SettingsPageComponents = () => {
                           <FormItem>
                             <FormLabel>Phone</FormLabel>
                             <FormControl>
-                              <Input {...field} disabled={isPending} />
+                              <PhoneInput {...field} asString disabled={isPending} placeholder="10-digit phone" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

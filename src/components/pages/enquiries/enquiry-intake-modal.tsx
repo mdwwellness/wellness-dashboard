@@ -8,6 +8,7 @@ import { CirclePlus, Loader2, TriangleAlert, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -177,18 +178,7 @@ export function EnquiryIntakeModal({
                 <FormItem>
                   <FormLabel>Phone number</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      type="tel"
-                      inputMode="numeric"
-                      placeholder="10-digit phone"
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        // Keep only digits, hard-cap at 10 — you can't type an 11th.
-                        const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
-                        field.onChange(digits === "" ? undefined : Number(digits));
-                      }}
-                    />
+                    <PhoneInput {...field} placeholder="10-digit phone" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -70,7 +70,9 @@ export const enquirySchema = z.object({
 
   // ── Required for any record ──
   name: z.string().min(2, "Name must be at least 2 characters"),
-  phonenumber: z.number(),
+  phonenumber: z
+    .number()
+    .refine((n) => String(n).length === 10, "Phone must be exactly 10 digits"),
   // status keeps the old `.default().optional()` pattern so existing forms
   // that omit it in defaultValues still type-check.
   status: z

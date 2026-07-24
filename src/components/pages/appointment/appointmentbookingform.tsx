@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -763,19 +764,7 @@ export default function AppointmentBookingForm() {
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input
-                        type="tel"
-                        inputMode="numeric"
-                        placeholder="10-digit mobile number"
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/[^\d]/g, "");
-                          field.onChange(
-                            digits === "" ? undefined : Number(digits),
-                          );
-                        }}
-                      />
+                      <PhoneInput {...field} placeholder="10-digit mobile number" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

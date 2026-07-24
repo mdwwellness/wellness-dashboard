@@ -8,6 +8,7 @@ import { Eye, EyeOff, Loader2, CirclePlus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAddUser } from "@/data/user/user";
@@ -123,7 +124,7 @@ export default function UserDialog() {
                 <FormItem>
                   <FormLabel>Phone Number</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder="Phone number" {...field} />
+                    <PhoneInput {...field} asString placeholder="Phone number" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

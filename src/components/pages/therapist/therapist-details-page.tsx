@@ -12,6 +12,7 @@ import { THERAPY_CATEGORYES } from "@/lib/constant";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -203,7 +204,7 @@ export default function TherapistDetailsPage({
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input type="tel" placeholder="Phone Number" {...field} />
+                      <PhoneInput {...field} asString placeholder="Phone Number" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

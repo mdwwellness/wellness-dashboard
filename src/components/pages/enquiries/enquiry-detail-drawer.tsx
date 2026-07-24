@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toPhoneDigits } from "@/lib/phone";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -795,9 +796,12 @@ export function EnquiryDetailDrawer({
               />
               <LabeledInput
                 label="Phone"
-                type="number"
+                type="tel"
                 value={String(draft.phonenumber ?? "")}
-                onChange={(v) => patch({ phonenumber: Number(v) })}
+                onChange={(v) => {
+                  const digits = toPhoneDigits(v);
+                  patch({ phonenumber: digits === "" ? undefined : Number(digits) });
+                }}
                 onBlur={() => save()}
               />
               <LabeledInput

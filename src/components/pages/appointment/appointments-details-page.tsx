@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
@@ -188,7 +189,7 @@ export default function AppointmentDetailsPage({
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="Phone Number" {...field} />
+                        <PhoneInput {...field} placeholder="Phone Number" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
