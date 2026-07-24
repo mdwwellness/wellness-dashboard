@@ -32,7 +32,7 @@ const intakeFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   phonenumber: z
     .number({ error: "Phone is required" })
-    .refine((n) => String(n).length >= 10, "Phone must be at least 10 digits"),
+    .refine((n) => String(n).length === 10, "Phone must be exactly 10 digits"),
   preferredReachOutTime: z
     .object({
       from: z.string().min(1, "Start time is required"),
