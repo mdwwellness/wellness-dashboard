@@ -49,6 +49,45 @@ import { useAuthStore } from "@/providers/permission-provider";
 import { SettingsSchema } from "@/type/schema";
 import { userColumns as columns } from "./user-column";
 import { DOBPicker } from "@/components/DOB-picker";
+import { useGetClinicSettings, useUpdateClinicSettings } from "@/data/clinic-settings/clinic-settings";
+
+function BookingGapCard() {
+  const { data } = useGetClinicSettings();
+  const { mutate, isPending } = useUpdateClinicSettings();
+  const [value, setValue] = useState<string>("");
+  useEffect(() => {
+    if (data) setValue(String(data.bookingGapMinutes));
+  }, [data]);
+
+  return (
+    <Card className="w-full lg:w-[400px] flex-shrink-0">
+      <CardHeader>
+        <CardTitle>Booking gap</CardTitle>
+        <CardDescription>
+          Minimum minutes between a therapist&apos;s visits. Booking inside this
+          gap warns but can be overridden.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex items-end gap-2">
+        <div className="flex-1">
+          <label className="text-xs text-muted-foreground">Minutes</label>
+          <Input
+            type="number"
+            min={0}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </div>
+        <Button
+          disabled={isPending || value === "" || Number(value) < 0}
+          onClick={() => mutate(Number(value))}
+        >
+          {isPending ? "Saving…" : "Save"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 const SettingsPageComponents = () => {
   const{user} = useAuthStore()
@@ -255,6 +294,7 @@ const SettingsPageComponents = () => {
               </Dialog>
             </CardContent>
           </Card>
+          <BookingGapCard />
           <Card className="flex-1">
             <CardHeader className="flex flex-row justify-start items-center gap-2">
               <div className="flex flex-col gap-2">
