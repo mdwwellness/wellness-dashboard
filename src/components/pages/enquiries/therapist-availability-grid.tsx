@@ -12,9 +12,14 @@ import {
 } from "@/components/ui/popover";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { useGetAllAppointments } from "@/data/appointment/appointment";
+import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { TherapistformType } from "@/type/schema";
-import { toDayKey } from "./booking";
+import {
+  checkConflict,
+  toMinutes,
+  type ConflictResult,
+} from "@/lib/booking-conflicts";
 
 /** The bookable times of day. */
 export const TIME_SLOTS = [
@@ -32,15 +37,27 @@ export const TIME_SLOTS = [
   "20:30",
 ];
 
+/** Assignable visit lengths, in minutes. */
+const DURATION_OPTIONS = [30, 60, 90, 120];
+
 interface TherapistAvailabilityGridProps {
   /** The picked day, "yyyy-MM-dd". */
   date: string;
-  /** Currently chosen cell, so it can be shown as selected. */
+  /** Currently chosen therapist, so their cell can be shown as selected. */
   selectedDoctorId?: string;
-  selectedTime?: string;
+  /** The chosen START time, "HH:MM" — the grid shades the span it covers. */
+  selectedStart?: string;
   /** This enquiry's own record — its slot must not count against itself. */
   excludeRecordId?: string;
-  onPick: (pick: { doctorId: string; doctor: string; time: string }) => void;
+  /** Visit length in minutes — controlled by the caller (owns the conflict check). */
+  durationMin: number;
+  onDurationChange: (d: number) => void;
+  onPick: (pick: {
+    doctorId: string;
+    doctor: string;
+    startTime: string;
+    durationMin: number;
+  }) => void;
 }
 
 /**
@@ -54,8 +71,10 @@ interface TherapistAvailabilityGridProps {
 export function TherapistAvailabilityGrid({
   date,
   selectedDoctorId,
-  selectedTime,
+  selectedStart,
   excludeRecordId,
+  durationMin,
+  onDurationChange,
   onPick,
 }: TherapistAvailabilityGridProps) {
   const { data: therapists } = useGetAllTherapist();
@@ -65,24 +84,37 @@ export function TherapistAvailabilityGrid({
     role: authUser?.role,
     userEmail: authUser?.userEmail,
   });
+  const { data: settings } = useGetClinicSettings();
+  const gap = settings?.bookingGapMinutes ?? 60;
   const [query, setQuery] = useState("");
-
-  // "doctorId|time" -> who holds it, for every slot taken on this day.
-  const busy = useMemo(() => {
-    const taken = new Map<string, string>();
-    for (const a of appointments) {
-      if (a.status === "cancelled" || !a.doctorId) continue;
-      if (a._id && a._id === excludeRecordId) continue;
-      if (!a.slot?.time || toDayKey(a.slot?.date) !== date) continue;
-      taken.set(`${a.doctorId}|${a.slot.time}`, a.name ?? "Booked");
-    }
-    return taken;
-  }, [appointments, date, excludeRecordId]);
 
   const all = useMemo(
     () => ((therapists ?? []) as TherapistformType[]).filter((t) => t.doctorId),
     [therapists],
   );
+
+  // Colour every cell by the therapist's EXISTING occupancy, independent of the
+  // chosen duration: probe a minimal visit at each slot with the same span logic
+  // the confirm step uses. "overlap" = busy (can't start here), "too-close" =
+  // within the booking gap (still clickable, soft-warn), "ok" = free.
+  const occupancy = useMemo(() => {
+    const map = new Map<string, ConflictResult>();
+    for (const t of all) {
+      const doctorId = t.doctorId as string;
+      for (const cell of TIME_SLOTS) {
+        map.set(
+          `${doctorId}|${cell}`,
+          checkConflict(
+            { doctorId, date, startTime: cell, durationMin: 1 },
+            appointments,
+            gap,
+            { excludeId: excludeRecordId },
+          ),
+        );
+      }
+    }
+    return map;
+  }, [all, appointments, date, gap, excludeRecordId]);
 
   // Search matches name OR specialization, so an executive can find "who does
   // Electrotherapy?" without opening the Therapists page.
@@ -104,6 +136,12 @@ export function TherapistAvailabilityGrid({
     );
   }
 
+  // The chosen span, for shading the cells a booking of this length would cover.
+  const selectedStartMin = selectedStart ? toMinutes(selectedStart) : NaN;
+  const selectedEndMin = Number.isNaN(selectedStartMin)
+    ? NaN
+    : selectedStartMin + durationMin;
+
   return (
     <div className="space-y-2">
       <div className="relative">
@@ -114,6 +152,26 @@ export function TherapistAvailabilityGrid({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+      </div>
+
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="text-muted-foreground">Duration</span>
+        {DURATION_OPTIONS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onDurationChange(d)}
+            aria-pressed={durationMin === d}
+            className={cn(
+              "rounded border px-2 py-1",
+              durationMin === d
+                ? "border-primary bg-primary/10"
+                : "hover:bg-muted/50",
+            )}
+          >
+            {d}m
+          </button>
+        ))}
       </div>
 
       <div className="rounded-md border">
@@ -152,41 +210,70 @@ export function TherapistAvailabilityGrid({
                     <td className="sticky left-0 z-10 bg-background border-r px-2 py-1">
                       <TherapistNameCell therapist={therapist} />
                     </td>
-                    {TIME_SLOTS.map((time) => {
-                      const takenBy = busy.get(`${doctorId}|${time}`);
+                    {TIME_SLOTS.map((cell) => {
+                      const probe = occupancy.get(`${doctorId}|${cell}`);
+                      const status = probe?.status ?? "ok";
+                      const isBusy = status === "overlap";
+                      const isTooClose = status === "too-close";
                       const isSelected =
-                        selectedDoctorId === doctorId && selectedTime === time;
+                        selectedDoctorId === doctorId &&
+                        selectedStart === cell;
+                      // Cells the chosen span rolls over, between start and end.
+                      const cellMin = toMinutes(cell);
+                      const isCovered =
+                        selectedDoctorId === doctorId &&
+                        !Number.isNaN(selectedStartMin) &&
+                        cellMin > selectedStartMin &&
+                        cellMin < selectedEndMin;
                       return (
-                        <td key={time} className="p-0.5 text-center">
+                        <td key={cell} className="p-0.5 text-center">
                           <button
                             type="button"
-                            disabled={!!takenBy}
+                            disabled={isBusy}
                             title={
-                              takenBy
-                                ? `Booked — ${takenBy}`
-                                : `${therapist.name} · ${time}`
+                              isBusy
+                                ? `Booked — ${probe?.with?.name ?? "existing visit"}`
+                                : isTooClose
+                                  ? `${therapist.name} · ${cell} — within the ${gap}-min booking gap`
+                                  : `${therapist.name} · ${cell}`
                             }
-                            aria-label={`${therapist.name} at ${time}${
-                              takenBy ? " (booked)" : ""
+                            aria-label={`${therapist.name} at ${cell}${
+                              isBusy
+                                ? " (booked)"
+                                : isTooClose
+                                  ? " (within booking gap)"
+                                  : ""
                             }`}
                             aria-pressed={isSelected}
                             onClick={() =>
                               onPick({
                                 doctorId,
                                 doctor: therapist.name ?? "",
-                                time,
+                                startTime: cell,
+                                durationMin,
                               })
                             }
                             className={cn(
                               "h-6 w-full min-w-[2.25rem] rounded-sm border transition-colors",
-                              takenBy
+                              isBusy
                                 ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/40"
-                                : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
+                                : isTooClose
+                                  ? "border-amber-500/40 bg-amber-500/15 text-amber-700 hover:bg-amber-500/30 dark:text-amber-400"
+                                  : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
+                              isCovered &&
+                                !isSelected &&
+                                "border-primary/40 bg-primary/20",
                               isSelected &&
                                 "border-primary bg-primary text-primary-foreground hover:bg-primary",
                             )}
                           >
-                            {isSelected ? "✓" : takenBy ? "×" : ""}
+                            {isSelected
+                              ? "✓"
+                              : isBusy
+                                ? "×"
+                                : isTooClose
+                                  ? "!"
+                                  : ""}
                           </button>
                         </td>
                       );
@@ -198,8 +285,9 @@ export function TherapistAvailabilityGrid({
           </table>
         </div>
         <p className="border-t px-2 py-1.5 text-[10px] text-muted-foreground">
-          Click a free slot to assign the therapist and time together. × =
-          already booked. Click a name for their specializations.
+          Click a free slot to set the therapist and start time. × = booked, ! =
+          within the {gap}-min booking gap. Click a name for their
+          specializations.
         </p>
       </div>
     </div>

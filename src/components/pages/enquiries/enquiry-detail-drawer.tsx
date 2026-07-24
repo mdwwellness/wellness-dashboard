@@ -52,8 +52,15 @@ import { formatTimeRange } from "./time-range";
 
 import {
   useDeleteAppointment,
+  useGetAllAppointments,
   useUpdateAppointment,
 } from "@/data/appointment/appointment";
+import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
+import {
+  checkConflict,
+  toMinutes,
+  type ConflictResult,
+} from "@/lib/booking-conflicts";
 import createPaymentLink from "@/actions/appointments/create-payment-link";
 import { useGetServices } from "@/data/service/service";
 import { useGetBackOfficeUsers } from "@/data/user/user-list";
@@ -120,6 +127,17 @@ export function EnquiryDetailDrawer({
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin =
     currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "ADMIN";
+
+  // Conflict-check inputs (T8/T9): the clinic's booking gap plus the full
+  // appointment list, so confirming an assignment can be checked over the full
+  // candidate span against every other visit that therapist has that day.
+  const { data: clinicSettings } = useGetClinicSettings();
+  const gapMinutes = clinicSettings?.bookingGapMinutes ?? 60;
+  const { data: appointments = [] } = useGetAllAppointments({
+    id: currentUser?.id,
+    role: currentUser?.role,
+    userEmail: currentUser?.userEmail,
+  });
 
   // Permission gate: only admins or the original reachedOutBy person can
   // edit the lead's status. Everyone else sees status as read-only.
@@ -191,6 +209,16 @@ export function EnquiryDetailDrawer({
     doctor: string;
     time: string;
   } | null>(null);
+  // Visit length owned by the drawer — the grid is a controlled child. Seeded
+  // from the record's saved span on open (see the seed effect below).
+  const [assignDuration, setAssignDuration] = useState(60);
+  // A too-close candidate is staged here (with its already-built change and any
+  // reassign reason) until the exec confirms the warn dialog.
+  const [pendingTooClose, setPendingTooClose] = useState<{
+    change: Partial<EnquiryType>;
+    conflict: ConflictResult;
+    reason?: string;
+  } | null>(null);
   // Once assigned the grid collapses to a summary; "Change" re-opens it. Keeps
   // a settled booking from being one stray click away from a reassignment.
   const [editingAssignment, setEditingAssignment] = useState(false);
@@ -231,6 +259,18 @@ export function EnquiryDetailDrawer({
           }
         : null,
     );
+    // Seed the visit length from the saved span; fall back to 60 when it's
+    // missing or unparseable so the control never holds NaN.
+    const seededDuration =
+      record?.therapyStartTime && record?.therapyEndTime
+        ? toMinutes(record.therapyEndTime) - toMinutes(record.therapyStartTime)
+        : NaN;
+    setAssignDuration(
+      Number.isFinite(seededDuration) && seededDuration > 0
+        ? seededDuration
+        : 60,
+    );
+    setPendingTooClose(null);
     setEditingAssignment(false);
   }, [record]);
 
@@ -492,8 +532,17 @@ export function EnquiryDetailDrawer({
       return;
     }
 
+    // The candidate span: start time from the grid + the chosen duration.
+    const startMin = toMinutes(assignPick.time);
+    const endMin = startMin + assignDuration;
+    const end = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(
+      endMin % 60,
+    ).padStart(2, "0")}`;
+
     const change: Partial<EnquiryType> = {
       slot: { date: assignDate, time: assignPick.time },
+      therapyStartTime: assignPick.time,
+      therapyEndTime: end,
       doctorId: assignPick.doctorId,
       doctor: assignPick.doctor,
       status: "ongoing",
@@ -503,21 +552,53 @@ export function EnquiryDetailDrawer({
           at: new Date().toISOString(),
           userId: currentUser?.id,
           name: currentActorName(),
-          action: `Assigned ${assignPick.doctor} — ${assignDate} ${assignPick.time}`,
+          action: `Assigned ${assignPick.doctor} — ${assignDate} ${assignPick.time}–${end}`,
         },
       ],
     };
 
     // Touching a booking that's already settled always confirms first — a
     // stray click must never silently move a customer's visit. Non-admins
-    // additionally have to give a reason for the trail.
+    // additionally have to give a reason for the trail. The conflict check
+    // runs AFTER that reason is given (in the dialog's confirm), never before.
     if (hasAssignment) {
       setPendingAssignment(change);
       setReassignReasonSel("");
       setReassignOpen(true);
       return;
     }
-    save(change, true);
+    attemptSave(change);
+  }
+
+  // Run the conflict check over the FULL candidate span, then gate the save:
+  //   overlap   → blocked with a toast (never reaches the warn dialog),
+  //   too-close → stage it and open the soft-warn dialog,
+  //   ok        → save straight through.
+  // A reassignment `reason` rides along so it survives the warn dialog detour.
+  function attemptSave(change: Partial<EnquiryType>, reason?: string) {
+    if (!assignPick) return;
+    const conflict = checkConflict(
+      {
+        doctorId: assignPick.doctorId,
+        date: assignDate,
+        startTime: assignPick.time,
+        durationMin: assignDuration,
+      },
+      appointments,
+      gapMinutes,
+      { excludeId: draft?._id },
+    );
+    if (conflict.status === "overlap") {
+      toast.error(
+        `${assignDuration} min from ${assignPick.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit — shorten it or pick another start.`,
+      );
+      return;
+    }
+    if (conflict.status === "too-close") {
+      setPendingTooClose({ change, conflict, reason });
+      return;
+    }
+    save(change, true, reason);
   }
 
   /**
@@ -1134,9 +1215,17 @@ export function EnquiryDetailDrawer({
                   <TherapistAvailabilityGrid
                     date={assignDate}
                     selectedDoctorId={assignPick?.doctorId}
-                    selectedTime={assignPick?.time}
+                    selectedStart={assignPick?.time}
                     excludeRecordId={draft._id}
-                    onPick={setAssignPick}
+                    durationMin={assignDuration}
+                    onDurationChange={setAssignDuration}
+                    onPick={(p) =>
+                      setAssignPick({
+                        doctorId: p.doctorId,
+                        doctor: p.doctor,
+                        time: p.startTime,
+                      })
+                    }
                   />
                 )}
 
@@ -1511,10 +1600,46 @@ export function EnquiryDetailDrawer({
               setReassignOpen(false);
               setPendingAssignment(null);
               setEditingAssignment(false);
-              if (p) save(p, true, reassignReasonSel || undefined);
+              // Reason first, then the conflict check on the full span.
+              if (p) attemptSave(p, reassignReasonSel || undefined);
             }}
           >
             Yes, move it
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* T9: soft-warn when the start is within the booking gap of another visit.
+        Overlap never reaches here — it's blocked at the toast in attemptSave. */}
+    <AlertDialog
+      open={pendingTooClose !== null}
+      onOpenChange={(o) => {
+        if (!o) setPendingTooClose(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Within the booking gap</AlertDialogTitle>
+          <AlertDialogDescription>
+            This start is within {gapMinutes} min of{" "}
+            {pendingTooClose?.conflict.with?.name}&apos;s{" "}
+            {pendingTooClose?.conflict.with?.time} visit. Book anyway?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPendingTooClose(null)}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              const p = pendingTooClose;
+              setPendingTooClose(null);
+              if (p) save(p.change, true, p.reason);
+            }}
+          >
+            Book anyway
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
