@@ -156,7 +156,10 @@ export function computeCustomerTodayStats(
   return { newCustomersToday, bookingsToday, returningToday };
 }
 
-export function useGetCustomers(user: UserType) {
+export function useGetCustomers(
+  user: UserType,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["customers", user] as const,
     queryFn: async (): Promise<Customer[]> => {
@@ -179,5 +182,8 @@ export function useGetCustomers(user: UserType) {
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    // undefined leaves React Query's default (enabled) — existing callers keep
+    // fetching; the intake modal passes `false` until it's actually open.
+    enabled: options?.enabled,
   });
 }

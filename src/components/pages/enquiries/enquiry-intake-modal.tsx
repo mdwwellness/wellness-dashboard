@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CirclePlus, Loader2 } from "lucide-react";
+import { CirclePlus, Loader2, TriangleAlert, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-import { useCreateEnquiry } from "@/data/enquiry/enquiry";
+import { useCreateEnquiry, findOpenEnquiryByPhone } from "@/data/enquiry/enquiry";
+import { useGetCustomers } from "@/data/customer/customer";
+import { useAuthStore } from "@/providers/permission-provider";
 
 const intakeFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -64,6 +66,15 @@ export function EnquiryIntakeModal({
   const [open, setOpen] = useState(false);
   const createMutation = useCreateEnquiry();
 
+  // Known customers, for the duplicate-phone lookup. Only fetched once the
+  // modal is open (and reuses the ["customers", user] cache the Customers page
+  // already fills).
+  const user = useAuthStore((s) => s.user);
+  const { data: customers } = useGetCustomers(
+    { id: user?.id, role: user?.role, userEmail: user?.userEmail },
+    { enabled: open && !!user },
+  );
+
   const emptyValues: IntakeFormValues = {
     name: "",
     phonenumber: undefined as unknown as number,
@@ -76,6 +87,29 @@ export function EnquiryIntakeModal({
     mode: "onChange",
     defaultValues: emptyValues,
   });
+
+  // Once the phone is a full 10 digits, match it against known customers.
+  const phone = form.watch("phonenumber");
+  const matchedCustomer =
+    typeof phone === "number" && String(phone).length === 10
+      ? customers?.find((c) => c.phonenumber === phone)
+      : undefined;
+  // A still-open lead for this number → a new enquiry would duplicate it.
+  const openEnquiry = matchedCustomer
+    ? findOpenEnquiryByPhone(matchedCustomer.bookings, phone as number)
+    : undefined;
+
+  // Auto-fill the name from a matched customer — but never clobber a name the
+  // executive already typed (or one carried in via `prefill`).
+  const matchedName = matchedCustomer?.name;
+  useEffect(() => {
+    if (matchedName && !form.getValues("name")) {
+      form.setValue("name", matchedName, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+  }, [matchedName, form]);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -160,6 +194,28 @@ export function EnquiryIntakeModal({
                 </FormItem>
               )}
             />
+
+            {matchedCustomer &&
+              (openEnquiry ? (
+                <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300">
+                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    <strong>{matchedCustomer.name}</strong> already has an open
+                    enquiry
+                    {openEnquiry.enquiryId ? ` (${openEnquiry.enquiryId})` : ""} ·{" "}
+                    {openEnquiry.status}. You can still log a new one.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
+                  <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    Returning customer: <strong>{matchedCustomer.name}</strong> ·{" "}
+                    {matchedCustomer.totalBookings} past{" "}
+                    {matchedCustomer.totalBookings === 1 ? "booking" : "bookings"}.
+                  </span>
+                </div>
+              ))}
 
             <div className="space-y-2">
               <FormLabel>Preferred reach-out time</FormLabel>
