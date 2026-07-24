@@ -144,10 +144,16 @@ export function EnquiryIntakeModal({
                   <FormLabel>Phone number</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
-                      placeholder="10-digit phone"
                       {...field}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="10-digit phone"
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        // Keep only digits, hard-cap at 10 — you can't type an 11th.
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        field.onChange(digits === "" ? undefined : Number(digits));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
