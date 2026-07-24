@@ -294,7 +294,7 @@ export function makeEnquiryColumns({
       id: "reach",
       header: () => (
         <HeaderHint
-          label="② Reached"
+          label="Reached"
           hint="Step 2 — an executive has phoned/contacted the lead"
         />
       ),
@@ -308,7 +308,7 @@ export function makeEnquiryColumns({
       accessorFn: (r) => bookingTypeLabel(r.typeOfappointment) ?? "",
       header: () => (
         <HeaderHint
-          label="③ Booking"
+          label="Booking"
           hint="Step 3 — the booking the executive confirmed: online consultation or home visit"
         />
       ),
@@ -326,7 +326,7 @@ export function makeEnquiryColumns({
       accessorFn: (r) => r.quotedPrice ?? 0,
       header: () => (
         <HeaderHint
-          label="③ Fee"
+          label="Fee"
           hint="Step 3 — the agreed fee, pre-filled from the Services catalogue"
         />
       ),
@@ -344,7 +344,7 @@ export function makeEnquiryColumns({
       id: "paid",
       header: () => (
         <HeaderHint
-          label="④ Paid"
+          label="Paid"
           hint="Step 4 — payment has cleared; this unlocks the therapist assignment"
         />
       ),
@@ -356,7 +356,7 @@ export function makeEnquiryColumns({
       accessorFn: (r) => r.doctor ?? "",
       header: () => (
         <HeaderHint
-          label="⑤ Therapist"
+          label="Therapist"
           hint="Step 5 — the therapist assigned to the visit"
         />
       ),
@@ -371,7 +371,7 @@ export function makeEnquiryColumns({
       id: "visitSlot",
       header: () => (
         <HeaderHint
-          label="⑤ Visit"
+          label="Visit"
           hint="Step 5 — the confirmed date and time; the booking now shows on Appointments"
         />
       ),
