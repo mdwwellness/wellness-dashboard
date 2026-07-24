@@ -99,12 +99,12 @@ export function ServiceFormFields({
       <div className="md:col-span-2 rounded-md border p-3 space-y-3">
         <p className="text-sm font-medium">Pricing</p>
         <p className="text-xs text-muted-foreground">
-          Charged when this service is added during a visit — discounted when a
-          therapist recommends it on the spot, otherwise original.
+          Charged when this service is added during a visit — the add-on price
+          when a therapist recommends it on the spot, otherwise the original.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <PriceField control={control} name="originalPrice" label="Original price (₹)" />
-          <PriceField control={control} name="discountedPrice" label="Discounted price (₹)" />
+          <PriceField control={control} name="discountedPrice" label="Add-on price (₹)" />
         </div>
       </div>
 

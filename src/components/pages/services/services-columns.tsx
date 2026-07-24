@@ -47,7 +47,7 @@ export const ServiceColumns: ColumnDef<ServiceType>[] = [
   },
   {
     id: "discountedPrice",
-    header: "Discounted (₹)",
+    header: "Add-on Price (₹)",
     cell: ({ row }) => {
       const s = row.original;
       return (

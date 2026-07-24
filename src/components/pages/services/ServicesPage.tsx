@@ -120,7 +120,7 @@ export default function ServicesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <MetricCard label="Total Services" value={stats.totalServices} />
           <MetricCard
-            label="With add-on discount"
+            label="Reduced add-on price"
             value={stats.withDiscount}
           />
         </div>
