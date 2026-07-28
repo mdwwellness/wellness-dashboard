@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
 import {
+  BarChart3,
   CalendarClock,
   Home,
   Inbox,
@@ -64,6 +65,11 @@ const navLinks = [
     title: "Customers",
     icon: <Users className="h-5 w-5" />,
     href: "/dashboard/customers",
+  },
+  {
+    title: "Analytics",
+    icon: <BarChart3 className="h-5 w-5" />,
+    href: "/dashboard/analytics",
   },
   {
     title: "Invoices",
