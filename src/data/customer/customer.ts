@@ -41,32 +41,45 @@ function segmentFor(activeCount: number): CustomerSegment {
 }
 
 /**
+ * Identity is phone + person, not phone alone: one household number can serve
+ * several patients. Mirrors the backend (ensureCustomerForAppointment) so a
+ * shared number shows one card per person here too.
+ */
+export function identityKey(phone: number, name: string | undefined): string {
+  return `${phone}|${(name ?? "").trim().toLowerCase()}`;
+}
+
+/**
  * Group a flat list of appointment records into Customer aggregates.
  * Exported so the page can recompute KPIs from the same source.
  */
 export function deriveCustomers(
   records: EnquiryType[],
-  persistedByPhone?: Map<number, PersistedCustomer>,
+  persistedByKey?: Map<string, PersistedCustomer>,
 ): Customer[] {
-  const buckets = new Map<number, EnquiryType[]>();
+  // Group by phone + name so two patients on one household number are two
+  // customers, not one merged card.
+  const buckets = new Map<string, EnquiryType[]>();
   for (const r of records) {
     if (!r.phonenumber) continue;
-    const list = buckets.get(r.phonenumber) ?? [];
+    const key = identityKey(r.phonenumber, r.name);
+    const list = buckets.get(key) ?? [];
     list.push(r);
-    buckets.set(r.phonenumber, list);
+    buckets.set(key, list);
   }
 
   const out: Customer[] = [];
-  for (const [phonenumber, list] of buckets.entries()) {
+  for (const [key, list] of buckets.entries()) {
     // Sort newest-first by createdAt
     const sorted = [...list].sort(
       (a, b) => readTimestamp(b, "createdAt") - readTimestamp(a, "createdAt"),
     );
     const latest = sorted[0];
+    const phonenumber = latest.phonenumber;
     const totalAll = sorted.length;
     const activeBookings = sorted.filter((r) => r.status !== "cancelled");
     const totalBookings = activeBookings.length;
-    const persisted = persistedByPhone?.get(phonenumber);
+    const persisted = persistedByKey?.get(key);
 
     out.push({
       customer_id: persisted?.customer_id,
@@ -170,15 +183,15 @@ export function useGetCustomers(
 
       if (!apptResult.success) throw new Error(apptResult.message);
 
-      const persistedByPhone = new Map<number, PersistedCustomer>();
+      const persistedByKey = new Map<string, PersistedCustomer>();
       if (custResult.success && custResult.data) {
         for (const c of custResult.data) {
-          if (c.phone) persistedByPhone.set(c.phone, c);
+          if (c.phone) persistedByKey.set(identityKey(c.phone, c.name), c);
         }
       }
 
       const records = (apptResult.data ?? []) as EnquiryType[];
-      return deriveCustomers(records, persistedByPhone);
+      return deriveCustomers(records, persistedByKey);
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
