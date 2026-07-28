@@ -91,41 +91,36 @@ export function EnquiryIntakeModal({
 
   // Once the phone is a full 10 digits, match it against known customers.
   const phone = form.watch("phonenumber");
-  const matchedCustomer =
+  // Customers are split per person now, so a shared/household number yields
+  // several rows. Collect everyone on this number to neither auto-fill the wrong
+  // name nor claim a single "returning customer" when it's really a household.
+  const peopleOnNumber =
     typeof phone === "number" && String(phone).length === 10
-      ? customers?.find((c) => c.phonenumber === phone)
-      : undefined;
-  // A still-open lead for this number → a new enquiry would duplicate it.
-  const openEnquiry = matchedCustomer
-    ? findOpenEnquiryByPhone(matchedCustomer.bookings, phone as number)
-    : undefined;
+      ? (customers?.filter((c) => c.phonenumber === phone) ?? [])
+      : [];
+  const namesOnNumber = Array.from(
+    new Set(peopleOnNumber.map((c) => c.name.trim()).filter(Boolean)),
+  );
+  const numberHasMultiplePeople = peopleOnNumber.length > 1;
+  // A still-open lead for anyone on this number → a new enquiry may duplicate it.
+  const openEnquiry = findOpenEnquiryByPhone(
+    peopleOnNumber.flatMap((c) => c.bookings),
+    phone as number,
+  );
 
-  // A shared / household number can carry several patients. Collect the distinct
-  // names seen on this number so we neither auto-fill the wrong one nor claim a
-  // single "returning customer" when it's really a household.
-  const namesOnNumber = matchedCustomer
-    ? Array.from(
-        new Set(
-          matchedCustomer.bookings
-            .map((b) => (b.name ?? "").trim())
-            .filter(Boolean),
-        ),
-      )
-    : [];
-  const numberHasMultiplePeople = namesOnNumber.length > 1;
-
-  // Auto-fill the name from a matched customer — but never clobber a name the
-  // executive already typed (or one carried in via `prefill`), and never guess
-  // when the number is shared by several people.
-  const matchedName = matchedCustomer?.name;
+  // Auto-fill only when the number belongs to exactly one known person — never
+  // clobber a name the executive already typed (or one carried in via `prefill`),
+  // and never guess when the number is shared.
+  const matchedName =
+    peopleOnNumber.length === 1 ? peopleOnNumber[0].name : undefined;
   useEffect(() => {
-    if (matchedName && !numberHasMultiplePeople && !form.getValues("name")) {
+    if (matchedName && !form.getValues("name")) {
       form.setValue("name", matchedName, {
         shouldValidate: true,
         shouldDirty: true,
       });
     }
-  }, [matchedName, numberHasMultiplePeople, form]);
+  }, [matchedName, form]);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -200,13 +195,13 @@ export function EnquiryIntakeModal({
               )}
             />
 
-            {matchedCustomer &&
+            {peopleOnNumber.length > 0 &&
               (openEnquiry ? (
                 <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300">
                   <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span>
-                    <strong>{matchedCustomer.name}</strong> already has an open
-                    enquiry
+                    <strong>{openEnquiry.name ?? "This customer"}</strong> already
+                    has an open enquiry
                     {openEnquiry.enquiryId ? ` (${openEnquiry.enquiryId})` : ""} ·{" "}
                     {openEnquiry.status}. You can still log a new one.
                   </span>
@@ -224,9 +219,10 @@ export function EnquiryIntakeModal({
                 <div className="flex items-start gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
                   <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span>
-                    Returning customer: <strong>{matchedCustomer.name}</strong> ·{" "}
-                    {matchedCustomer.totalBookings} past{" "}
-                    {matchedCustomer.totalBookings === 1 ? "booking" : "bookings"}.
+                    Returning customer:{" "}
+                    <strong>{peopleOnNumber[0].name}</strong> ·{" "}
+                    {peopleOnNumber[0].totalBookings} past{" "}
+                    {peopleOnNumber[0].totalBookings === 1 ? "booking" : "bookings"}.
                   </span>
                 </div>
               ))}
