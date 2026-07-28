@@ -23,8 +23,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             retry: 1,
-            staleTime: 5 * 60 * 1000,
+            // Cache until an explicit refresh. Data is fetched once and reused
+            // across the session; it only re-hits the DB when a refresh button
+            // (invalidateQueries) or a mutation invalidates the cache. No
+            // time-based, mount, focus, or reconnect refetching.
+            staleTime: Infinity,
+            gcTime: Infinity,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
           },
         },
       })

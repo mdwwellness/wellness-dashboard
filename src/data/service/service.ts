@@ -23,7 +23,6 @@ export function useGetServices() {
       if (!result.success) throw new Error(result.message);
       return (result.data ?? []) as ServiceType[];
     },
-    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }

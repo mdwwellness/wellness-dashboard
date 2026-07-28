@@ -193,7 +193,6 @@ export function useGetCustomers(
       const records = (apptResult.data ?? []) as EnquiryType[];
       return deriveCustomers(records, persistedByKey);
     },
-    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     // undefined leaves React Query's default (enabled) — existing callers keep
     // fetching; the intake modal passes `false` until it's actually open.

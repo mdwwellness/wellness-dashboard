@@ -27,9 +27,7 @@ export const appointmentsQueryOptions = (user: UserType) => ({
     );
     return dedupePackageAppointments(filtered);
   },
-  staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
-  refetchInterval: 5 * 60 * 1000,
   retry: 3,
 });
 

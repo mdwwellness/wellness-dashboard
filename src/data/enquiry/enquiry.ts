@@ -21,7 +21,6 @@ export const enquiriesQueryOptions = (user: UserType) => ({
     if (!result.success) throw new Error(result.message);
     return (result.data ?? []) as EnquiryType[];
   },
-  staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
 });
 

@@ -12,6 +12,5 @@ export function useGetAnalyticsData() {
       }
       return result.data;
     },
-    refetchInterval: 5 * 60 * 1000,
   });
 }

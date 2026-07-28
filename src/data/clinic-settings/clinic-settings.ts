@@ -14,7 +14,6 @@ export function useGetClinicSettings() {
       if (!result.success) throw new Error(result.message);
       return result.data ?? DEFAULT;
     },
-    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }
