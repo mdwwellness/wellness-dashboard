@@ -100,17 +100,32 @@ export function EnquiryIntakeModal({
     ? findOpenEnquiryByPhone(matchedCustomer.bookings, phone as number)
     : undefined;
 
+  // A shared / household number can carry several patients. Collect the distinct
+  // names seen on this number so we neither auto-fill the wrong one nor claim a
+  // single "returning customer" when it's really a household.
+  const namesOnNumber = matchedCustomer
+    ? Array.from(
+        new Set(
+          matchedCustomer.bookings
+            .map((b) => (b.name ?? "").trim())
+            .filter(Boolean),
+        ),
+      )
+    : [];
+  const numberHasMultiplePeople = namesOnNumber.length > 1;
+
   // Auto-fill the name from a matched customer — but never clobber a name the
-  // executive already typed (or one carried in via `prefill`).
+  // executive already typed (or one carried in via `prefill`), and never guess
+  // when the number is shared by several people.
   const matchedName = matchedCustomer?.name;
   useEffect(() => {
-    if (matchedName && !form.getValues("name")) {
+    if (matchedName && !numberHasMultiplePeople && !form.getValues("name")) {
       form.setValue("name", matchedName, {
         shouldValidate: true,
         shouldDirty: true,
       });
     }
-  }, [matchedName, form]);
+  }, [matchedName, numberHasMultiplePeople, form]);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -194,6 +209,15 @@ export function EnquiryIntakeModal({
                     enquiry
                     {openEnquiry.enquiryId ? ` (${openEnquiry.enquiryId})` : ""} ·{" "}
                     {openEnquiry.status}. You can still log a new one.
+                  </span>
+                </div>
+              ) : numberHasMultiplePeople ? (
+                <div className="flex items-start gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
+                  <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    This number is shared by {namesOnNumber.length} people (
+                    {namesOnNumber.join(", ")}). Type the name for this enquiry —
+                    we won&apos;t assume which one.
                   </span>
                 </div>
               ) : (
