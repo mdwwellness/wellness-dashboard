@@ -2,6 +2,20 @@
 
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  Cell,
+  LabelList,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { RefreshButton } from "@/components/refresh-button";
 import { MetricCard, MetricCardsRow } from "@/components/metric-card";
@@ -13,41 +27,25 @@ import type { EnquiryType } from "@/type/schema";
 
 import { deriveAnalytics } from "./analytics-metrics";
 
-/** One labelled horizontal bar. Shared by every "chart" here — no chart lib. */
-function Bar({
-  label,
-  value,
-  max,
-  display,
-  tone = "primary",
-}: {
-  label: string;
-  value: number;
-  max: number;
-  display: string;
-  tone?: "primary" | "emerald" | "amber";
-}) {
-  const pct = max > 0 ? Math.max(2, (value / max) * 100) : 0;
-  const fill =
-    tone === "emerald"
-      ? "bg-emerald-500"
-      : tone === "amber"
-        ? "bg-amber-500"
-        : "bg-primary";
-  return (
-    <div className="space-y-1">
-      <div className="flex items-baseline justify-between gap-3 text-sm">
-        <span className="truncate text-muted-foreground">{label}</span>
-        <span className="tabular-nums font-medium">{display}</span>
-      </div>
-      <div className="h-2 w-full rounded-full bg-muted">
-        <div className={`h-2 rounded-full ${fill}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
+// Brand-led palette (brand primary is #018bc4). Semantic emerald/amber for
+// money in vs money owed; the rest cycle for categorical slices.
+const PRIMARY = "#018bc4";
+const EMERALD = "#10b981";
+const AMBER = "#f59e0b";
+const SLICE_COLORS = [PRIMARY, EMERALD, AMBER, "#8b5cf6", "#ec4899", "#64748b"];
+const AXIS = "#94a3b8"; // readable on both light and dark
 
-/** A titled panel wrapper matching the app's card styling. */
+const tooltipStyle = {
+  background: "hsl(var(--popover))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: 8,
+  color: "hsl(var(--popover-foreground))",
+  fontSize: 12,
+};
+
+const inrTip = (v: unknown) => formatINR(Number(v ?? 0));
+
+/** A titled panel matching the app's card styling. */
 function Panel({
   title,
   hint,
@@ -69,7 +67,11 @@ function Panel({
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-muted-foreground">{children}</p>;
+  return (
+    <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
 }
 
 const MONTH_LABEL = (m: string) => {
@@ -83,9 +85,9 @@ function AnalyticsSkeleton() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="border border-border p-5 rounded-xl h-40 space-y-3">
+        <div key={i} className="border border-border p-5 rounded-xl h-64 space-y-3">
           <div className="h-3 w-1/3 rounded bg-muted animate-pulse" />
-          <div className="h-24 w-full rounded bg-muted animate-pulse" />
+          <div className="h-44 w-full rounded bg-muted animate-pulse" />
         </div>
       ))}
     </div>
@@ -118,9 +120,25 @@ const AnalyticsPage = () => {
     );
   }
 
-  const maxTrend = Math.max(1, ...a.revenueTrend.map((t) => t.revenue));
-  const maxMix = Math.max(1, ...a.serviceMix.map((m) => m.revenue));
-  const maxLoad = Math.max(1, ...a.therapistLoad.map((t) => t.bookings));
+  const pipelineData = [
+    { name: "Enquiries", value: a.pipeline.enquiries, fill: "#94a3b8" },
+    { name: "Bookings", value: a.pipeline.bookings, fill: PRIMARY },
+    { name: "Paid", value: a.pipeline.paid, fill: EMERALD },
+  ];
+  const mixData = a.serviceMix.map((m) => ({ name: m.label, value: m.revenue }));
+  const splitData = [
+    { name: "Collected", value: a.collected },
+    { name: "Pending", value: a.pending },
+  ];
+  const trendData = a.revenueTrend.map((t) => ({
+    month: MONTH_LABEL(t.month),
+    revenue: t.revenue,
+    momPct: t.momPct,
+  }));
+  const loadData = a.therapistLoad.map((t) => ({
+    name: t.name,
+    value: t.bookings,
+  }));
 
   return (
     <div className="w-full flex flex-col gap-6 px-3 sm:px-4 md:px-8 pt-10 pb-16">
@@ -168,86 +186,150 @@ const AnalyticsPage = () => {
               </MetricCardsRow>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Panel title="Pipeline" hint="Enquiry → Booking → Paid">
-                  <Bar
-                    label="Enquiries"
-                    value={a.pipeline.enquiries}
-                    max={a.pipeline.enquiries}
-                    display={String(a.pipeline.enquiries)}
-                  />
-                  <Bar
-                    label="Bookings"
-                    value={a.pipeline.bookings}
-                    max={a.pipeline.enquiries}
-                    display={String(a.pipeline.bookings)}
-                  />
-                  <Bar
-                    label="Paid"
-                    value={a.pipeline.paid}
-                    max={a.pipeline.enquiries}
-                    display={String(a.pipeline.paid)}
-                    tone="emerald"
-                  />
+                <Panel title="Revenue trend" hint="Collected per month (last 6)">
+                  {trendData.every((t) => t.revenue === 0) ? (
+                    <Empty>Not enough history yet.</Empty>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <AreaChart data={trendData} margin={{ left: 4, right: 8, top: 8 }}>
+                        <defs>
+                          <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={PRIMARY} stopOpacity={0.35} />
+                            <stop offset="100%" stopColor={PRIMARY} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis
+                          dataKey="month"
+                          tick={{ fontSize: 12, fill: AXIS }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 12, fill: AXIS }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={48}
+                          tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : `${v}`)}
+                        />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          formatter={(v) => [inrTip(v), "Revenue"]}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke={PRIMARY}
+                          strokeWidth={2}
+                          fill="url(#revFill)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
                 </Panel>
 
                 <Panel title="Revenue by service">
-                  {a.serviceMix.length === 0 ? (
+                  {mixData.length === 0 ? (
                     <Empty>No collected revenue yet.</Empty>
                   ) : (
-                    a.serviceMix.map((m) => (
-                      <Bar
-                        key={m.label}
-                        label={m.label}
-                        value={m.revenue}
-                        max={maxMix}
-                        display={formatINR(m.revenue)}
-                      />
-                    ))
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie
+                          data={mixData}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={2}
+                        >
+                          {mixData.map((_, i) => (
+                            <Cell key={i} fill={SLICE_COLORS[i % SLICE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          formatter={(v, n) => [inrTip(v), n]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                  {mixData.length > 0 && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {mixData.map((m, i) => (
+                        <span key={m.name} className="flex items-center gap-1.5 text-xs">
+                          <span
+                            className="h-2.5 w-2.5 rounded-sm"
+                            style={{ background: SLICE_COLORS[i % SLICE_COLORS.length] }}
+                          />
+                          {m.name} · {formatINR(m.value)}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </Panel>
 
-                <Panel
-                  title="Revenue trend"
-                  hint="Collected per month (last 6)"
-                >
-                  {a.revenueTrend.every((t) => t.revenue === 0) ? (
-                    <Empty>Not enough history yet.</Empty>
+                <Panel title="Pipeline" hint="Enquiry → Booking → Paid">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart
+                      data={pipelineData}
+                      layout="vertical"
+                      margin={{ left: 8, right: 24 }}
+                    >
+                      <XAxis type="number" hide />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tick={{ fontSize: 12, fill: AXIS }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={72}
+                      />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "transparent" }} />
+                      <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={26}>
+                        {pipelineData.map((d, i) => (
+                          <Cell key={i} fill={d.fill} />
+                        ))}
+                        <LabelList dataKey="value" position="right" fontSize={12} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Panel>
+
+                <Panel title="Collected vs pending" hint="Money in vs still owed">
+                  {a.collected + a.pending === 0 ? (
+                    <Empty>No booked revenue yet.</Empty>
                   ) : (
-                    a.revenueTrend.map((t) => (
-                      <Bar
-                        key={t.month}
-                        label={
-                          MONTH_LABEL(t.month) +
-                          (t.momPct != null
-                            ? `  (${t.momPct >= 0 ? "+" : ""}${Math.round(t.momPct)}%)`
-                            : "")
-                        }
-                        value={t.revenue}
-                        max={maxTrend}
-                        display={formatINR(t.revenue)}
-                      />
-                    ))
+                    <>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <PieChart>
+                          <Pie
+                            data={splitData}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={55}
+                            outerRadius={85}
+                            paddingAngle={2}
+                          >
+                            <Cell fill={EMERALD} />
+                            <Cell fill={AMBER} />
+                          </Pie>
+                          <Tooltip
+                            contentStyle={tooltipStyle}
+                            formatter={(v, n) => [inrTip(v), n]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: EMERALD }} />
+                          Collected · {formatINR(a.collected)}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: AMBER }} />
+                          Pending · {formatINR(a.pending)}
+                        </span>
+                      </div>
+                    </>
                   )}
-                </Panel>
-
-                <Panel
-                  title="Collected vs pending"
-                  hint="Money in the door vs still owed"
-                >
-                  <Bar
-                    label="Collected"
-                    value={a.collected}
-                    max={a.collected + a.pending}
-                    display={formatINR(a.collected)}
-                    tone="emerald"
-                  />
-                  <Bar
-                    label="Pending"
-                    value={a.pending}
-                    max={a.collected + a.pending}
-                    display={formatINR(a.pending)}
-                    tone="amber"
-                  />
                 </Panel>
               </div>
             </section>
@@ -262,10 +344,7 @@ const AnalyticsPage = () => {
                   label="Pending payments"
                   value={`${formatINR(a.pending)} · ${a.pendingCount} booking${a.pendingCount === 1 ? "" : "s"}`}
                 />
-                <MetricCard
-                  label="Needs first contact"
-                  value={a.needsFirstContact}
-                />
+                <MetricCard label="Needs first contact" value={a.needsFirstContact} />
                 <MetricCard
                   label="Therapists booked this week"
                   value={a.therapistLoad.length}
@@ -273,18 +352,30 @@ const AnalyticsPage = () => {
               </div>
 
               <Panel title="Therapist load" hint="Bookings this week">
-                {a.therapistLoad.length === 0 ? (
+                {loadData.length === 0 ? (
                   <Empty>No therapist bookings scheduled this week.</Empty>
                 ) : (
-                  a.therapistLoad.map((t) => (
-                    <Bar
-                      key={t.name}
-                      label={t.name}
-                      value={t.bookings}
-                      max={maxLoad}
-                      display={String(t.bookings)}
-                    />
-                  ))
+                  <ResponsiveContainer width="100%" height={Math.max(160, loadData.length * 44)}>
+                    <BarChart
+                      data={loadData}
+                      layout="vertical"
+                      margin={{ left: 8, right: 24 }}
+                    >
+                      <XAxis type="number" hide />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tick={{ fontSize: 12, fill: AXIS }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={120}
+                      />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "transparent" }} />
+                      <Bar dataKey="value" fill={PRIMARY} radius={[0, 6, 6, 0]} barSize={22}>
+                        <LabelList dataKey="value" position="right" fontSize={12} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 )}
               </Panel>
             </section>
