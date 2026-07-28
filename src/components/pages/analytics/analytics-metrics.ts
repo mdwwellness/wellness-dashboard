@@ -158,3 +158,177 @@ export function deriveAnalytics(
     hasData: records.length > 0,
   };
 }
+
+// ── Month-over-month growth series ───────────────────────────────────────────
+// The line plots the MoM DELTA (blue when up, red when down); cards show the
+// absolute monthly value plus that delta. Faithful to the reference dashboard,
+// reframed for a service business (revenue, bookings, new & repeat customers).
+
+export interface MonthPoint {
+  month: string; // "YYYY-MM"
+  value: number; // absolute value that month
+  delta: number; // value[m] − value[m-1]
+}
+
+export interface MoMSeries {
+  revenue: MonthPoint[];
+  bookings: MonthPoint[];
+  newCustomers: MonthPoint[];
+  repeatCustomers: MonthPoint[];
+}
+
+/** Identity is phone + person (mirrors the backend); inlined to keep this a
+ *  pure, node-testable module with no client imports. */
+const idKey = (r: EnquiryType) =>
+  `${r.phonenumber}|${(r.name ?? "").trim().toLowerCase()}`;
+
+/** The revenue-landed month for a paid record. */
+const paidMonth = (r: EnquiryType) => monthKey(r.paymentReceivedAt ?? readCreatedISO(r));
+const createdMonth = (r: EnquiryType) => monthKey(readCreatedISO(r));
+
+/** N+1 "YYYY-MM" keys ending at `now`'s month — the extra leading month gives
+ *  the first displayed month a real previous value for its delta. */
+function monthWindow(now: Date, count: number): string[] {
+  const keys: string[] = [];
+  for (let i = count; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return keys;
+}
+
+/** Turn a value-by-month map into points with MoM deltas, dropping the leading
+ *  padding month. */
+function toPoints(window: string[], valueByMonth: Map<string, number>): MonthPoint[] {
+  const pts: MonthPoint[] = [];
+  for (let i = 1; i < window.length; i++) {
+    const value = valueByMonth.get(window[i]) ?? 0;
+    const prev = valueByMonth.get(window[i - 1]) ?? 0;
+    pts.push({ month: window[i], value, delta: value - prev });
+  }
+  return pts;
+}
+
+/**
+ * Month-over-month series for the last `months` months (default 12; the chart
+ * can show a 6-month slice). Computes one extra leading month so the first
+ * point's delta is real.
+ */
+export function deriveMoM(
+  records: EnquiryType[],
+  now: Date = new Date(),
+  months = 12,
+): MoMSeries {
+  const window = monthWindow(now, months);
+  const inWindow = new Set(window);
+  const live = records.filter((r) => !isCancelled(r));
+
+  const revenue = new Map<string, number>();
+  const bookings = new Map<string, number>();
+
+  // Per-customer month activity, for new vs repeat.
+  const monthsByCustomer = new Map<string, Set<string>>();
+
+  for (const r of live) {
+    if (isPaid(r)) {
+      const m = paidMonth(r);
+      if (m) revenue.set(m, (revenue.get(m) ?? 0) + amountOf(r));
+    }
+    if (isBooked(r)) {
+      const m = createdMonth(r);
+      if (m) bookings.set(m, (bookings.get(m) ?? 0) + 1);
+    }
+    if (r.phonenumber) {
+      const cm = createdMonth(r);
+      if (cm) {
+        const set = monthsByCustomer.get(idKey(r)) ?? new Set<string>();
+        set.add(cm);
+        monthsByCustomer.set(idKey(r), set);
+      }
+    }
+  }
+
+  const newCustomers = new Map<string, number>();
+  const repeatCustomers = new Map<string, number>();
+  for (const set of monthsByCustomer.values()) {
+    const sorted = [...set].sort();
+    const first = sorted[0];
+    newCustomers.set(first, (newCustomers.get(first) ?? 0) + 1);
+    // Every later month this customer was active counts as a repeat that month.
+    for (const m of sorted.slice(1)) {
+      repeatCustomers.set(m, (repeatCustomers.get(m) ?? 0) + 1);
+    }
+  }
+
+  // Only keep points inside the window (the maps may hold older months).
+  const clip = (m: Map<string, number>) => {
+    const out = new Map<string, number>();
+    for (const [k, v] of m) if (inWindow.has(k)) out.set(k, v);
+    return out;
+  };
+
+  return {
+    revenue: toPoints(window, clip(revenue)),
+    bookings: toPoints(window, clip(bookings)),
+    newCustomers: toPoints(window, clip(newCustomers)),
+    repeatCustomers: toPoints(window, clip(repeatCustomers)),
+  };
+}
+
+// ── Daily revenue pacing (one month vs the previous) ─────────────────────────
+
+export interface DailyPoint {
+  day: number; // 1..daysInMonth
+  current: number;
+  previous: number;
+}
+
+const prevMonthKey = (month: string): string => {
+  const [y, mo] = month.split("-").map(Number);
+  const d = new Date(y, mo - 2, 1); // mo is 1-based → mo-2 is the previous month
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+/** Daily collected revenue for `month` vs the month before, aligned by day. */
+export function deriveDailyPacing(
+  records: EnquiryType[],
+  month: string,
+): DailyPoint[] {
+  const [y, mo] = month.split("-").map(Number);
+  const prev = prevMonthKey(month);
+  const daysInMonth = new Date(y, mo, 0).getDate();
+  const cur = new Array(32).fill(0);
+  const prv = new Array(32).fill(0);
+
+  for (const r of records) {
+    if (!isPaid(r)) continue;
+    const iso = r.paymentReceivedAt ?? readCreatedISO(r);
+    const m = monthKey(iso);
+    if (!m || (m !== month && m !== prev)) continue;
+    const d = new Date(iso as string);
+    const day = d.getDate();
+    (m === month ? cur : prv)[day] += amountOf(r);
+  }
+
+  const out: DailyPoint[] = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    out.push({ day, current: cur[day], previous: prv[day] });
+  }
+  return out;
+}
+
+/** Month options for the pacing picker — the last `count` months, newest first. */
+export function monthOptions(
+  now: Date = new Date(),
+  count = 12,
+): { key: string; label: string }[] {
+  const opts: { key: string; label: string }[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    opts.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleString("en-IN", { month: "long", year: "numeric" }),
+    });
+  }
+  return opts;
+}
