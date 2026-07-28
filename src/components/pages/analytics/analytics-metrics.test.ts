@@ -1,10 +1,17 @@
 import { describe, it, expect } from "vitest";
 
-import { deriveAnalytics } from "./analytics-metrics";
+import {
+  deriveAnalytics,
+  deriveMoM,
+  deriveDailyPacing,
+} from "./analytics-metrics";
 import type { EnquiryType } from "@/type/schema";
 
 const rec = (over: Partial<EnquiryType>): EnquiryType =>
   ({ name: "x", phonenumber: 1, ...over }) as EnquiryType;
+
+// createdAt isn't on EnquiryType; the metrics read it via an unknown cast.
+const at = (iso: string) => ({ createdAt: iso }) as Partial<EnquiryType>;
 
 const NOW = new Date("2026-07-28T10:00:00.000Z");
 
@@ -54,5 +61,53 @@ describe("deriveAnalytics", () => {
     expect(a.hasData).toBe(false);
     expect(a.collectedPct).toBe(0);
     expect(a.revenueTrend).toHaveLength(6);
+  });
+});
+
+describe("deriveMoM", () => {
+  it("plots the month-over-month revenue delta", () => {
+    const m = deriveMoM(
+      [
+        rec({ paymentReceived: true, paymentAmount: 1000, paymentReceivedAt: "2026-06-10T00:00:00Z" }),
+        rec({ paymentReceived: true, paymentAmount: 1500, paymentReceivedAt: "2026-07-05T00:00:00Z" }),
+      ],
+      NOW,
+      12,
+    );
+    const jun = m.revenue.find((p) => p.month === "2026-06")!;
+    const jul = m.revenue.find((p) => p.month === "2026-07")!;
+    expect(jun.value).toBe(1000);
+    expect(jul.value).toBe(1500);
+    expect(jul.delta).toBe(500); // 1500 − 1000
+  });
+
+  it("separates a customer's first month (new) from later months (repeat)", () => {
+    const m = deriveMoM(
+      [
+        rec({ phonenumber: 9, name: "Asha", ...at("2026-06-02T00:00:00Z") }),
+        rec({ phonenumber: 9, name: "Asha", ...at("2026-07-02T00:00:00Z") }), // same person, later
+      ],
+      NOW,
+      12,
+    );
+    expect(m.newCustomers.find((p) => p.month === "2026-06")!.value).toBe(1);
+    expect(m.repeatCustomers.find((p) => p.month === "2026-07")!.value).toBe(1);
+    expect(m.newCustomers.find((p) => p.month === "2026-07")!.value).toBe(0);
+  });
+});
+
+describe("deriveDailyPacing", () => {
+  it("aligns this month and the previous month by day", () => {
+    const days = deriveDailyPacing(
+      [
+        rec({ paymentReceived: true, paymentAmount: 700, paymentReceivedAt: "2026-07-03T00:00:00Z" }),
+        rec({ paymentReceived: true, paymentAmount: 400, paymentReceivedAt: "2026-06-03T00:00:00Z" }),
+      ],
+      "2026-07",
+    );
+    const d3 = days.find((d) => d.day === 3)!;
+    expect(d3.current).toBe(700);
+    expect(d3.previous).toBe(400);
+    expect(days).toHaveLength(31); // July
   });
 });

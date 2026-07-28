@@ -3,8 +3,6 @@
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   Cell,
@@ -25,15 +23,15 @@ import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
 import type { EnquiryType } from "@/type/schema";
 
-import { deriveAnalytics } from "./analytics-metrics";
+import { deriveAnalytics, deriveMoM } from "./analytics-metrics";
+import { MoMGrowthChart } from "./MoMGrowthChart";
+import { DailyPacingChart } from "./DailyPacingChart";
 
-// Brand-led palette (brand primary is #018bc4). Semantic emerald/amber for
-// money in vs money owed; the rest cycle for categorical slices.
 const PRIMARY = "#018bc4";
 const EMERALD = "#10b981";
 const AMBER = "#f59e0b";
 const SLICE_COLORS = [PRIMARY, EMERALD, AMBER, "#8b5cf6", "#ec4899", "#64748b"];
-const AXIS = "#94a3b8"; // readable on both light and dark
+const AXIS = "#94a3b8";
 
 const tooltipStyle = {
   background: "hsl(var(--popover))",
@@ -42,10 +40,20 @@ const tooltipStyle = {
   color: "hsl(var(--popover-foreground))",
   fontSize: 12,
 };
-
 const inrTip = (v: unknown) => formatINR(Number(v ?? 0));
 
-/** A titled panel matching the app's card styling. */
+// Compact money for chart axes / MoM cards: ₹18.8k, -₹30.6k, ₹700.
+const inrK = (n: number) => {
+  const a = Math.abs(n);
+  const s = n < 0 ? "-" : "";
+  return a >= 1000 ? `${s}₹${(a / 1000).toFixed(1)}k` : `${s}₹${Math.round(a)}`;
+};
+const inrDelta = (d: number) => `${d > 0 ? "+" : ""}${inrK(d)}`;
+const num = (n: number) => `${Math.round(n)}`;
+const withUnit = (unit: string) => (n: number) => `${Math.round(n)} ${unit}`;
+const deltaUnit = (unit: string) => (d: number) =>
+  `${d > 0 ? "+" : ""}${Math.round(d)}${unit ? ` ${unit}` : ""}`;
+
 function Panel({
   title,
   hint,
@@ -74,23 +82,24 @@ function Empty({ children }: { children: React.ReactNode }) {
   );
 }
 
-const MONTH_LABEL = (m: string) => {
-  const [y, mo] = m.split("-");
-  return new Date(Number(y), Number(mo) - 1, 1).toLocaleString("en-IN", {
-    month: "short",
-  });
-};
-
 function AnalyticsSkeleton() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-      {Array.from({ length: 4 }).map((_, i) => (
+    <div className="grid grid-cols-1 gap-4 w-full">
+      {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="border border-border p-5 rounded-xl h-64 space-y-3">
           <div className="h-3 w-1/3 rounded bg-muted animate-pulse" />
           <div className="h-44 w-full rounded bg-muted animate-pulse" />
         </div>
       ))}
     </div>
+  );
+}
+
+function ZoneTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      {children}
+    </h2>
   );
 }
 
@@ -105,6 +114,7 @@ const AnalyticsPage = () => {
     [enq.data],
   );
   const a = React.useMemo(() => deriveAnalytics(records), [records]);
+  const mom = React.useMemo(() => deriveMoM(records), [records]);
 
   // Analytics is a back-office view; therapists get their own dashboard.
   // ponytail: nav/role visibility only — real enforcement is server-side when
@@ -120,34 +130,25 @@ const AnalyticsPage = () => {
     );
   }
 
-  const pipelineData = [
-    { name: "Enquiries", value: a.pipeline.enquiries, fill: "#94a3b8" },
-    { name: "Bookings", value: a.pipeline.bookings, fill: PRIMARY },
-    { name: "Paid", value: a.pipeline.paid, fill: EMERALD },
-  ];
   const mixData = a.serviceMix.map((m) => ({ name: m.label, value: m.revenue }));
   const splitData = [
     { name: "Collected", value: a.collected },
     { name: "Pending", value: a.pending },
   ];
-  const trendData = a.revenueTrend.map((t) => ({
-    month: MONTH_LABEL(t.month),
-    revenue: t.revenue,
-    momPct: t.momPct,
-  }));
-  const loadData = a.therapistLoad.map((t) => ({
-    name: t.name,
-    value: t.bookings,
-  }));
+  const pipelineData = [
+    { name: "Enquiries", value: a.pipeline.enquiries, fill: "#94a3b8" },
+    { name: "Bookings", value: a.pipeline.bookings, fill: PRIMARY },
+    { name: "Paid", value: a.pipeline.paid, fill: EMERALD },
+  ];
+  const loadData = a.therapistLoad.map((t) => ({ name: t.name, value: t.bookings }));
+  const maxLoad = Math.max(1, ...a.therapistLoad.map((t) => t.bookings));
 
   return (
-    <div className="w-full flex flex-col gap-6 px-3 sm:px-4 md:px-8 pt-10 pb-16">
+    <div className="w-full flex flex-col gap-8 px-3 sm:px-4 md:px-8 pt-10 pb-16">
       <div className="flex justify-between items-center w-full">
         <h1 className="text-3xl md:text-4xl font-bold">Analytics</h1>
         <RefreshButton
-          onClick={() =>
-            queryClient.invalidateQueries({ queryKey: ["enquiries"] })
-          }
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["enquiries"] })}
           isFetching={enq.isFetching}
           label="Refresh analytics"
         />
@@ -164,134 +165,75 @@ const AnalyticsPage = () => {
           <Empty>Not enough data yet — analytics fill in as bookings arrive.</Empty>
         ) : (
           <>
-            {/* Zone A — business health */}
+            {/* ── Business health ── */}
             <section className="space-y-4">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Business health
-              </h2>
+              <ZoneTitle>Business health</ZoneTitle>
               <MetricCardsRow className="w-full">
-                <MetricCard
-                  label="Revenue this month"
-                  value={formatINR(a.revenueThisMonth)}
-                />
+                <MetricCard label="Revenue this month" value={formatINR(a.revenueThisMonth)} />
                 <MetricCard
                   label="Collected"
                   value={`${formatINR(a.collected)} · ${Math.round(a.collectedPct)}%`}
                 />
                 <MetricCard label="Bookings this month" value={a.bookingsThisMonth} />
-                <MetricCard
-                  label="Conversion"
-                  value={`${Math.round(a.conversionPct)}%`}
-                />
+                <MetricCard label="Conversion" value={`${Math.round(a.conversionPct)}%`} />
               </MetricCardsRow>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Panel title="Revenue trend" hint="Collected per month (last 6)">
-                  {trendData.every((t) => t.revenue === 0) ? (
-                    <Empty>Not enough history yet.</Empty>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <AreaChart data={trendData} margin={{ left: 4, right: 8, top: 8 }}>
-                        <defs>
-                          <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={PRIMARY} stopOpacity={0.35} />
-                            <stop offset="100%" stopColor={PRIMARY} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis
-                          dataKey="month"
-                          tick={{ fontSize: 12, fill: AXIS }}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 12, fill: AXIS }}
-                          tickLine={false}
-                          axisLine={false}
-                          width={48}
-                          tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : `${v}`)}
-                        />
-                        <Tooltip
-                          contentStyle={tooltipStyle}
-                          formatter={(v) => [inrTip(v), "Revenue"]}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="revenue"
-                          stroke={PRIMARY}
-                          strokeWidth={2}
-                          fill="url(#revFill)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </Panel>
+              <MoMGrowthChart
+                title="MoM Revenue Growth"
+                subtitle="Revenue growth compared with the previous month."
+                data={mom.revenue}
+                formatValue={inrK}
+                formatAxis={inrK}
+                formatDelta={inrDelta}
+              />
+              <MoMGrowthChart
+                title="MoM Bookings Growth"
+                subtitle="Booking volume compared with the previous month."
+                data={mom.bookings}
+                formatValue={withUnit("bookings")}
+                formatAxis={num}
+                formatDelta={deltaUnit("")}
+              />
 
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Panel title="Revenue by service">
                   {mixData.length === 0 ? (
                     <Empty>No collected revenue yet.</Empty>
                   ) : (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <PieChart>
-                        <Pie
-                          data={mixData}
-                          dataKey="value"
-                          nameKey="name"
-                          innerRadius={55}
-                          outerRadius={85}
-                          paddingAngle={2}
-                        >
-                          {mixData.map((_, i) => (
-                            <Cell key={i} fill={SLICE_COLORS[i % SLICE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={tooltipStyle}
-                          formatter={(v, n) => [inrTip(v), n]}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                  {mixData.length > 0 && (
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                      {mixData.map((m, i) => (
-                        <span key={m.name} className="flex items-center gap-1.5 text-xs">
-                          <span
-                            className="h-2.5 w-2.5 rounded-sm"
-                            style={{ background: SLICE_COLORS[i % SLICE_COLORS.length] }}
+                    <>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <PieChart>
+                          <Pie
+                            data={mixData}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={55}
+                            outerRadius={85}
+                            paddingAngle={2}
+                          >
+                            {mixData.map((_, i) => (
+                              <Cell key={i} fill={SLICE_COLORS[i % SLICE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={tooltipStyle}
+                            formatter={(v, n) => [inrTip(v), n]}
                           />
-                          {m.name} · {formatINR(m.value)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </Panel>
-
-                <Panel title="Pipeline" hint="Enquiry → Booking → Paid">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart
-                      data={pipelineData}
-                      layout="vertical"
-                      margin={{ left: 8, right: 24 }}
-                    >
-                      <XAxis type="number" hide />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        tick={{ fontSize: 12, fill: AXIS }}
-                        tickLine={false}
-                        axisLine={false}
-                        width={72}
-                      />
-                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "transparent" }} />
-                      <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={26}>
-                        {pipelineData.map((d, i) => (
-                          <Cell key={i} fill={d.fill} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {mixData.map((m, i) => (
+                          <span key={m.name} className="flex items-center gap-1.5 text-xs">
+                            <span
+                              className="h-2.5 w-2.5 rounded-sm"
+                              style={{ background: SLICE_COLORS[i % SLICE_COLORS.length] }}
+                            />
+                            {m.name} · {formatINR(m.value)}
+                          </span>
                         ))}
-                        <LabelList dataKey="value" position="right" fontSize={12} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                      </div>
+                    </>
+                  )}
                 </Panel>
 
                 <Panel title="Collected vs pending" hint="Money in vs still owed">
@@ -299,7 +241,7 @@ const AnalyticsPage = () => {
                     <Empty>No booked revenue yet.</Empty>
                   ) : (
                     <>
-                      <ResponsiveContainer width="100%" height={200}>
+                      <ResponsiveContainer width="100%" height={220}>
                         <PieChart>
                           <Pie
                             data={splitData}
@@ -334,11 +276,32 @@ const AnalyticsPage = () => {
               </div>
             </section>
 
-            {/* Zone B — operational */}
+            {/* ── Customers ── */}
             <section className="space-y-4">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Operational
-              </h2>
+              <ZoneTitle>Customers</ZoneTitle>
+              <MoMGrowthChart
+                title="MoM New Customer Growth"
+                subtitle="First-time customers compared with the previous month."
+                data={mom.newCustomers}
+                formatValue={withUnit("new")}
+                formatAxis={num}
+                formatDelta={deltaUnit("new")}
+              />
+              <MoMGrowthChart
+                title="MoM Repeat Customer Growth"
+                subtitle="Returning customers compared with the previous month."
+                data={mom.repeatCustomers}
+                formatValue={withUnit("repeat")}
+                formatAxis={num}
+                formatDelta={deltaUnit("repeat")}
+              />
+            </section>
+
+            {/* ── Operational ── */}
+            <section className="space-y-4">
+              <ZoneTitle>Operational</ZoneTitle>
+              <DailyPacingChart records={records} formatValue={inrK} />
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <MetricCard
                   label="Pending payments"
@@ -351,16 +314,10 @@ const AnalyticsPage = () => {
                 />
               </div>
 
-              <Panel title="Therapist load" hint="Bookings this week">
-                {loadData.length === 0 ? (
-                  <Empty>No therapist bookings scheduled this week.</Empty>
-                ) : (
-                  <ResponsiveContainer width="100%" height={Math.max(160, loadData.length * 44)}>
-                    <BarChart
-                      data={loadData}
-                      layout="vertical"
-                      margin={{ left: 8, right: 24 }}
-                    >
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Panel title="Pipeline" hint="Enquiry → Booking → Paid">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={pipelineData} layout="vertical" margin={{ left: 8, right: 24 }}>
                       <XAxis type="number" hide />
                       <YAxis
                         type="category"
@@ -368,16 +325,43 @@ const AnalyticsPage = () => {
                         tick={{ fontSize: 12, fill: AXIS }}
                         tickLine={false}
                         axisLine={false}
-                        width={120}
+                        width={72}
                       />
                       <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "transparent" }} />
-                      <Bar dataKey="value" fill={PRIMARY} radius={[0, 6, 6, 0]} barSize={22}>
+                      <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={26}>
+                        {pipelineData.map((d, i) => (
+                          <Cell key={i} fill={d.fill} />
+                        ))}
                         <LabelList dataKey="value" position="right" fontSize={12} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                )}
-              </Panel>
+                </Panel>
+
+                <Panel title="Therapist load" hint="Bookings this week">
+                  {loadData.length === 0 ? (
+                    <Empty>No therapist bookings scheduled this week.</Empty>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={Math.max(160, loadData.length * 44)}>
+                      <BarChart data={loadData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                        <XAxis type="number" hide />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fontSize: 12, fill: AXIS }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={120}
+                        />
+                        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "transparent" }} />
+                        <Bar dataKey="value" fill={PRIMARY} radius={[0, 6, 6, 0]} barSize={22}>
+                          <LabelList dataKey="value" position="right" fontSize={12} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </Panel>
+              </div>
             </section>
           </>
         )}
