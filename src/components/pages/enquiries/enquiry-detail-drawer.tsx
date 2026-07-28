@@ -228,19 +228,26 @@ export function EnquiryDetailDrawer({
   useEffect(() => {
     setDraft(record);
 
-    // Auto-select the booking type from the customer's original ask so the fee
-    // pre-fills without a click. Local seed only — it persists on the first real
-    // save (every save sends the full draft), so opening a lead writes nothing.
-    if (record && !record.typeOfappointment) {
-      const seeded = bookingTypeFromService(record.service);
-      if (seeded) {
-        const fee = catalogueFee(seeded, services);
+    // Price the booking from its type without waiting for a click. The type is
+    // whatever the customer already chose (public form) or what their service
+    // implies — either way the fee follows it from the catalogue, so a booking
+    // that's already decided opens already priced. Local seed only — it persists
+    // on the first real save (every save sends the full draft), so opening a
+    // lead writes nothing.
+    if (record) {
+      const type =
+        record.typeOfappointment ?? bookingTypeFromService(record.service);
+      if (type) {
+        const fee = catalogueFee(type, services);
         setDraft((d) =>
           d
             ? {
                 ...d,
-                typeOfappointment: seeded,
-                ...(fee !== undefined && d.quotedPrice == null
+                typeOfappointment: type,
+                // Pre-fill the catalogue fee unless a real price is already set.
+                // A positive quotedPrice is a deliberate amount (maybe an
+                // exception) and must survive; null/0 means "not priced yet".
+                ...(fee !== undefined && (d.quotedPrice ?? 0) <= 0
                   ? { quotedPrice: fee }
                   : {}),
               }
