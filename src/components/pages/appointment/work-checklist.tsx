@@ -12,6 +12,11 @@ import {
   resolvePackageForAppointment,
 } from "@/lib/package-progress";
 import { tidyActivityText } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { whatsAppLink } from "@/lib/whatsapp";
+import { sendVisitOtp, verifyVisitOtp } from "@/actions/appointments/visit-otp";
 
 const CHECKLIST = [
   { key: "arrived", label: "Arrived" },
@@ -32,9 +37,13 @@ export function WorkChecklist({
   const { mutate: update } = useUpdateAppointment({ silent: true });
   const { mutate: markSessionComplete, isPending: isCompleting } = useCompleteSession();
   const [draft, setDraft] = useState<slotBookingZodType>(appointment);
+  const [otp, setOtp] = useState("");
+  const [verified, setVerified] = useState(!!appointment.visitOtpVerified);
 
   useEffect(() => {
     setDraft(appointment);
+    setVerified(!!appointment.visitOtpVerified);
+    setOtp("");
   }, [appointment._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const done = new Set(draft.workChecklist ?? []);
@@ -63,6 +72,8 @@ export function WorkChecklist({
       markSessionComplete(appointment._id, {
         onSuccess: (result) => {
           if (result.data) setDraft(result.data as slotBookingZodType);
+          // Backend consumed the verification — the next visit needs a fresh OTP.
+          setVerified(false);
         },
       });
       return;
@@ -124,6 +135,71 @@ export function WorkChecklist({
           visits to record.
         </div>
       )}
+      {/* Visit verification — the OTP proves the therapist reached the customer.
+          Required before the session can be completed / checked out. */}
+      <div className="space-y-2 rounded-md border p-3">
+        <p className="text-sm font-medium">Visit verification</p>
+        {verified ? (
+          <p className="text-xs text-emerald-700 dark:text-emerald-400">
+            Verified — you can complete the session.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Send the code, then enter what the customer reads back. Required
+              before checkout.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (!appointment._id) return;
+                const r = await sendVisitOtp(appointment._id);
+                if (!r.success || !r.code) {
+                  toast.error(r.message ?? "Could not create a code");
+                  return;
+                }
+                const link = whatsAppLink(
+                  appointment.phonenumber,
+                  `Your MDW visit code is ${r.code}`,
+                );
+                if (link) window.open(link, "_blank");
+                else toast.error("Customer number can't be messaged on WhatsApp");
+              }}
+            >
+              Send OTP to customer
+            </Button>
+            <div className="flex items-center gap-2">
+              <Input
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="Code from customer"
+                className="h-9"
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={!otp.trim()}
+                onClick={async () => {
+                  if (!appointment._id) return;
+                  const r = await verifyVisitOtp(appointment._id, otp.trim());
+                  if (r.success) {
+                    setVerified(true);
+                    setOtp("");
+                    toast.success("Visit verified");
+                  } else {
+                    toast.error(r.message ?? "Incorrect code");
+                  }
+                }}
+              >
+                Verify
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="space-y-2">
         {CHECKLIST.map((item) => {
           const lockCompleted = item.key === "completed" && packageDone;
@@ -138,7 +214,8 @@ export function WorkChecklist({
                 type="checkbox"
                 checked={done.has(item.key)}
                 disabled={
-                  item.key === "completed" && (isCompleting || packageDone)
+                  item.key === "completed" &&
+                  (isCompleting || packageDone || !verified)
                 }
                 onChange={(e) => toggle(item.key, item.label, e.target.checked)}
               />
