@@ -172,6 +172,19 @@ export const enquirySchema = z.object({
   paymentReceivedAt: z.string().datetime().optional(),
   // Per-visit OTP verification state (server-managed; UI gates checkout on it).
   visitOtpVerified: z.boolean().optional(),
+  // Ad-hoc multi-session tracking + per-session report log.
+  totalSessions: z.number().optional(),
+  sessionNotes: z
+    .array(
+      z.object({
+        session: z.number(),
+        at: z.string(),
+        note: z.string().optional(),
+        therapist: z.string().optional(),
+        by: z.string().optional(),
+      }),
+    )
+    .optional(),
 
   // ── Checkpoint: completion ──
   // Manual; gated behind paymentReceived. Sets status "completed".

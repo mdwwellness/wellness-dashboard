@@ -173,6 +173,11 @@ export default function AppointmentBookingForm() {
     values: z.infer<typeof slotBookingZodSchema>,
   ): z.infer<typeof slotBookingZodSchema> {
     const payload = { ...values };
+    // Stable total for per-session tracking (the completion flow repurposes
+    // sessionNumber as a moving pointer, so snapshot the count here).
+    if (values.sessionNumber && values.sessionNumber > 0) {
+      payload.totalSessions = values.sessionNumber;
+    }
     if (attachServices) {
       const now = new Date().toISOString();
       payload.recommendedServices = stacked
@@ -223,6 +228,7 @@ export default function AppointmentBookingForm() {
       status: "enquiry",
       paymentReceived: false,
       paymentAmount: amount,
+      totalSessions: v.sessionNumber,
     });
     if (!saved.success || !saved.data?._id) {
       setRequesting(false);

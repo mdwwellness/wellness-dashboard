@@ -53,19 +53,27 @@ export function getPackageProgressForAppointment(
   services: ServiceType[],
 ): PackageProgress | null {
   const pkg = resolvePackageForAppointment(appointment, services);
-  if (!pkg?.packageCount) return null;
+  // A catalogue package's count, else an ad-hoc booking's stable totalSessions.
+  const total =
+    pkg?.packageCount ??
+    (appointment.totalSessions && appointment.totalSessions > 1
+      ? appointment.totalSessions
+      : 0);
+  if (!total || total <= 1) return null;
 
-  const total = pkg.packageCount;
   const completed = appointment.sessionsCompleted ?? 0;
-  const currentSession =
-    appointment.sessionNumber ??
-    Math.min(completed + (appointment.status !== "completed" ? 1 : 0), total);
+  // Derive the current session from the counter, not sessionNumber (which the
+  // completion flow repurposes as a moving pointer).
+  const currentSession = Math.min(
+    completed + (appointment.status !== "completed" ? 1 : 0),
+    total,
+  );
   const inProgress =
     appointment.status !== "cancelled" && completed < total;
 
   return {
-    packageName: pkg.name,
-    packageServiceId: pkg.serviceId,
+    packageName: pkg?.name ?? `${total}-session booking`,
+    packageServiceId: pkg?.serviceId ?? "",
     total,
     completed,
     currentSession,

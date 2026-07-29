@@ -7,10 +7,7 @@ import { useCompleteSession, useUpdateAppointment } from "@/data/appointment/app
 import { useGetServices } from "@/data/service/service";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
-import {
-  getPackageProgressForAppointment,
-  resolvePackageForAppointment,
-} from "@/lib/package-progress";
+import { getPackageProgressForAppointment } from "@/lib/package-progress";
 import { tidyActivityText } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,17 +51,17 @@ export function WorkChecklist({
     [draft],
     services,
   );
-  const hasPackage = !!resolvePackageForAppointment(draft, services);
+  // Multi-session = a catalogue package OR an ad-hoc N-session (modal) booking.
+  const isMulti = !!progress;
   // Package is fully delivered — no more sessions may be completed.
-  const packageDone =
-    hasPackage && !!progress && progress.completed >= progress.total;
+  const packageDone = !!progress && progress.completed >= progress.total;
 
   function toggle(key: string, label: string, checked: boolean) {
     // Package session completion goes through the atomic complete-session
     // endpoint (server-side $inc), not a client-computed PUT — this is the
     // only path that can be double-fired by a rapid double-click or two open
     // tabs, so it must not rely on a client-read-then-write value.
-    if (key === "completed" && checked && hasPackage && appointment._id) {
+    if (key === "completed" && checked && isMulti && appointment._id) {
       // Ceiling: once all sessions are done, there is nothing left to complete.
       // (The backend also rejects this, but we block it in the UI so the box
       // can't even be ticked.)
@@ -101,7 +98,7 @@ export function WorkChecklist({
       patch.status = "completed";
       patch.completedAt = new Date().toISOString();
     } else if (key === "completed" && !checked) {
-      if (hasPackage) {
+      if (isMulti) {
         const sessionsDone = Math.max((draft.sessionsCompleted ?? 0) - 1, 0);
         patch.sessionsCompleted = sessionsDone;
         patch.sessionNumber = Math.max(sessionsDone + 1, 1);
@@ -135,6 +132,53 @@ export function WorkChecklist({
           visits to record.
         </div>
       )}
+      {/* Sessions report — every completed visit's note in one place, plus the
+          one in progress. Only shown for multi-session bookings. */}
+      {progress && (
+        <div className="space-y-2 rounded-md border p-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">Sessions</h4>
+            <span className="text-xs text-muted-foreground">{progress.label}</span>
+          </div>
+          {(draft.sessionNotes ?? []).length > 0 ? (
+            <ol className="space-y-2">
+              {(draft.sessionNotes ?? []).map((s, i) => (
+                <li
+                  key={i}
+                  className="rounded border-l-2 border-emerald-500 bg-muted/30 py-1.5 pl-3"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium">Session {s.session}</span>
+                    <span className="text-muted-foreground">
+                      {s.at ? format(new Date(s.at), "yyyy-MM-dd HH:mm") : ""}
+                      {s.therapist ? ` · ${s.therapist}` : ""}
+                    </span>
+                  </div>
+                  {s.note ? (
+                    <p className="mt-0.5 text-sm">{s.note}</p>
+                  ) : (
+                    <p className="mt-0.5 text-xs italic text-muted-foreground">
+                      No note recorded
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No sessions completed yet.
+            </p>
+          )}
+          {!progress.packageDone && (
+            <p className="text-xs text-muted-foreground">
+              In progress: session {progress.currentSession} of {progress.total}.
+              Write this visit&apos;s note above, verify the OTP, then tick
+              &ldquo;completed&rdquo;.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Visit verification — the OTP proves the therapist reached the customer.
           Required before the session can be completed / checked out. */}
       <div className="space-y-2 rounded-md border p-3">
