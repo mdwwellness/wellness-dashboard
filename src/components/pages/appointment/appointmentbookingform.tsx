@@ -141,11 +141,12 @@ export default function AppointmentBookingForm() {
   const servicesTotal = stackedPriced.reduce((sum, r) => sum + r.price, 0);
   const grandTotal = (quotedPrice ?? 0) + servicesTotal;
 
-  // Human label for the payment memos.
+  // Human label for the payment memos — includes the session count so the amount
+  // reads clearly (e.g. "Home Visit × 6 sessions — ₹3,600").
   const itemLabel =
-    form.watch("typeOfappointment") === "consultation"
+    (form.watch("typeOfappointment") === "consultation"
       ? "Online Consultation"
-      : "Home Visit";
+      : "Home Visit") + (sessions && sessions > 1 ? ` × ${sessions} sessions` : "");
 
   // Auto-fill the session price from the GLOBAL rate table × session count.
   function recomputePrice(nextSessions: number | undefined) {
