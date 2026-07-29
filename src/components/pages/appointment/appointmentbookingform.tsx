@@ -30,12 +30,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { slotBookingZodSchema, TherapistformType } from "@/type/schema";
+import { slotBookingZodSchema } from "@/type/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useBookAppointment, useGetAllAppointments } from "@/data/appointment/appointment";
-import { useGetAllTherapist } from "@/data/therapist/therapist";
+import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
 import { useGetServices } from "@/data/service/service";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { CustomerSearchField } from "@/components/pages/invoices/customer-search-field";
@@ -49,7 +49,6 @@ import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
 
-type GenderType = "All" | "Male" | "Female";
 type StackedService = { serviceId: string; discount: boolean };
 
 /** Assignable visit lengths, in minutes — same options and default as the
@@ -59,7 +58,6 @@ const DURATION_OPTIONS = [30, 60, 90, 120];
 export default function AppointmentBookingForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [selectedGender, setSelectedGender] = useState<GenderType>("All");
   // Session-only by default; flip on to attach (stack) services.
   const [attachServices, setAttachServices] = useState(false);
   const [stacked, setStacked] = useState<StackedService[]>([]);
@@ -74,7 +72,6 @@ export default function AppointmentBookingForm() {
   } | null>(null);
 
   const mutation = useBookAppointment();
-  const { data: doctorsData, isLoading, isError, refetch } = useGetAllTherapist();
   const { data: services = [], isLoading: servicesLoading } = useGetServices();
   const { data: rateCard } = useGetSessionRates();
 
@@ -125,33 +122,6 @@ export default function AppointmentBookingForm() {
   const tiers = rateCard?.tiers ?? [];
   const noTier = (sessions ?? 0) > 0 && sessionRate(tiers, sessions ?? 0) === 0;
 
-  // Therapist load: active (non-cancelled) bookings per therapist on the picked date.
-  const bookingsByDoctor = useMemo(() => {
-    const map = new Map<string, number>();
-    if (!selectedDate) return map;
-    for (const a of appointments) {
-      if (a.status === "cancelled" || !a.doctorId) continue;
-      if (a.slot?.date !== selectedDate) continue;
-      map.set(a.doctorId, (map.get(a.doctorId) ?? 0) + 1);
-    }
-    return map;
-  }, [appointments, selectedDate]);
-
-  // Filter by gender, annotate with day load, sort most-available first.
-  const doctorsSorted = useMemo(() => {
-    const base = ((doctorsData ?? []) as TherapistformType[]).filter(
-      (d) =>
-        selectedGender === "All" ||
-        d.gender?.toLowerCase() === selectedGender.toLowerCase(),
-    );
-    return base
-      .map((doctor) => ({
-        doctor,
-        count: bookingsByDoctor.get(doctor.doctorId ?? "") ?? 0,
-      }))
-      .sort((a, b) => a.count - b.count);
-  }, [doctorsData, selectedGender, bookingsByDoctor]);
-
   // Priced stacked services + running totals for the breakdown.
   const stackedPriced = stacked.map((row) => {
     const svc = services.find((s) => s.serviceId === row.serviceId);
@@ -159,12 +129,6 @@ export default function AppointmentBookingForm() {
   });
   const servicesTotal = stackedPriced.reduce((sum, r) => sum + r.price, 0);
   const grandTotal = (quotedPrice ?? 0) + servicesTotal;
-
-  function handleGenderChange(gender: GenderType) {
-    setSelectedGender(gender);
-    form.setValue("doctor", "");
-    form.setValue("doctorId", "");
-  }
 
   // Auto-fill the session price from the GLOBAL rate table × session count.
   function recomputePrice(nextSessions: number | undefined) {
@@ -224,7 +188,6 @@ export default function AppointmentBookingForm() {
       onSuccess: () => {
         setIsDialogOpen(false);
         form.reset();
-        setSelectedGender("All");
         setAttachServices(false);
         setStacked([]);
         setDurationMin(60);
@@ -268,7 +231,6 @@ export default function AppointmentBookingForm() {
     setIsDialogOpen(open);
     if (!open) {
       form.reset();
-      setSelectedGender("All");
       setAttachServices(false);
       setStacked([]);
       setDurationMin(60);
@@ -300,47 +262,27 @@ export default function AppointmentBookingForm() {
             className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mt-5"
           >
             <div className="w-full space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {/* gender filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Therapist Gender</label>
-                  <Select
-                    value={selectedGender}
-                    onValueChange={(v: GenderType) => handleGenderChange(v)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="All">All Genders</SelectItem>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="typeOfappointment"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Type of appointment</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Appointment Type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="appointment">Appointment</SelectItem>
-                          <SelectItem value="consultation">Consultation</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="typeOfappointment"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type of appointment</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Appointment Type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="appointment">Appointment</SelectItem>
+                        <SelectItem value="consultation">Consultation</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* date first — drives the therapist load */}
               <FormField
@@ -379,118 +321,32 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              {/* therapist — shows each one's load on the picked date, freest first */}
-              <FormField
-                control={form.control}
-                name="doctor"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Therapist</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={(selectedName) => {
-                        const selected = doctorsSorted.find(
-                          ({ doctor }) => doctor.name === selectedName,
-                        )?.doctor;
-                        form.setValue("doctor", selected?.name ?? "");
-                        form.setValue("doctorId", selected?.doctorId ?? "");
-                        field.onChange(selected?.name ?? "");
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Therapist" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {isLoading ? (
-                          <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Loading therapists...
-                          </div>
-                        ) : isError ? (
-                          <div className="flex flex-col gap-2 p-3">
-                            <p className="text-sm text-destructive">Failed to load therapists</p>
-                            <button
-                              type="button"
-                              onClick={() => refetch()}
-                              className="text-xs text-muted-foreground underline text-left"
-                            >
-                              Try again
-                            </button>
-                          </div>
-                        ) : doctorsSorted.length > 0 ? (
-                          doctorsSorted.map(({ doctor, count }) => (
-                            <SelectItem key={doctor.doctorId} value={doctor.name}>
-                              {doctor.name}
-                              {selectedDate ? (
-                                <span className="text-muted-foreground">
-                                  {" "}
-                                  · {count} booked
-                                </span>
-                              ) : null}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <div className="p-3 text-sm text-muted-foreground">
-                            No therapists found
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* time */}
-              <FormField
-                control={form.control}
-                name="slot.time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Select Time</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Time" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {["9:30", "10:30", "11:30", "12:30", "13:30", "14:30",
-                          "15:30", "16:30", "17:30", "18:30", "19:30", "20:30"].map((t) => (
-                          <SelectItem key={t} value={t}>{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Visit length — drives the therapy span (therapyStartTime/
-                  therapyEndTime) and the conflict check on submit. Same
-                  control as the enquiry-side availability grid. */}
+              {/* Therapist & time — the shared availability grid (rows =
+                  therapists, columns = slots; includes the duration control and
+                  specialization search). Locked until payment is marked, so a
+                  therapist is never picked before the money is clear. */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Duration</label>
-                <div className="flex items-center gap-1.5 text-xs">
-                  {DURATION_OPTIONS.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setDurationMin(d)}
-                      aria-pressed={durationMin === d}
-                      className={cn(
-                        "rounded border px-2 py-1",
-                        durationMin === d
-                          ? "border-primary bg-primary/10"
-                          : "hover:bg-muted/50",
-                      )}
-                    >
-                      {d}m
-                    </button>
-                  ))}
-                </div>
+                <label className="text-sm font-medium">Therapist &amp; time</label>
+                {form.watch("paymentReceived") ? (
+                  <TherapistAvailabilityGrid
+                    date={selectedDate}
+                    selectedDoctorId={doctorId}
+                    selectedStart={form.watch("slot.time")}
+                    durationMin={durationMin}
+                    onDurationChange={setDurationMin}
+                    onPick={({ doctorId, doctor, startTime }) => {
+                      form.setValue("doctor", doctor);
+                      form.setValue("doctorId", doctorId);
+                      form.setValue("slot.time", startTime, {
+                        shouldValidate: true,
+                      });
+                    }}
+                  />
+                ) : (
+                  <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                    Mark the payment received (right) to choose a therapist and slot.
+                  </p>
+                )}
               </div>
 
               <FormField
@@ -622,6 +478,73 @@ export default function AppointmentBookingForm() {
                   </FormItem>
                 )}
               />
+
+              {/* Payment — the gate for the therapist grid (same rule as the
+                  Enquiry funnel; the server backs it via createBooking). */}
+              <div className="rounded-md border p-3 space-y-3">
+                <p className="text-sm font-medium">Payment</p>
+                <p className="text-xs text-muted-foreground">
+                  Payment must be clear before a therapist is assigned.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Amount (₹)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={form.watch("paymentAmount") ?? grandTotal ?? ""}
+                      onChange={(e) =>
+                        form.setValue(
+                          "paymentAmount",
+                          e.target.value === "" ? undefined : Number(e.target.value),
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Method</label>
+                    <Select
+                      value={form.watch("paymentMethod") ?? ""}
+                      onValueChange={(v) =>
+                        form.setValue(
+                          "paymentMethod",
+                          v as z.infer<typeof slotBookingZodSchema>["paymentMethod"],
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="upi">UPI</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="bank">Bank</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.watch("paymentReceived") ?? false}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      form.setValue("paymentReceived", on);
+                      form.setValue(
+                        "paymentReceivedAt",
+                        on ? new Date().toISOString() : undefined,
+                      );
+                      if (on && form.watch("paymentAmount") == null) {
+                        form.setValue("paymentAmount", grandTotal);
+                      }
+                    }}
+                  />
+                  Payment received
+                </label>
+              </div>
 
               {/* Session-only by default; attach + stack services on top */}
               <div className="rounded-md border p-3 space-y-2">
