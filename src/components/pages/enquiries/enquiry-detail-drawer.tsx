@@ -69,6 +69,10 @@ import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { BRAND, publicOrigin } from "@/lib/brand";
 import { toWhatsAppNumber, whatsAppLink } from "@/lib/whatsapp";
+import {
+  paymentRequestMessage,
+  paymentConfirmedMessage,
+} from "@/lib/payment-messages";
 import type { ActivityEntry, EnquiryType } from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { EnquiryProgressStepper } from "./enquiry-progress-stepper";
@@ -640,14 +644,14 @@ export function EnquiryDetailDrawer({
     }
 
     const url = `${publicOrigin()}/pay/${result.data.payToken}`;
-    const item = bookingTypeLabel(draft.typeOfappointment);
-    const msg =
-      `Hi ${draft.name ?? ""} — this is ${BRAND.name}, following up on our call.\n\n` +
-      `Booking ${draft.enquiryId ?? ""}\n` +
-      `${item} — ${formatINR(amount)}\n\n` +
-      `View the details and pay here:\n${url}\n\n` +
-      `We'll confirm your therapist and visit time once the payment clears. ` +
-      `Any questions, just reply here.`;
+    const item = bookingTypeLabel(draft.typeOfappointment) ?? "Consultation";
+    const msg = paymentRequestMessage({
+      name: draft.name,
+      bookingId: draft.enquiryId,
+      item,
+      amount,
+      payUrl: url,
+    });
 
     const wa = whatsAppLink(draft.phonenumber, msg);
     if (!wa) {
@@ -671,20 +675,21 @@ export function EnquiryDetailDrawer({
   function sendPaymentConfirmationWa() {
     if (!draft?.paymentReceived || !draft?.paymentReceivedAt) return;
 
-    const amt = draft.paymentAmount ? ` ${formatINR(draft.paymentAmount)}` : "";
-    const method = draft.paymentMethod ? ` (${draft.paymentMethod})` : "";
-
     // Only mention the visit once a therapist has actually been assigned.
     const visitLabel =
       draft.slot?.date && draft.slot?.time
-        ? `\n${bookingTypeLabel(draft.typeOfappointment) ?? "Visit"}: ${toDayKey(
+        ? `${bookingTypeLabel(draft.typeOfappointment) ?? "Visit"}: ${toDayKey(
             draft.slot.date,
           )} ${draft.slot.time}${draft.doctor ? ` with ${draft.doctor}` : ""}`
         : "";
 
-    const msg = `Hi ${draft.name ?? ""},\n\nPayment received${amt}${method}.\nReceived on: ${new Date(
-      draft.paymentReceivedAt,
-    ).toLocaleString()}${visitLabel}\n\nThanks!`;
+    const msg = paymentConfirmedMessage({
+      name: draft.name,
+      amount: draft.paymentAmount,
+      method: draft.paymentMethod,
+      receivedAt: draft.paymentReceivedAt,
+      visitLabel,
+    });
 
     const wa = whatsAppLink(draft.phonenumber, msg);
     if (!wa) {

@@ -48,6 +48,15 @@ import {
 import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
+import { useQueryClient } from "@tanstack/react-query";
+import addAppointments from "@/actions/appointments/book-appointment";
+import createPaymentLink from "@/actions/appointments/create-payment-link";
+import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
+import { publicOrigin } from "@/lib/brand";
+import {
+  paymentRequestMessage,
+  paymentConfirmedMessage,
+} from "@/lib/payment-messages";
 
 type StackedService = { serviceId: string; discount: boolean };
 
@@ -72,6 +81,8 @@ export default function AppointmentBookingForm() {
   } | null>(null);
 
   const mutation = useBookAppointment();
+  const queryClient = useQueryClient();
+  const [requesting, setRequesting] = useState(false);
   const { data: services = [], isLoading: servicesLoading } = useGetServices();
   const { data: rateCard } = useGetSessionRates();
 
@@ -130,6 +141,12 @@ export default function AppointmentBookingForm() {
   const servicesTotal = stackedPriced.reduce((sum, r) => sum + r.price, 0);
   const grandTotal = (quotedPrice ?? 0) + servicesTotal;
 
+  // Human label for the payment memos.
+  const itemLabel =
+    form.watch("typeOfappointment") === "consultation"
+      ? "Online Consultation"
+      : "Home Visit";
+
   // Auto-fill the session price from the GLOBAL rate table × session count.
   function recomputePrice(nextSessions: number | undefined) {
     const total = sessionTotal(tiers, nextSessions ?? 0);
@@ -181,6 +198,83 @@ export default function AppointmentBookingForm() {
       )}:${String(endMin % 60).padStart(2, "0")}`;
     }
     return payload;
+  }
+
+  // Remote pay: save the booking as a pending enquiry (unpaid, no therapist) so a
+  // pay-link can be minted, then WhatsApp it — reusing the enquiry funnel's exact
+  // link + message. The exec finishes it on Enquiries once the customer pays.
+  async function requestPaymentWa() {
+    const v = form.getValues();
+    const amount = v.paymentAmount ?? v.quotedPrice ?? grandTotal;
+    if (!v.name || !amount) {
+      toast.error("Enter the customer name and amount first");
+      return;
+    }
+    if (!toWhatsAppNumber(v.phonenumber)) {
+      toast.error("Enter a valid phone number first");
+      return;
+    }
+    setRequesting(true);
+    const saved = await addAppointments({
+      ...v,
+      doctorId: "",
+      doctor: "",
+      status: "enquiry",
+      paymentReceived: false,
+      paymentAmount: amount,
+    });
+    if (!saved.success || !saved.data?._id) {
+      setRequesting(false);
+      toast.error(saved.message ?? "Couldn't save the booking");
+      return;
+    }
+    const link = await createPaymentLink(saved.data._id);
+    setRequesting(false);
+    if (!link.success || !link.data?.payToken) {
+      toast.error(link.message ?? "Couldn't create the payment link");
+      return;
+    }
+    const wa = whatsAppLink(
+      v.phonenumber,
+      paymentRequestMessage({
+        name: v.name,
+        bookingId: saved.data.enquiryId,
+        item: itemLabel,
+        amount,
+        payUrl: `${publicOrigin()}/pay/${link.data.payToken}`,
+      }),
+    );
+    if (wa) window.open(wa, "_blank", "noopener,noreferrer");
+    for (const key of ["appointments", "enquiries", "customers"]) {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    }
+    toast.success("Payment request sent — finish it on Enquiries once paid.");
+    handleDialogChange(false);
+  }
+
+  // Pay-now receipt: WhatsApp the customer that payment landed. Plain text (no
+  // link), so it needs no saved record.
+  function sendPaymentConfirmedWa() {
+    const v = form.getValues();
+    const visitLabel =
+      v.doctor && v.slot?.time
+        ? `${itemLabel}: ${v.slot?.date ?? ""} ${v.slot.time} with ${v.doctor}`
+        : "";
+    const wa = whatsAppLink(
+      v.phonenumber,
+      paymentConfirmedMessage({
+        name: v.name,
+        amount: v.paymentAmount ?? v.quotedPrice,
+        method: v.paymentMethod,
+        receivedAt: v.paymentReceivedAt ?? new Date().toISOString(),
+        visitLabel,
+      }),
+    );
+    if (!wa) {
+      toast.error("Enter a valid phone number first");
+      return;
+    }
+    window.open(wa, "_blank", "noopener,noreferrer");
   }
 
   function submitBooking(payload: z.infer<typeof slotBookingZodSchema>) {
@@ -250,7 +344,7 @@ export default function AppointmentBookingForm() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-6xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Book an Appointment</DialogTitle>
           <p className="text-sm text-muted-foreground">Pick a date, then a therapist — the list shows who&apos;s free that day.</p>
@@ -544,6 +638,30 @@ export default function AppointmentBookingForm() {
                   />
                   Payment received
                 </label>
+                {/* Before payment: ask for it (mirrors the enquiry drawer).
+                    After: send the receipt. Only ever one. */}
+                {form.watch("paymentReceived") ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={sendPaymentConfirmedWa}
+                  >
+                    Send payment confirmed
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    disabled={requesting}
+                    onClick={requestPaymentWa}
+                  >
+                    {requesting ? "Sending…" : "Request payment on WhatsApp"}
+                  </Button>
+                )}
               </div>
 
               {/* Session-only by default; attach + stack services on top */}
