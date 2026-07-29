@@ -110,7 +110,7 @@ export function PackageVisitSection({
   }
 
   return (
-    <section className="rounded-lg border border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 p-4 space-y-3">
+    <section className="rounded-lg border border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 p-3 space-y-2.5">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
@@ -134,17 +134,48 @@ export function PackageVisitSection({
         />
       </div>
 
-      {/* Per-session breakdown — what's performed vs what's left, in points. */}
-      <div className="space-y-1 rounded-md border bg-background/60 p-2.5">
+      {/* Per-session breakdown — performed vs left; each performed session's
+          note expands in place (click the row). One report, in one spot. */}
+      <div className="space-y-1 rounded-md border bg-background/60 p-2">
         <p className="text-xs font-medium">
           Sessions ({progress.completed} performed ·{" "}
           {Math.max(progress.total - progress.completed, 0)} left)
         </p>
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {Array.from({ length: progress.total }, (_, i) => {
             const n = i + 1;
             const performed = n <= progress.completed;
-            const date = sessionDates.get(n);
+            const rec = (appointment.sessionNotes ?? []).find(
+              (s) => s.session === n,
+            );
+            const date = rec?.at ?? sessionDates.get(n);
+            const dateStr = date
+              ? ` · ${format(new Date(date), "yyyy-MM-dd")}`
+              : "";
+            if (performed && rec?.note) {
+              return (
+                <li key={n} className="text-xs">
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center gap-2">
+                      <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        Session {n} — performed{dateStr}
+                        {rec.therapist ? ` · ${rec.therapist}` : ""}
+                      </span>
+                      <span className="ml-auto text-[11px] text-muted-foreground group-open:hidden">
+                        note ▾
+                      </span>
+                      <span className="ml-auto hidden text-[11px] text-muted-foreground group-open:inline">
+                        hide ▴
+                      </span>
+                    </summary>
+                    <p className="mt-1 ml-5 whitespace-pre-wrap rounded bg-muted/50 p-2">
+                      {rec.note}
+                    </p>
+                  </details>
+                </li>
+              );
+            }
             return (
               <li key={n} className="flex items-center gap-2 text-xs">
                 {performed ? (
@@ -154,9 +185,7 @@ export function PackageVisitSection({
                 )}
                 <span className={performed ? "" : "text-muted-foreground"}>
                   Session {n} — {performed ? "performed" : "pending"}
-                  {performed && date
-                    ? ` · ${format(new Date(date), "yyyy-MM-dd")}`
-                    : ""}
+                  {performed ? dateStr : ""}
                 </span>
               </li>
             );
@@ -208,10 +237,10 @@ export function PackageVisitSection({
       />
 
       {needsNextSlot && (
-        <div className="rounded-md border bg-background p-3 space-y-2">
+        <div className="rounded-md border bg-background p-2.5 space-y-2">
           <p className="text-xs font-medium flex items-center gap-1">
             <CalendarPlus className="h-3.5 w-3.5" />
-            Schedule session {progress.currentSession} (same row)
+            Schedule next visit (optional)
           </p>
           <div className="grid grid-cols-2 gap-2">
             <Input
@@ -340,7 +369,7 @@ export function AddonsVisitSection({
   }
 
   return (
-    <section className="rounded-lg border bg-muted/30 p-4 space-y-3">
+    <section className="rounded-lg border bg-muted/30 p-3 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <Stethoscope className="h-4 w-4" />

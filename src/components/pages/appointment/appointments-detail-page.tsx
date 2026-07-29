@@ -15,6 +15,7 @@ import { WorkChecklist } from "./work-checklist";
 import { VisitSections } from "./visit-sections";
 import { RecordIds } from "./record-ids";
 import { useGetServices } from "@/data/service/service";
+import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { resolvePackageForAppointment } from "@/lib/package-progress";
 
 type AppointmentDetailDrawerProps = {
@@ -31,6 +32,7 @@ const AppointmentDetailDrawer = ({
   onOpenChange,
 }: AppointmentDetailDrawerProps) => {
   const { data: services = [] } = useGetServices();
+  const { data: therapists = [] } = useGetAllTherapist();
 
   const live = useMemo(() => {
     if (!data?._id) return data;
@@ -55,7 +57,16 @@ const AppointmentDetailDrawer = ({
         </SheetHeader>
         {live ? (
           <div className="px-4 pb-6 space-y-4">
-            <RecordIds appointment={live} />
+            <RecordIds
+              appointment={live}
+              therapistPhone={
+                live.doctorId
+                  ? (
+                      therapists as { doctorId?: string; phonenumber?: string }[]
+                    ).find((t) => t.doctorId === live.doctorId)?.phonenumber
+                  : undefined
+              }
+            />
             <VisitSections
               appointment={live}
               allAppointments={allAppointments}

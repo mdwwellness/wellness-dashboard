@@ -132,53 +132,6 @@ export function WorkChecklist({
           visits to record.
         </div>
       )}
-      {/* Sessions report — every completed visit's note in one place, plus the
-          one in progress. Only shown for multi-session bookings. */}
-      {progress && (
-        <div className="space-y-2 rounded-md border p-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">Sessions</h4>
-            <span className="text-xs text-muted-foreground">{progress.label}</span>
-          </div>
-          {(draft.sessionNotes ?? []).length > 0 ? (
-            <ol className="space-y-2">
-              {(draft.sessionNotes ?? []).map((s, i) => (
-                <li
-                  key={i}
-                  className="rounded border-l-2 border-emerald-500 bg-muted/30 py-1.5 pl-3"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium">Session {s.session}</span>
-                    <span className="text-muted-foreground">
-                      {s.at ? format(new Date(s.at), "yyyy-MM-dd HH:mm") : ""}
-                      {s.therapist ? ` · ${s.therapist}` : ""}
-                    </span>
-                  </div>
-                  {s.note ? (
-                    <p className="mt-0.5 text-sm">{s.note}</p>
-                  ) : (
-                    <p className="mt-0.5 text-xs italic text-muted-foreground">
-                      No note recorded
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              No sessions completed yet.
-            </p>
-          )}
-          {!progress.packageDone && (
-            <p className="text-xs text-muted-foreground">
-              In progress: session {progress.currentSession} of {progress.total}.
-              Write this visit&apos;s note above, verify the OTP, then tick
-              &ldquo;completed&rdquo;.
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Visit verification — the OTP proves the therapist reached the customer.
           Required before the session can be completed / checked out. */}
       <div className="space-y-2 rounded-md border p-3">
