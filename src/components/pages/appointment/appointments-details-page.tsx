@@ -54,6 +54,9 @@ export default function AppointmentDetailsPage({
   // all preserved; only the status flips to "cancelled".
   const { mutate: cancelMutate, isPending: isCancelling } =
     useUpdateAppointment({ silent: true });
+  // Persist the clinical note on blur so it can't be lost by completing the
+  // session (further down the drawer) without first hitting "Save changes".
+  const { mutate: saveNote } = useUpdateAppointment({ silent: true });
 
   // Customer identity is set during the enquiry funnel and rarely edited during
   // a visit — keep it tucked away so the drawer stays visit-focused.
@@ -157,6 +160,10 @@ export default function AppointmentDetailsPage({
                     rows={4}
                     placeholder="Findings, diagnosis, observations…"
                     {...field}
+                    onBlur={() => {
+                      field.onBlur();
+                      saveNote(form.getValues());
+                    }}
                   />
                 </FormControl>
                 <p className="text-[11px] text-muted-foreground">
