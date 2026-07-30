@@ -57,6 +57,14 @@ export function WorkChecklist({
   const packageDone = !!progress && progress.completed >= progress.total;
 
   function toggle(key: string, label: string, checked: boolean) {
+    // The visit OTP must be verified before a session can be completed. Blocked
+    // here (with feedback) rather than via a disabled box, so the user learns why.
+    if (key === "completed" && checked && !verified) {
+      toast.error(
+        "Verify the visit OTP first — send the code and enter what the customer reads back.",
+      );
+      return;
+    }
     // Package session completion goes through the atomic complete-session
     // endpoint (server-side $inc), not a client-computed PUT — this is the
     // only path that can be double-fired by a rapid double-click or two open
@@ -211,8 +219,7 @@ export function WorkChecklist({
                 type="checkbox"
                 checked={done.has(item.key)}
                 disabled={
-                  item.key === "completed" &&
-                  (isCompleting || packageDone || !verified)
+                  item.key === "completed" && (isCompleting || packageDone)
                 }
                 onChange={(e) => toggle(item.key, item.label, e.target.checked)}
               />
