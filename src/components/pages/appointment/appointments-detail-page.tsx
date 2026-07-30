@@ -16,7 +16,7 @@ import { VisitSections } from "./visit-sections";
 import { RecordIds } from "./record-ids";
 import { useGetServices } from "@/data/service/service";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
-import { resolvePackageForAppointment } from "@/lib/package-progress";
+import { getPackageProgressForAppointment } from "@/lib/package-progress";
 
 type AppointmentDetailDrawerProps = {
   data: slotBookingZodType | null;
@@ -41,9 +41,13 @@ const AppointmentDetailDrawer = ({
     );
   }, [data, allAppointments]);
 
-  const hasPackage = live
-    ? !!resolvePackageForAppointment(live, services)
-    : false;
+  // Multi-session (catalogue package OR ad-hoc N-session) — the package block
+  // owns the visit date/time and shows the session number, so the details form
+  // hides its own date/time and labels the note with the current session.
+  const progress = live
+    ? getPackageProgressForAppointment(live, allAppointments, services)
+    : null;
+  const isMulti = !!progress;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -75,7 +79,12 @@ const AppointmentDetailDrawer = ({
             <AppointmentDetailsPage
               data={live}
               onClose={() => onOpenChange(false)}
-              compact={hasPackage}
+              compact={isMulti}
+              sessionLabel={
+                progress
+                  ? `Session ${progress.currentSession} of ${progress.total}`
+                  : undefined
+              }
             />
             <WorkChecklist appointment={live} />
           </div>

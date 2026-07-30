@@ -28,6 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useUpdateAppointment } from "@/data/appointment/appointment";
+import { useAuthStore } from "@/providers/permission-provider";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -36,12 +37,15 @@ interface AppointmentDetailsPageProps {
   onClose: () => void;
   /** Hides the visit date/time when the package block above already manages it. */
   compact?: boolean;
+  /** e.g. "Session 2 of 4" — labels the clinical note with the current session. */
+  sessionLabel?: string;
 }
 
 export default function AppointmentDetailsPage({
   data,
   onClose,
   compact = false,
+  sessionLabel,
 }: AppointmentDetailsPageProps) {
   const { mutate: updateMutate, isPending: isUpdating } =
     useUpdateAppointment();
@@ -54,6 +58,13 @@ export default function AppointmentDetailsPage({
   // Customer identity is set during the enquiry funnel and rarely edited during
   // a visit — keep it tucked away so the drawer stays visit-focused.
   const [showCustomer, setShowCustomer] = useState(false);
+
+  // Who's recording the note — stamped onto the session on completion.
+  const { user } = useAuthStore();
+  const authorName =
+    `${user?.userfName ?? ""} ${user?.userlName ?? ""}`.trim() ||
+    user?.userEmail ||
+    "you";
 
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
     resolver: zodResolver(slotBookingZodSchema),
@@ -91,19 +102,10 @@ export default function AppointmentDetailsPage({
         {/* Visit-focused details — customer identity is collapsed below. */}
         <div className="w-full mx-auto p-6 border rounded-lg space-y-5 [&>*]:min-w-0">
           {data.doctor && (
-            <FormField
-              control={form.control}
-              name="doctor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Therapist</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Therapist" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div>
+              <p className="text-sm font-medium">Therapist</p>
+              <p className="mt-1 text-sm text-muted-foreground">{data.doctor}</p>
+            </div>
           )}
 
           {/* Visit date/time only when there's no package block managing it. */}
@@ -143,10 +145,23 @@ export default function AppointmentDetailsPage({
             name="note"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Note</FormLabel>
+                <FormLabel>
+                  Clinical note{sessionLabel ? ` — ${sessionLabel}` : ""}
+                </FormLabel>
+                <p className="text-xs text-muted-foreground">
+                  Findings, diagnosis and observations for this visit. Filed into
+                  the Sessions report when you complete the session.
+                </p>
                 <FormControl>
-                  <Textarea placeholder="Note" {...field} />
+                  <Textarea
+                    rows={4}
+                    placeholder="Findings, diagnosis, observations…"
+                    {...field}
+                  />
                 </FormControl>
+                <p className="text-[11px] text-muted-foreground">
+                  Writing as {authorName}
+                </p>
                 <FormMessage />
               </FormItem>
             )}

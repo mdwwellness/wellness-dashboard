@@ -226,8 +226,8 @@ export function PackageVisitSection({
 
       {appointment.slot?.date && (
         <p className="text-xs text-muted-foreground">
-          Visit: {appointment.slot.date}
-          {appointment.slot.time ? ` at ${appointment.slot.time}` : ""}
+          Next visit: {format(new Date(appointment.slot.date), "dd MMM yyyy")}
+          {appointment.slot.time ? ` · ${appointment.slot.time}` : ""}
         </p>
       )}
 
