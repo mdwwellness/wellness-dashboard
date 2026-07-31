@@ -16,7 +16,6 @@ export const therapistQueryOptions = {
     if (!result.success) throw new Error(result.message);
     return result.data;
   },
-  staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Services data layer — talks to the real backend (/api/services).
+ * Services data layer - talks to the real backend (/api/services).
  *
  * Hook signatures and the ["services"] query key match the previous mock store,
  * so the Services page / drawer / add-form did not need any changes.
@@ -23,7 +23,6 @@ export function useGetServices() {
       if (!result.success) throw new Error(result.message);
       return (result.data ?? []) as ServiceType[];
     },
-    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }

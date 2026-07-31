@@ -4,7 +4,6 @@ import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { slotBookingZodSchema, slotBookingZodType } from "@/type/schema";
@@ -34,7 +33,7 @@ import z from "zod";
 interface AppointmentDetailsPageProps {
   data: slotBookingZodType;
   onClose: () => void;
-  /** Hides the visit date/time when the package block above already manages it. */
+  /** Hides the visit date/time when a course's own scheduler already manages it. */
   compact?: boolean;
 }
 
@@ -52,7 +51,7 @@ export default function AppointmentDetailsPage({
     useUpdateAppointment({ silent: true });
 
   // Customer identity is set during the enquiry funnel and rarely edited during
-  // a visit — keep it tucked away so the drawer stays visit-focused.
+  // a visit - keep it tucked away so the drawer stays visit-focused.
   const [showCustomer, setShowCustomer] = useState(false);
 
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
@@ -88,22 +87,13 @@ export default function AppointmentDetailsPage({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        {/* Visit-focused details — customer identity is collapsed below. */}
+        {/* Visit-focused details - customer identity is collapsed below. */}
         <div className="w-full mx-auto p-6 border rounded-lg space-y-5 [&>*]:min-w-0">
           {data.doctor && (
-            <FormField
-              control={form.control}
-              name="doctor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Therapist</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Therapist" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div>
+              <p className="text-sm font-medium">Therapist</p>
+              <p className="mt-1 text-sm text-muted-foreground">{data.doctor}</p>
+            </div>
           )}
 
           {/* Visit date/time only when there's no package block managing it. */}
@@ -138,21 +128,10 @@ export default function AppointmentDetailsPage({
             </div>
           )}
 
-          <FormField
-            control={form.control}
-            name="note"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Note</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="Note" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* The note is edited on the Visit tab, beside the work it describes.
+              Deliberately not repeated here: two editors on one field diverge. */}
 
-          {/* Customer details — collapsed by default. */}
+          {/* Customer details - collapsed by default. */}
           <div className="border-t pt-4">
             <button
               type="button"
@@ -295,7 +274,7 @@ export default function AppointmentDetailsPage({
 }
 
 // Preserve every field on the record (including ones no longer shown in this
-// drawer — therapist id, appointment type, package id, therapy start/end times)
+// drawer - therapist id, appointment type, package id, therapy start/end times)
 // so an "Update Details" save never silently wipes them.
 function buildDefaults(data: slotBookingZodType) {
   return {

@@ -20,16 +20,14 @@ export const appointmentsQueryOptions = (user: UserType) => ({
   queryFn: async () => {
     const result = await getAllAppointments(user);
     if (!result.success) throw new Error(result.message);
-    // Hide enquiry-stage records — they live on /dashboard/enquiries.
+    // Hide enquiry-stage records - they live on /dashboard/enquiries.
     const records = (result.data ?? []) as slotBookingZodType[];
     const filtered = records.filter(
       (r) => r.status !== "enquiry" && r.appointmentKind !== "recommended",
     );
     return dedupePackageAppointments(filtered);
   },
-  staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
-  refetchInterval: 5 * 60 * 1000,
   retry: 3,
 });
 
@@ -38,11 +36,11 @@ export function useGetAllAppointments(user: UserType) {
 }
 
 // Appointments and enquiries are the same backend collection, so any
-// mutation must invalidate both query keys — otherwise edits made from
+// mutation must invalidate both query keys - otherwise edits made from
 // the enquiries drawer won't refresh the enquiries page (and vice versa).
 // Invoices are also invalidated because confirming/paying an add-on,
 // completing a session, or editing an appointment all re-sync its invoice
-// on the backend — the invoices list must refresh to show it.
+// on the backend - the invoices list must refresh to show it.
 function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["appointments"] });
   queryClient.invalidateQueries({ queryKey: ["enquiries"] });
@@ -113,14 +111,18 @@ export function useConfirmAppointmentRecommendation() {
       appointmentId,
       serviceId,
       recommendedAt,
+      code,
     }: {
       appointmentId: string;
       serviceId: string;
       recommendedAt: string;
+      /** The customer's consent code - the server refuses without it. */
+      code: string;
     }) => {
       const result = await confirmAppointmentRecommendation(appointmentId, {
         serviceId,
         recommendedAt,
+        code,
       });
       if (!result.success) throw new Error(result.message);
       return { ...result, appointmentId };

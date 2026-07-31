@@ -25,6 +25,8 @@ export default async function addAppointments(values: slotBookingZodType): Promi
     return {
       success: true,
       message: result.message || "Appointment added successfully",
+      // The created record (with _id/enquiryId) - needed to mint a pay-link.
+      data: result.data,
     };
   } catch (err) {
     console.error("[addAppointments]", err);

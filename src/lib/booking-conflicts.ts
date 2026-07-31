@@ -39,8 +39,8 @@ function spanOf(
 
 /**
  * Does a candidate visit collide with a therapist's existing bookings?
- *   overlap   — spans intersect (a therapist can't be in two places): hard.
- *   too-close — within `gapMinutes` edge-to-edge but not overlapping: soft-warn.
+ *   overlap   - spans intersect (a therapist can't be in two places): hard.
+ *   too-close - within `gapMinutes` edge-to-edge but not overlapping: soft-warn.
  * Overlap wins over too-close. Same doctor + same day only; cancelled and the
  * edited record are skipped.
  */

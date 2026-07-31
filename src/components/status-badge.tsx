@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 
 // Single source of truth for the appointment / enquiry lifecycle status badge.
 // Used by the appointment drawer, enquiry drawer, appointments table, customer
-// drawer, and dashboard — so the badge looks and reads identically everywhere.
+// drawer, and dashboard - so the badge looks and reads identically everywhere.
 
 const STATUS_LABEL: Record<string, string> = {
   enquiry: "Enquiry",

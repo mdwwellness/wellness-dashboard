@@ -1,6 +1,6 @@
 "use client";
 
-/** Global session-rate table data layer — talks to /api/session-rates. */
+/** Global session-rate table data layer - talks to /api/session-rates. */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,7 +18,6 @@ export function useGetSessionRates() {
       if (!result.success) throw new Error(result.message);
       return result.data ?? { tiers: [] };
     },
-    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }

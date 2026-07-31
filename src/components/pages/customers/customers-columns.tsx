@@ -21,10 +21,10 @@ const SEGMENT_CLASS: Record<CustomerSegment, string> = {
 };
 
 function LastBookedCell({ iso }: { iso?: string }) {
-  if (!iso) return <span className="text-muted-foreground/40">—</span>;
+  if (!iso) return <span className="text-muted-foreground/40">-</span>;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) {
-    return <span className="text-muted-foreground/40">—</span>;
+    return <span className="text-muted-foreground/40">-</span>;
   }
   return (
     <span
@@ -55,7 +55,7 @@ export function makeCustomerColumns({
             {row.original.customer_id}
           </span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         ),
     },
     {
@@ -69,14 +69,14 @@ export function makeCustomerColumns({
           className="font-medium text-left hover:underline"
           onClick={() => onOpenDetail(row.original)}
         >
-          {row.original.name || "—"}
+          {row.original.name || "-"}
         </button>
       ),
     },
     {
       accessorKey: "phonenumber",
       header: "Phone",
-      cell: ({ row }) => row.original.phonenumber ?? "—",
+      cell: ({ row }) => row.original.phonenumber ?? "-",
     },
     {
       accessorKey: "email",
@@ -85,7 +85,7 @@ export function makeCustomerColumns({
         row.original.email ? (
           <span className="text-sm">{row.original.email}</span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         ),
     },
     {
@@ -95,7 +95,7 @@ export function makeCustomerColumns({
         row.original.location ? (
           <span className="text-sm">{row.original.location}</span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         ),
     },
     {

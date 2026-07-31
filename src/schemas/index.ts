@@ -30,7 +30,7 @@ export const addUserSchema = z.object({
   }),
 });
 
-// Admin edit — same fields minus password; phone optional so partially-filled
+// Admin edit - same fields minus password; phone optional so partially-filled
 // records can still have their role/name edited.
 export const editUserSchema = z.object({
   userfName: z.string().min(1, "First name is required"),

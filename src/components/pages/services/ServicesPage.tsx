@@ -224,7 +224,7 @@ export default function ServicesPage() {
                         className="h-24 text-center text-muted-foreground"
                       >
                         {services.length === 0
-                          ? "No services yet — add your first one."
+                          ? "No services yet - add your first one."
                           : "No services match your filters."}
                       </TableCell>
                     </TableRow>

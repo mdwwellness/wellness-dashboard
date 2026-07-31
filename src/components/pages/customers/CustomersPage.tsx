@@ -155,7 +155,7 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Everyone who has booked with you — each phone has a unique customer ID.
+            Everyone who has booked with you - each phone has a unique customer ID.
           </p>
         </div>
 
@@ -259,7 +259,7 @@ export default function CustomersPage() {
                           className="h-24 text-center text-muted-foreground"
                         >
                           {customers.length === 0
-                            ? "No customers yet — they appear here once someone books."
+                            ? "No customers yet - they appear here once someone books."
                             : "No customers match your search."}
                         </TableCell>
                       </TableRow>

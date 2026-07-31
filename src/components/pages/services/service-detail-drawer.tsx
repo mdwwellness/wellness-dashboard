@@ -135,7 +135,7 @@ export function ServiceDetailDrawer({
                       blockedBy.invoices.length > 0) && (
                       <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3">
                         <p className="text-sm font-medium text-destructive">
-                          Can’t delete — remove or reassign these first:
+                          Can’t delete - remove or reassign these first:
                         </p>
                         {blockedBy.appointments.length > 0 && (
                           <div className="mt-2">

@@ -4,7 +4,7 @@ import type { EnquiryType, ServiceType } from "@/type/schema";
  * The booking an executive confirms at step 3 of the client-approved funnel:
  * an online consultation, or a home visit.
  *
- * This rides on the EXISTING `typeOfappointment` field rather than a new one —
+ * This rides on the EXISTING `typeOfappointment` field rather than a new one -
  * the backend model is strict, so an unknown field would be silently dropped on
  * save. The two enum values map 1:1 onto the two choices, so nothing is lost.
  */
@@ -29,12 +29,49 @@ export const BOOKING_TYPES: {
 ];
 
 /**
- * Label for a confirmed booking type.
+ * What was sold: a one-off intake (the diagnostic front door - an online
+ * consultation or a home visit), or a course of therapy sessions bought after it.
+ */
+export type BookingKind = "intake" | "course";
+
+/**
+ * The kind of a booking record.
  *
- * Only meaningful on enquiry-funnel records, where the value was set by the
- * drawer. Appointments booked directly from the booking form also carry
- * `typeOfappointment: "appointment"` but mean "a session", not a home visit —
- * so don't relabel that table with this.
+ * Prefers the stored field, and otherwise derives it from the session count, so
+ * records written before the field existed still read correctly. An intake sells
+ * no session course; a course sells at least one. Delivery mode deliberately
+ * plays no part - a course is always at home, which is exactly why the mode
+ * alone cannot separate a Home Visit intake from a course of home sessions.
+ */
+export function bookingKindOf(record: {
+  bookingKind?: BookingKind;
+  totalSessions?: number;
+}): BookingKind {
+  if (record.bookingKind) return record.bookingKind;
+  return (record.totalSessions ?? 0) >= 1 ? "course" : "intake";
+}
+
+/**
+ * Label for a booking, correct for both kinds: a course is always home-delivered
+ * therapy, so it is never labelled with an intake type.
+ */
+export function bookingLabel(record: {
+  bookingKind?: BookingKind;
+  totalSessions?: number;
+  typeOfappointment?: BookingType;
+}): string {
+  if (bookingKindOf(record) === "course") {
+    const n = record.totalSessions ?? 0;
+    return n > 1 ? `Therapy course (${n} sessions)` : "Therapy session";
+  }
+  return bookingTypeLabel(record.typeOfappointment) ?? "Consultation";
+}
+
+/**
+ * Label for a confirmed intake type.
+ *
+ * Only meaningful for intake records. Use `bookingLabel` when the record could
+ * be either kind - it routes courses away from these two labels.
  */
 export function bookingTypeLabel(t: BookingType | undefined): string | undefined {
   return BOOKING_TYPES.find((b) => b.value === t)?.label;
@@ -44,7 +81,7 @@ export function bookingTypeLabel(t: BookingType | undefined): string | undefined
  * The catalogue fee for a booking type, or `undefined` when the executive
  * hasn't put that service on the Services page yet.
  *
- * Undefined is surfaced as a prompt to go add it — never silently priced at 0,
+ * Undefined is surfaced as a prompt to go add it - never silently priced at 0,
  * because an unpriced record generates no invoice at all.
  */
 export function catalogueFee(
@@ -64,7 +101,7 @@ export function catalogueFee(
  *
  * `slot.date` is a Date in the backend model, so it arrives as a full ISO
  * string, while the date picker produces "yyyy-MM-dd". Comparing the two raw
- * would never match — every slot would look free.
+ * would never match - every slot would look free.
  */
 export function toDayKey(d: string | undefined): string {
   if (!d) return "";

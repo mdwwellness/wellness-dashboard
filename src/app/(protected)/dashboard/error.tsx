@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
  * Friendly fallback when a dashboard route throws.
  *
  * Tone goal: reassuring, not alarming. Owners and back-office staff are not
- * developers — a red wall of text reads like the system is broken when in
+ * developers - a red wall of text reads like the system is broken when in
  * practice the page usually recovers on a refresh.
  */
 export default function Error({

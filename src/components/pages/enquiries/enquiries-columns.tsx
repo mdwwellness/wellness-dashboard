@@ -32,7 +32,7 @@ function readCreatedISO(r: EnquiryType): string | undefined {
 
 /**
  * Header label with an info hint that opens INSTANTLY on hover (no native-title
- * delay) and also toggles on click/tap — so it works on touch too.
+ * delay) and also toggles on click/tap - so it works on touch too.
  */
 function HeaderHint({ label, hint }: { label: string; hint: string }) {
   const [open, setOpen] = useState(false);
@@ -77,10 +77,10 @@ function LastActiveCell({
 }) {
   const iso =
     field === "received" ? readCreatedISO(record) : readLastActiveISO(record);
-  if (!iso) return <span className="text-muted-foreground">—</span>;
+  if (!iso) return <span className="text-muted-foreground">-</span>;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
-    return <span className="text-muted-foreground">—</span>;
+    return <span className="text-muted-foreground">-</span>;
   }
   return (
     <span className="whitespace-nowrap" title={date.toLocaleString()}>
@@ -101,7 +101,7 @@ function CheckOrDash({
   }
   return (
     <span className={disabled ? "text-muted-foreground/40" : "text-muted-foreground"}>
-      —
+      -
     </span>
   );
 }
@@ -114,7 +114,7 @@ function SlotCell({
   // `slot.date` is a Date backend-side, so it arrives as a full ISO string.
   const day = toDayKey(slot?.date);
   if (!day || !slot?.time) {
-    return <span className="text-muted-foreground">—</span>;
+    return <span className="text-muted-foreground">-</span>;
   }
   return (
     <div className="leading-tight whitespace-nowrap">
@@ -125,15 +125,15 @@ function SlotCell({
 
 interface MakeColumnsParams {
   onOpenDetail: (record: EnquiryType) => void;
-  /** Header label for the timestamp column — differs per section
+  /** Header label for the timestamp column - differs per section
    *  ("Waiting since" for untouched, "Last updated" for attended). */
   lastActiveLabel?: string;
   /** Which timestamp to show: "received" = createdAt (when the enquiry came
    *  in), "updated" = updatedAt (last staff action). */
   lastActiveField?: "received" | "updated";
-  /** Show a "Call tries" column (failed reach-out attempts) — used on Follow-ups. */
+  /** Show a "Call tries" column (failed reach-out attempts) - used on Follow-ups. */
   showAttempts?: boolean;
-  /** Show contact/intake columns (email, city, type) — used on Follow-ups. */
+  /** Show contact/intake columns (email, city, type) - used on Follow-ups. */
   showContactCols?: boolean;
 }
 
@@ -156,7 +156,7 @@ export function makeEnquiryColumns({
             {id}
           </span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         );
       },
     },
@@ -169,10 +169,10 @@ export function makeEnquiryColumns({
         const count = row.original.repeatCount ?? 1;
         return (
           <span className="inline-flex items-center gap-1.5">
-            <span className="font-medium">{row.original.name || "—"}</span>
+            <span className="font-medium">{row.original.name || "-"}</span>
             {count > 1 && (
               <span
-                title={`This person submitted ${count} bookings while this lead was open — see the activity log`}
+                title={`This person submitted ${count} bookings while this lead was open - see the activity log`}
                 className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber-700 whitespace-nowrap dark:bg-amber-950/40 dark:text-amber-400"
               >
                 ↺ {count}
@@ -185,7 +185,7 @@ export function makeEnquiryColumns({
     {
       accessorKey: "phonenumber",
       header: "Phone",
-      cell: ({ row }) => row.original.phonenumber ?? "—",
+      cell: ({ row }) => row.original.phonenumber ?? "-",
     },
     // ── Contact / intake details (only rendered on the Follow-ups view) ──
     ...(showContactCols
@@ -199,7 +199,7 @@ export function makeEnquiryColumns({
                   {row.original.email}
                 </span>
               ) : (
-                <span className="text-muted-foreground/40">—</span>
+                <span className="text-muted-foreground/40">-</span>
               ),
           } as ColumnDef<EnquiryType>,
           {
@@ -211,7 +211,7 @@ export function makeEnquiryColumns({
                   {row.original.location}
                 </span>
               ) : (
-                <span className="text-muted-foreground/40">—</span>
+                <span className="text-muted-foreground/40">-</span>
               ),
           } as ColumnDef<EnquiryType>,
         ]
@@ -283,7 +283,7 @@ export function makeEnquiryColumns({
               return label ? (
                 <span className="text-sm whitespace-nowrap">{label}</span>
               ) : (
-                <span className="text-muted-foreground/40">—</span>
+                <span className="text-muted-foreground/40">-</span>
               );
             },
           } as ColumnDef<EnquiryType>,
@@ -295,7 +295,7 @@ export function makeEnquiryColumns({
       header: () => (
         <HeaderHint
           label="Reached"
-          hint="Step 2 — an executive has phoned/contacted the lead"
+          hint="Step 2 - an executive has phoned/contacted the lead"
         />
       ),
       cell: ({ row }) => (
@@ -309,7 +309,7 @@ export function makeEnquiryColumns({
       header: () => (
         <HeaderHint
           label="Booking"
-          hint="Step 3 — the booking the executive confirmed: online consultation or home visit"
+          hint="Step 3 - the booking the executive confirmed: online consultation or home visit"
         />
       ),
       cell: ({ row }) => {
@@ -317,7 +317,7 @@ export function makeEnquiryColumns({
         return label ? (
           <span className="text-sm whitespace-nowrap">{label}</span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         );
       },
     },
@@ -327,7 +327,7 @@ export function makeEnquiryColumns({
       header: () => (
         <HeaderHint
           label="Fee"
-          hint="Step 3 — the agreed fee, pre-filled from the Services catalogue"
+          hint="Step 3 - the agreed fee, pre-filled from the Services catalogue"
         />
       ),
       cell: ({ row }) =>
@@ -336,7 +336,7 @@ export function makeEnquiryColumns({
             {formatINR(row.original.quotedPrice)}
           </span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         ),
     },
     // ── Stage ④ Payment ──
@@ -345,7 +345,7 @@ export function makeEnquiryColumns({
       header: () => (
         <HeaderHint
           label="Paid"
-          hint="Step 4 — payment has cleared; this unlocks the therapist assignment"
+          hint="Step 4 - payment has cleared; this unlocks the therapist assignment"
         />
       ),
       cell: ({ row }) => <CheckOrDash checked={row.original.paymentReceived} />,
@@ -357,14 +357,14 @@ export function makeEnquiryColumns({
       header: () => (
         <HeaderHint
           label="Therapist"
-          hint="Step 5 — the therapist assigned to the visit"
+          hint="Step 5 - the therapist assigned to the visit"
         />
       ),
       cell: ({ row }) =>
         row.original.doctor ? (
           <span className="text-sm whitespace-nowrap">{row.original.doctor}</span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         ),
     },
     {
@@ -372,7 +372,7 @@ export function makeEnquiryColumns({
       header: () => (
         <HeaderHint
           label="Visit"
-          hint="Step 5 — the confirmed date and time; the booking now shows on Appointments"
+          hint="Step 5 - the confirmed date and time; the booking now shows on Appointments"
         />
       ),
       cell: ({ row }) => <SlotCell slot={row.original.slot} />,
@@ -392,7 +392,7 @@ export function makeEnquiryColumns({
         return name ? (
           <span className="whitespace-nowrap text-sm">{name}</span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         );
       },
     },

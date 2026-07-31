@@ -1,7 +1,7 @@
 // A short, gentle chime for new-enquiry notifications, plus a persisted mute
 // preference. Everything here is best-effort: browsers block audio until the
 // user has interacted with the page, so every path fails silently rather than
-// throwing — a missed beep must never break the notification it accompanies.
+// throwing - a missed beep must never break the notification it accompanies.
 
 const MUTE_KEY = "mdw:enquiry-sound-muted";
 
@@ -19,7 +19,7 @@ export function setEnquirySoundMuted(muted: boolean): void {
   try {
     window.localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
   } catch {
-    /* storage unavailable (private mode / disabled) — preference just won't persist */
+    /* storage unavailable (private mode / disabled) - preference just won't persist */
   }
 }
 
@@ -57,13 +57,13 @@ export function playEnquiryBeep(): void {
     if (!AC) return;
     ctx = ctx ?? new AC();
     // Autoplay policy: a context created without a recent user gesture starts
-    // "suspended". resume() may reject — swallow it; a later gesture-driven
+    // "suspended". resume() may reject - swallow it; a later gesture-driven
     // call (e.g. toggling sound on) will have primed it.
     if (ctx.state === "suspended") ctx.resume().catch(() => {});
     const t = ctx.currentTime;
     playTone(ctx, 784, t, 0.12); // G5
     playTone(ctx, 1047, t + 0.11, 0.16); // C6
   } catch {
-    /* AudioContext blocked/unavailable — stay silent, by design */
+    /* AudioContext blocked/unavailable - stay silent, by design */
   }
 }

@@ -18,7 +18,7 @@ export const BRAND = {
 
 /**
  * The clinic's UPI payee details. Without these the page still shows the
- * booking and the amount, and tells the customer to call — it never shows a
+ * booking and the amount, and tells the customer to call - it never shows a
  * broken pay button.
  */
 export const UPI = {
@@ -28,7 +28,7 @@ export const UPI = {
 };
 
 /**
- * The origin customer-facing links must use — the domain the customer knows
+ * The origin customer-facing links must use - the domain the customer knows
  * from the website and their invoices.
  *
  * NOT window.location.origin: that's whatever the *executive's* browser is on,
@@ -44,7 +44,7 @@ export function publicOrigin(): string {
 
 /**
  * A UPI deep link. Opens the customer's own UPI app with payee and amount
- * pre-filled — they confirm the real payee name inside their bank's app, which
+ * pre-filled - they confirm the real payee name inside their bank's app, which
  * is what makes this trustworthy rather than a link asking for card details.
  */
 export function upiLink(amount: number, reference: string): string | null {

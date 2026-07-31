@@ -20,7 +20,7 @@ type PhoneInputProps = Omit<
 };
 
 /**
- * A phone-number `<Input>` that strips non-digits and hard-caps at 10 — so no
+ * A phone-number `<Input>` that strips non-digits and hard-caps at 10 - so no
  * field anywhere can accept an 11th digit. Spread an RHF field straight in:
  * `<PhoneInput {...field} />` (number) or `<PhoneInput {...field} asString />`.
  */

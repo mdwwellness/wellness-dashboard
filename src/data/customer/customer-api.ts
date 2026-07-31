@@ -15,6 +15,5 @@ export function useSearchCustomers(search: string, enabled = true) {
       return result.data ?? [];
     },
     enabled,
-    staleTime: 30_000,
   });
 }

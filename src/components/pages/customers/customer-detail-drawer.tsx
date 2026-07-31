@@ -54,7 +54,7 @@ function formatTimeRange(r: { from?: string; to?: string } | undefined) {
     const h12 = h % 12 || 12;
     return `${h12}:${String(m).padStart(2, "0")} ${period}`;
   };
-  return `${toAmPm(r.from)} – ${toAmPm(r.to)}`;
+  return `${toAmPm(r.from)} - ${toAmPm(r.to)}`;
 }
 
 function BookingRow({ booking, index }: { booking: EnquiryType; index: number }) {
@@ -72,7 +72,7 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
 
   return (
     <div className="border rounded-md overflow-hidden">
-      {/* Summary row — always visible, click to expand */}
+      {/* Summary row - always visible, click to expand */}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -98,7 +98,7 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
           <div className="text-xs text-muted-foreground mt-1">
             {createdAt
               ? `Booked ${formatDistanceToNow(new Date(createdAt), { addSuffix: true })}`
-              : "—"}
+              : "-"}
           </div>
         </div>
       </button>
@@ -106,36 +106,36 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t p-3 space-y-2 text-sm bg-muted/30">
-          <DetailRow label="Service" value={serviceFromNote ?? booking.typeOfappointment ?? "—"} />
-          <DetailRow label="Preferred time" value={preferred ?? "—"} />
+          <DetailRow label="Service" value={serviceFromNote ?? booking.typeOfappointment ?? "-"} />
+          <DetailRow label="Preferred time" value={preferred ?? "-"} />
           <DetailRow
             label="Consultation slot"
             value={
               booking.consultationSlot?.date
                 ? `${booking.consultationSlot.date} ${booking.consultationSlot.time}`
-                : "—"
+                : "-"
             }
           />
           <DetailRow
             label="Consultation done"
-            value={booking.consultationCompleted ? "Yes" : "—"}
+            value={booking.consultationCompleted ? "Yes" : "-"}
           />
           <DetailRow
             label="Physio slot"
             value={
               booking.physioSlot?.date
                 ? `${booking.physioSlot.date} ${booking.physioSlot.time}`
-                : "—"
+                : "-"
             }
           />
-          <DetailRow label="Therapist" value={booking.doctor ?? "—"} />
+          <DetailRow label="Therapist" value={booking.doctor ?? "-"} />
           <DetailRow
             label="Assignment confirmed"
-            value={booking.physioAssignmentConfirmed ? "Yes" : "—"}
+            value={booking.physioAssignmentConfirmed ? "Yes" : "-"}
           />
           <DetailRow
             label="Handled by"
-            value={booking.reachedOutBy?.name ?? "—"}
+            value={booking.reachedOutBy?.name ?? "-"}
           />
           {booking.note && (
             <div className="pt-1">
@@ -173,7 +173,7 @@ export function CustomerDetailDrawer({
 
   const firstSeen = customer.firstBookingAt
     ? format(new Date(customer.firstBookingAt), "PP")
-    : "—";
+    : "-";
 
   return (
     <Sheet

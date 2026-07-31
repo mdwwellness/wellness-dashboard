@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
     pathname.startsWith('/api/uploadthing') ||
-    // Customer-facing payment page — the whole point is that the customer,
+    // Customer-facing payment page - the whole point is that the customer,
     // who has no dashboard login, can open it. Guarded by an unguessable
     // token instead (see /pay/[token]).
     pathname.startsWith('/pay') ||
@@ -54,11 +54,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // fetch() THROWS when the backend is unreachable (local dev with the server
-  // down, a network blip) — it does not return a non-ok response. It also
+  // down, a network blip) - it does not return a non-ok response. It also
   // HANGS when the backend accepts the connection but is slow to answer (a
   // Render cold start takes 30-50s after idle). A hang is the dangerous case:
   // this runs in middleware, on every authenticated navigation once the access
-  // token expires, and Vercel kills the whole invocation at its time budget —
+  // token expires, and Vercel kills the whole invocation at its time budget -
   // surfacing as a 504 MIDDLEWARE_INVOCATION_TIMEOUT crash page for the user.
   //
   // So the fetch is bounded by an abort timeout. No timeout under the middleware
@@ -80,13 +80,13 @@ export async function middleware(request: NextRequest) {
       signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     });
   } catch {
-    // Unreachable OR too slow to answer in time — either way we don't know
+    // Unreachable OR too slow to answer in time - either way we don't know
     // whether this session is valid, and signing the user out over a transient
     // blip (or a cold start) would be wrong. Let the request through with
     // cookies intact: the data layer surfaces the failure, and the next
     // navigation refreshes cleanly once the backend is back.
     //
-    // NOTE: redirecting to /auth/login here would infinite-loop — the
+    // NOTE: redirecting to /auth/login here would infinite-loop - the
     // refreshToken is still set, so the isAuthPage branch above bounces it
     // straight back to /dashboard.
     return NextResponse.next();
@@ -100,7 +100,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 200 but an unusable body/token — treat as a failed refresh rather than
+  // 200 but an unusable body/token - treat as a failed refresh rather than
   // writing an "undefined" cookie that fails every request after this one.
   const data = await refreshRes.json().catch(() => null);
   const nextAccessToken =

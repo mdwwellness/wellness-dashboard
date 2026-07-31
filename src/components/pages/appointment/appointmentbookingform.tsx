@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -30,12 +30,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { slotBookingZodSchema, TherapistformType } from "@/type/schema";
+import { slotBookingZodSchema } from "@/type/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useBookAppointment, useGetAllAppointments } from "@/data/appointment/appointment";
-import { useGetAllTherapist } from "@/data/therapist/therapist";
+import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
+import {
+  BOOKING_TYPES,
+  bookingKindOf,
+  bookingLabel,
+  catalogueFee,
+  type BookingType,
+} from "@/components/pages/enquiries/booking";
+import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
 import { useGetServices } from "@/data/service/service";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { CustomerSearchField } from "@/components/pages/invoices/customer-search-field";
@@ -48,23 +56,26 @@ import {
 import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
+import { useQueryClient } from "@tanstack/react-query";
+import addAppointments from "@/actions/appointments/book-appointment";
+import createPaymentLink from "@/actions/appointments/create-payment-link";
+import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
+import { publicOrigin } from "@/lib/brand";
+import {
+  paymentRequestMessage,
+  paymentConfirmedMessage,
+} from "@/lib/payment-messages";
 
-type GenderType = "All" | "Male" | "Female";
 type StackedService = { serviceId: string; discount: boolean };
-
-/** Assignable visit lengths, in minutes — same options and default as the
- * enquiry-side control (therapist-availability-grid.tsx / enquiry-detail-drawer.tsx). */
-const DURATION_OPTIONS = [30, 60, 90, 120];
 
 export default function AppointmentBookingForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [selectedGender, setSelectedGender] = useState<GenderType>("All");
   // Session-only by default; flip on to attach (stack) services.
   const [attachServices, setAttachServices] = useState(false);
   const [stacked, setStacked] = useState<StackedService[]>([]);
   // Visit length that drives the therapy span (therapyStartTime/EndTime) and
-  // the conflict check below — same control + default as the enquiry side.
+  // the conflict check below - same control + default as the enquiry side.
   const [durationMin, setDurationMin] = useState(60);
   // A too-close candidate is staged here (with its already-built payload)
   // until the exec confirms the soft-warn dialog.
@@ -74,7 +85,8 @@ export default function AppointmentBookingForm() {
   } | null>(null);
 
   const mutation = useBookAppointment();
-  const { data: doctorsData, isLoading, isError, refetch } = useGetAllTherapist();
+  const queryClient = useQueryClient();
+  const [requesting, setRequesting] = useState(false);
   const { data: services = [], isLoading: servicesLoading } = useGetServices();
   const { data: rateCard } = useGetSessionRates();
 
@@ -86,8 +98,21 @@ export default function AppointmentBookingForm() {
     role: authUser?.role,
     userEmail: authUser?.userEmail,
   });
+  // Enquiry-stage records too: the appointments query filters out status
+  // "enquiry", and an intake sold through "Request payment on WhatsApp" is saved
+  // exactly that way - so without these, its customer would look like they had
+  // never had a consultation.
+  const { data: enquiries = [], isLoading: enquiriesLoading } =
+    useGetAllEnquiries({
+      id: authUser?.id,
+      role: authUser?.role,
+      userEmail: authUser?.userEmail,
+    });
   const { data: clinicSettings } = useGetClinicSettings();
   const gapMinutes = clinicSettings?.bookingGapMinutes ?? 60;
+
+  // Reason the consultation is being skipped (fast-track customers only).
+  const [skipReason, setSkipReason] = useState("");
 
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
     resolver: zodResolver(slotBookingZodSchema),
@@ -99,6 +124,8 @@ export default function AppointmentBookingForm() {
       customer_id: "",
       sessionNumber: undefined,
       quotedPrice: undefined,
+      // Intake is the front door: a first-time customer starts here.
+      bookingKind: "intake",
       typeOfappointment: "appointment",
       slot: {
         date: format(new Date(), "yyyy-MM-dd"),
@@ -125,32 +152,54 @@ export default function AppointmentBookingForm() {
   const tiers = rateCard?.tiers ?? [];
   const noTier = (sessions ?? 0) > 0 && sessionRate(tiers, sessions ?? 0) === 0;
 
-  // Therapist load: active (non-cancelled) bookings per therapist on the picked date.
-  const bookingsByDoctor = useMemo(() => {
-    const map = new Map<string, number>();
-    if (!selectedDate) return map;
-    for (const a of appointments) {
-      if (a.status === "cancelled" || !a.doctorId) continue;
-      if (a.slot?.date !== selectedDate) continue;
-      map.set(a.doctorId, (map.get(a.doctorId) ?? 0) + 1);
-    }
-    return map;
-  }, [appointments, selectedDate]);
+  // ── Intake vs course ──────────────────────────────────────────────────────
+  // An intake is the one-off diagnostic front door (online consultation or home
+  // visit), priced from the services catalogue. A course is the treatment block
+  // bought afterwards: always delivered at home, priced from the rate table.
+  const bookingKind = form.watch("bookingKind") ?? "intake";
+  const isCourse = bookingKind === "course";
+  const deliveryType = (form.watch("typeOfappointment") ?? "appointment") as BookingType;
+  const intakeFee = isCourse ? undefined : catalogueFee(deliveryType, services);
 
-  // Filter by gender, annotate with day load, sort most-available first.
-  const doctorsSorted = useMemo(() => {
-    const base = ((doctorsData ?? []) as TherapistformType[]).filter(
-      (d) =>
-        selectedGender === "All" ||
-        d.gender?.toLowerCase() === selectedGender.toLowerCase(),
+  // The price this booking should carry, derived during render. A course prices
+  // from the rate table, an intake from the services catalogue.
+  const autoPrice = isCourse
+    ? sessionTotal(tiers, sessions ?? 0) || undefined
+    : intakeFee;
+
+  // Apply it as an effect, not just in the session field's onChange: a count
+  // typed before the rate card resolves would otherwise stay unpriced.
+  //
+  // Depends on the PRICE, never on `tiers` - that is `rateCard?.tiers ?? []`,
+  // a fresh array identity every render, which made this effect re-run, setValue,
+  // re-render, and loop until React bailed out. A primitive dep also means a
+  // hand-typed price survives, since it doesn't change what this computes.
+  // No shouldValidate - that would paint an error the moment the modal opens.
+  useEffect(() => {
+    form.setValue("quotedPrice", autoPrice);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrice]);
+
+  // Has this customer ever been through an intake? Matched on customer_id when
+  // one is linked, else on phone. Cancelled records don't count as a consultation.
+  const phone = form.watch("phonenumber");
+  const historyLoading = enquiriesLoading;
+  const hasPriorIntake = useMemo(() => {
+    if (!customerId && !phone) return false;
+    const seen = [...appointments, ...enquiries];
+    return seen.some(
+      (r) =>
+        r.status !== "cancelled" &&
+        (customerId ? r.customer_id === customerId : r.phonenumber === phone) &&
+        bookingKindOf(r) === "intake",
     );
-    return base
-      .map((doctor) => ({
-        doctor,
-        count: bookingsByDoctor.get(doctor.doctorId ?? "") ?? 0,
-      }))
-      .sort((a, b) => a.count - b.count);
-  }, [doctorsData, selectedGender, bookingsByDoctor]);
+  }, [appointments, enquiries, customerId, phone]);
+
+  // Fast-track: booking a course for someone with no consultation on record.
+  // Held back while history loads, so the prompt can't flash on open.
+  const identified = !!customerId || !!phone;
+  const needsSkipReason =
+    isCourse && identified && !historyLoading && !hasPriorIntake;
 
   // Priced stacked services + running totals for the breakdown.
   const stackedPriced = stacked.map((row) => {
@@ -160,16 +209,51 @@ export default function AppointmentBookingForm() {
   const servicesTotal = stackedPriced.reduce((sum, r) => sum + r.price, 0);
   const grandTotal = (quotedPrice ?? 0) + servicesTotal;
 
-  function handleGenderChange(gender: GenderType) {
-    setSelectedGender(gender);
-    form.setValue("doctor", "");
-    form.setValue("doctorId", "");
+  // Human label for the payment memos, from the shared helper so a course is
+  // never labelled with an intake type (e.g. "Therapy course (6 sessions)").
+  const itemLabel = bookingLabel({
+    bookingKind,
+    totalSessions: isCourse ? sessions : undefined,
+    typeOfappointment: deliveryType,
+  });
+
+  // Everything that makes a booking unsaveable, in one place - both save paths
+  // (Confirm, and "Request payment on WhatsApp") run it. An unpriced record
+  // generates no invoice at all, so a missing price is a hard stop, not a nag.
+  function blockingReason(
+    v: z.infer<typeof slotBookingZodSchema>,
+  ): string | null {
+    if (!v.name?.trim()) return "Enter the customer name";
+    if (isCourse && !(v.sessionNumber && v.sessionNumber >= 1)) {
+      return "Enter how many sessions this course is";
+    }
+    if (!(v.quotedPrice && v.quotedPrice > 0)) {
+      return isCourse
+        ? "No price yet - set a rate tier for this session count, or type the price"
+        : "No price yet - add this service to the Services page, or type the price";
+    }
+    if (needsSkipReason && !skipReason.trim()) {
+      return "Give a reason for skipping the consultation";
+    }
+    return null;
   }
 
-  // Auto-fill the session price from the GLOBAL rate table × session count.
-  function recomputePrice(nextSessions: number | undefined) {
-    const total = sessionTotal(tiers, nextSessions ?? 0);
-    form.setValue("quotedPrice", total > 0 ? total : undefined);
+  // The fast-track reason belongs in the audit trail, not in `note` - the
+  // clinical note is snapshotted and cleared on every session completion, so a
+  // reason stored there would vanish with session 1.
+  function skipReasonLog() {
+    if (!needsSkipReason || !skipReason.trim()) return [];
+    return [
+      {
+        at: new Date().toISOString(),
+        userId: authUser?.id,
+        name:
+          `${authUser?.userfName ?? ""} ${authUser?.userlName ?? ""}`.trim() ||
+          authUser?.userEmail ||
+          "Someone",
+        action: `Booked without a consultation - reason: ${skipReason.trim()}`,
+      },
+    ];
   }
 
   const toggleAttach = (on: boolean) => {
@@ -191,6 +275,20 @@ export default function AppointmentBookingForm() {
     values: z.infer<typeof slotBookingZodSchema>,
   ): z.infer<typeof slotBookingZodSchema> {
     const payload = { ...values };
+    // Stable total for per-session tracking (the completion flow repurposes
+    // sessionNumber as a moving pointer, so snapshot the count here). Only a
+    // course has one - an intake is a single visit and must stay countless, or
+    // bookingKindOf would read it back as a course.
+    if (isCourse && values.sessionNumber && values.sessionNumber > 0) {
+      payload.totalSessions = values.sessionNumber;
+    } else if (!isCourse) {
+      payload.sessionNumber = undefined;
+      payload.totalSessions = undefined;
+    }
+    const skipLog = skipReasonLog();
+    if (skipLog.length) {
+      payload.activityLog = [...(values.activityLog ?? []), ...skipLog];
+    }
     if (attachServices) {
       const now = new Date().toISOString();
       payload.recommendedServices = stacked
@@ -219,12 +317,94 @@ export default function AppointmentBookingForm() {
     return payload;
   }
 
+  // Remote pay: save the booking as a pending enquiry (unpaid, no therapist) so a
+  // pay-link can be minted, then WhatsApp it - reusing the enquiry funnel's exact
+  // link + message. The exec finishes it on Enquiries once the customer pays.
+  async function requestPaymentWa() {
+    const v = form.getValues();
+    const amount = v.paymentAmount ?? v.quotedPrice ?? grandTotal;
+    // This path bypasses the resolver entirely (it saves directly, as an
+    // enquiry), so it needs the same gate as Confirm - otherwise it is exactly
+    // where an unbillable record slips through.
+    const blocked = blockingReason(v);
+    if (blocked) {
+      toast.error(blocked);
+      return;
+    }
+    if (!toWhatsAppNumber(v.phonenumber)) {
+      toast.error("Enter a valid phone number first");
+      return;
+    }
+    setRequesting(true);
+    const saved = await addAppointments({
+      ...v,
+      doctorId: "",
+      doctor: "",
+      status: "enquiry",
+      paymentReceived: false,
+      paymentAmount: amount,
+      totalSessions: isCourse ? v.sessionNumber : undefined,
+      activityLog: [...(v.activityLog ?? []), ...skipReasonLog()],
+    });
+    if (!saved.success || !saved.data?._id) {
+      setRequesting(false);
+      toast.error(saved.message ?? "Couldn't save the booking");
+      return;
+    }
+    const link = await createPaymentLink(saved.data._id);
+    setRequesting(false);
+    if (!link.success || !link.data?.payToken) {
+      toast.error(link.message ?? "Couldn't create the payment link");
+      return;
+    }
+    const wa = whatsAppLink(
+      v.phonenumber,
+      paymentRequestMessage({
+        name: v.name,
+        bookingId: saved.data.enquiryId,
+        item: itemLabel,
+        amount,
+        payUrl: `${publicOrigin()}/pay/${link.data.payToken}`,
+      }),
+    );
+    if (wa) window.open(wa, "_blank", "noopener,noreferrer");
+    for (const key of ["appointments", "enquiries", "customers"]) {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    }
+    toast.success("Payment request sent - finish it on Enquiries once paid.");
+    handleDialogChange(false);
+  }
+
+  // Pay-now receipt: WhatsApp the customer that payment landed. Plain text (no
+  // link), so it needs no saved record.
+  function sendPaymentConfirmedWa() {
+    const v = form.getValues();
+    const visitLabel =
+      v.doctor && v.slot?.time
+        ? `${itemLabel}: ${v.slot?.date ?? ""} ${v.slot.time} with ${v.doctor}`
+        : "";
+    const wa = whatsAppLink(
+      v.phonenumber,
+      paymentConfirmedMessage({
+        name: v.name,
+        amount: v.paymentAmount ?? v.quotedPrice,
+        method: v.paymentMethod,
+        receivedAt: v.paymentReceivedAt ?? new Date().toISOString(),
+        visitLabel,
+      }),
+    );
+    if (!wa) {
+      toast.error("Enter a valid phone number first");
+      return;
+    }
+    window.open(wa, "_blank", "noopener,noreferrer");
+  }
+
   function submitBooking(payload: z.infer<typeof slotBookingZodSchema>) {
     mutation.mutate(payload, {
       onSuccess: () => {
         setIsDialogOpen(false);
         form.reset();
-        setSelectedGender("All");
         setAttachServices(false);
         setStacked([]);
         setDurationMin(60);
@@ -238,6 +418,15 @@ export default function AppointmentBookingForm() {
   //   ok        → submit straight through.
   // Mirrors enquiry-detail-drawer.tsx's attemptSave.
   function onSubmit(values: z.infer<typeof slotBookingZodSchema>) {
+    // Branch rules live here, not in slotBookingZodSchema: that schema is shared
+    // with the enquiry funnel and the drawer's edit form, where a missing price
+    // is perfectly legitimate. Tightening it there would reject public enquiries.
+    const blocked = blockingReason(values);
+    if (blocked) {
+      toast.error(blocked);
+      return;
+    }
+
     const conflict = checkConflict(
       {
         doctorId: values.doctorId ?? "",
@@ -251,7 +440,7 @@ export default function AppointmentBookingForm() {
 
     if (conflict.status === "overlap") {
       toast.error(
-        `${durationMin} min from ${values.slot?.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit — shorten it or pick another start.`,
+        `${durationMin} min from ${values.slot?.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit - shorten it or pick another start.`,
       );
       return;
     }
@@ -268,10 +457,10 @@ export default function AppointmentBookingForm() {
     setIsDialogOpen(open);
     if (!open) {
       form.reset();
-      setSelectedGender("All");
       setAttachServices(false);
       setStacked([]);
       setDurationMin(60);
+      setSkipReason("");
       setPendingTooClose(null);
     }
   }
@@ -288,10 +477,10 @@ export default function AppointmentBookingForm() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-6xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Book an Appointment</DialogTitle>
-          <p className="text-sm text-muted-foreground">Pick a date, then a therapist — the list shows who&apos;s free that day.</p>
+          <p className="text-sm text-muted-foreground">Pick a date, then a therapist - the list shows who&apos;s free that day.</p>
         </DialogHeader>
 
         <Form {...form}>
@@ -300,49 +489,73 @@ export default function AppointmentBookingForm() {
             className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mt-5"
           >
             <div className="w-full space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {/* gender filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Therapist Gender</label>
-                  <Select
-                    value={selectedGender}
-                    onValueChange={(v: GenderType) => handleGenderChange(v)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="All">All Genders</SelectItem>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {/* What is being sold decides everything below it: an intake is
+                  one diagnostic visit priced from the catalogue; a course is N
+                  home sessions priced from the rate table. */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">What are you booking?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      kind: "intake" as const,
+                      title: "Consultation / Assessment",
+                      hint: "First visit - diagnose what they need",
+                    },
+                    {
+                      kind: "course" as const,
+                      title: "Therapy sessions",
+                      hint: "A course of home visits",
+                    },
+                  ].map((opt) => (
+                    <button
+                      key={opt.kind}
+                      type="button"
+                      onClick={() => form.setValue("bookingKind", opt.kind)}
+                      className={cn(
+                        "rounded-md border p-3 text-left transition-colors",
+                        bookingKind === opt.kind
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/50",
+                      )}
+                    >
+                      <span className="block text-sm font-medium">{opt.title}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {opt.hint}
+                      </span>
+                    </button>
+                  ))}
                 </div>
+              </div>
 
+              {/* Delivery is an intake-only question - a course is always at home. */}
+              {!isCourse && (
                 <FormField
                   control={form.control}
                   name="typeOfappointment"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Type of appointment</FormLabel>
+                      <FormLabel>How is it delivered?</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Appointment Type" />
+                            <SelectValue placeholder="Pick one" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="appointment">Appointment</SelectItem>
-                          <SelectItem value="consultation">Consultation</SelectItem>
+                          {BOOKING_TYPES.map((b) => (
+                            <SelectItem key={b.value} value={b.value}>
+                              {b.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
+              )}
 
-              {/* date first — drives the therapist load */}
+              {/* date first - drives the therapist load */}
               <FormField
                 control={form.control}
                 name="slot.date"
@@ -379,118 +592,32 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              {/* therapist — shows each one's load on the picked date, freest first */}
-              <FormField
-                control={form.control}
-                name="doctor"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Therapist</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={(selectedName) => {
-                        const selected = doctorsSorted.find(
-                          ({ doctor }) => doctor.name === selectedName,
-                        )?.doctor;
-                        form.setValue("doctor", selected?.name ?? "");
-                        form.setValue("doctorId", selected?.doctorId ?? "");
-                        field.onChange(selected?.name ?? "");
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Therapist" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {isLoading ? (
-                          <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Loading therapists...
-                          </div>
-                        ) : isError ? (
-                          <div className="flex flex-col gap-2 p-3">
-                            <p className="text-sm text-destructive">Failed to load therapists</p>
-                            <button
-                              type="button"
-                              onClick={() => refetch()}
-                              className="text-xs text-muted-foreground underline text-left"
-                            >
-                              Try again
-                            </button>
-                          </div>
-                        ) : doctorsSorted.length > 0 ? (
-                          doctorsSorted.map(({ doctor, count }) => (
-                            <SelectItem key={doctor.doctorId} value={doctor.name}>
-                              {doctor.name}
-                              {selectedDate ? (
-                                <span className="text-muted-foreground">
-                                  {" "}
-                                  · {count} booked
-                                </span>
-                              ) : null}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <div className="p-3 text-sm text-muted-foreground">
-                            No therapists found
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* time */}
-              <FormField
-                control={form.control}
-                name="slot.time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Select Time</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Time" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {["9:30", "10:30", "11:30", "12:30", "13:30", "14:30",
-                          "15:30", "16:30", "17:30", "18:30", "19:30", "20:30"].map((t) => (
-                          <SelectItem key={t} value={t}>{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Visit length — drives the therapy span (therapyStartTime/
-                  therapyEndTime) and the conflict check on submit. Same
-                  control as the enquiry-side availability grid. */}
+              {/* Therapist & time - the shared availability grid (rows =
+                  therapists, columns = slots; includes the duration control and
+                  specialization search). Locked until payment is marked, so a
+                  therapist is never picked before the money is clear. */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Duration</label>
-                <div className="flex items-center gap-1.5 text-xs">
-                  {DURATION_OPTIONS.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setDurationMin(d)}
-                      aria-pressed={durationMin === d}
-                      className={cn(
-                        "rounded border px-2 py-1",
-                        durationMin === d
-                          ? "border-primary bg-primary/10"
-                          : "hover:bg-muted/50",
-                      )}
-                    >
-                      {d}m
-                    </button>
-                  ))}
-                </div>
+                <label className="text-sm font-medium">Therapist &amp; time</label>
+                {form.watch("paymentReceived") ? (
+                  <TherapistAvailabilityGrid
+                    date={selectedDate}
+                    selectedDoctorId={doctorId}
+                    selectedStart={form.watch("slot.time")}
+                    durationMin={durationMin}
+                    onDurationChange={setDurationMin}
+                    onPick={({ doctorId, doctor, startTime }) => {
+                      form.setValue("doctor", doctor);
+                      form.setValue("doctorId", doctorId);
+                      form.setValue("slot.time", startTime, {
+                        shouldValidate: true,
+                      });
+                    }}
+                  />
+                ) : (
+                  <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                    Mark the payment received (right) to choose a therapist and slot.
+                  </p>
+                )}
               </div>
 
               <FormField
@@ -535,15 +662,15 @@ export default function AppointmentBookingForm() {
                 }}
               />
 
-              {/* Read-only IDs — auto-filled, not editable */}
+              {/* Read-only IDs - auto-filled, not editable */}
               <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Therapist ID</span>
-                  <span className="font-mono">{doctorId || "—"}</span>
+                  <span className="font-mono">{doctorId || "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Customer ID</span>
-                  <span className="font-mono">{customerId || "— (new customer)"}</span>
+                  <span className="font-mono">{customerId || "- (new customer)"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Booking ID</span>
@@ -563,45 +690,77 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="sessionNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of sessions</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        placeholder="e.g. 6"
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) => {
-                          const n =
-                            e.target.value === ""
-                              ? undefined
-                              : e.target.valueAsNumber;
-                          field.onChange(n);
-                          recomputePrice(n);
-                        }}
-                      />
-                    </FormControl>
-                    {noTier && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        No rate tier covers {sessions} sessions — set one in Services → Session rates, or enter the price manually.
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isCourse && (
+                <FormField
+                  control={form.control}
+                  name="sessionNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of sessions</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="e.g. 6"
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === ""
+                                ? undefined
+                                : e.target.valueAsNumber,
+                            )
+                          }
+                        />
+                      </FormControl>
+                      {noTier && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          No rate tier covers {sessions} sessions - set one in Services → Session rates, or enter the price manually.
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Fast-track: a course with no consultation on record. Allowed,
+                  but the reason goes on the record's audit trail. */}
+              {needsSkipReason && (
+                <div className="space-y-1.5 rounded-md border border-amber-500/50 bg-amber-50/50 p-3 dark:bg-amber-950/20">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    No consultation on record for this customer
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Fine for someone already experienced - just say why, for the
+                    record.
+                  </p>
+                  <Textarea
+                    rows={2}
+                    value={skipReason}
+                    onChange={(e) => setSkipReason(e.target.value)}
+                    placeholder="e.g. existing patient, treated with us since March"
+                  />
+                </div>
+              )}
+
+              {!isCourse && intakeFee === undefined && (
+                <p className="rounded-md border border-dashed p-3 text-xs text-amber-600 dark:text-amber-400">
+                  No catalogue price for this service yet - add it on the Services
+                  page, or type the price below.
+                </p>
+              )}
 
               <FormField
                 control={form.control}
                 name="quotedPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Session price (₹) — auto from the rate table</FormLabel>
+                    <FormLabel>
+                      {isCourse
+                        ? "Course price (₹) - auto from the rate table"
+                        : "Fee (₹) - auto from the services catalogue"}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -622,6 +781,97 @@ export default function AppointmentBookingForm() {
                   </FormItem>
                 )}
               />
+
+              {/* Payment - the gate for the therapist grid (same rule as the
+                  Enquiry funnel; the server backs it via createBooking). */}
+              <div className="rounded-md border p-3 space-y-3">
+                <p className="text-sm font-medium">Payment</p>
+                <p className="text-xs text-muted-foreground">
+                  Payment must be clear before a therapist is assigned.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Amount (₹)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={form.watch("paymentAmount") ?? grandTotal ?? ""}
+                      onChange={(e) =>
+                        form.setValue(
+                          "paymentAmount",
+                          e.target.value === "" ? undefined : Number(e.target.value),
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Method</label>
+                    <Select
+                      value={form.watch("paymentMethod") ?? ""}
+                      onValueChange={(v) =>
+                        form.setValue(
+                          "paymentMethod",
+                          v as z.infer<typeof slotBookingZodSchema>["paymentMethod"],
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="upi">UPI</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="bank">Bank</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.watch("paymentReceived") ?? false}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      form.setValue("paymentReceived", on);
+                      form.setValue(
+                        "paymentReceivedAt",
+                        on ? new Date().toISOString() : undefined,
+                      );
+                      if (on && form.watch("paymentAmount") == null) {
+                        form.setValue("paymentAmount", grandTotal);
+                      }
+                    }}
+                  />
+                  Payment received
+                </label>
+                {/* Before payment: ask for it (mirrors the enquiry drawer).
+                    After: send the receipt. Only ever one. */}
+                {form.watch("paymentReceived") ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={sendPaymentConfirmedWa}
+                  >
+                    Send payment confirmed
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    disabled={requesting}
+                    onClick={requestPaymentWa}
+                  >
+                    {requesting ? "Sending…" : "Request payment on WhatsApp"}
+                  </Button>
+                )}
+              </div>
 
               {/* Session-only by default; attach + stack services on top */}
               <div className="rounded-md border p-3 space-y-2">
@@ -654,7 +904,7 @@ export default function AppointmentBookingForm() {
                             ) : (
                               services.map((s) => (
                                 <SelectItem key={s.serviceId} value={s.serviceId}>
-                                  {s.name} — ₹{addonPrice(s, row.discount)}
+                                  {s.name} - ₹{addonPrice(s, row.discount)}
                                 </SelectItem>
                               ))
                             )}
@@ -792,9 +1042,9 @@ export default function AppointmentBookingForm() {
     </Dialog>
 
     {/* Soft-warn when the start is within the booking gap of another visit.
-        Overlap never reaches here — it's blocked with a toast in onSubmit.
+        Overlap never reaches here - it's blocked with a toast in onSubmit.
         Rendered as a sibling of Dialog (not nested in DialogContent) so it
-        isn't caught in the Dialog overlay's pointer-events trap — same
+        isn't caught in the Dialog overlay's pointer-events trap - same
         pattern as enquiry-detail-drawer.tsx. */}
     <AlertDialog
       open={pendingTooClose !== null}

@@ -12,6 +12,6 @@ export function formatTime12(hhmm: string | undefined): string {
 }
 
 export function formatTimeRange(range: TimeRange | undefined): string {
-  if (!range?.from || !range?.to) return "—";
-  return `${formatTime12(range.from)} – ${formatTime12(range.to)}`;
+  if (!range?.from || !range?.to) return "-";
+  return `${formatTime12(range.from)} - ${formatTime12(range.to)}`;
 }

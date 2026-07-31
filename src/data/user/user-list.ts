@@ -23,7 +23,6 @@ export function useGetBackOfficeUsers() {
                 (u) => u.isActive && BACK_OFFICE_ROLES.has(u.role),
             );
         },
-        staleTime: 10 * 60 * 1000, // 10 min — staff list doesn't change often
         refetchOnWindowFocus: false,
     });
 }

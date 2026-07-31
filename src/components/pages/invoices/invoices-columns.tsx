@@ -62,12 +62,34 @@ export function makeInvoiceColumns({
       ),
     },
     {
+      accessorKey: "enquiry_id",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Enquiry ID" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.enquiry_id || "-"}
+        </span>
+      ),
+    },
+    {
       accessorKey: "customer_name",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Customer" />
       ),
       cell: ({ row }) => (
         <span className="font-medium">{row.original.customer_name}</span>
+      ),
+    },
+    {
+      accessorKey: "customer_id",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Customer ID" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.customer_id || "-"}
+        </span>
       ),
     },
     {
@@ -105,9 +127,9 @@ export function makeInvoiceColumns({
       ),
       cell: ({ row }) => {
         const iso = row.original.createdAt;
-        if (!iso) return <span className="text-muted-foreground/40">—</span>;
+        if (!iso) return <span className="text-muted-foreground/40">-</span>;
         const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return <span className="text-muted-foreground/40">—</span>;
+        if (Number.isNaN(d.getTime())) return <span className="text-muted-foreground/40">-</span>;
         return (
           <span className="text-xs text-muted-foreground whitespace-nowrap" title={d.toLocaleString()}>
             {formatDistanceToNow(d, { addSuffix: true })}

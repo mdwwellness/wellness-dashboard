@@ -95,11 +95,11 @@ export function ServiceFormFields({
         )}
       />
 
-      {/* The service's two prices — used when it's added to a visit */}
+      {/* The service's two prices - used when it's added to a visit */}
       <div className="md:col-span-2 rounded-md border p-3 space-y-3">
         <p className="text-sm font-medium">Pricing</p>
         <p className="text-xs text-muted-foreground">
-          Charged when this service is added during a visit — the add-on price
+          Charged when this service is added during a visit - the add-on price
           when a therapist recommends it on the spot, otherwise the original.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

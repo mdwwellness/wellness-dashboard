@@ -22,7 +22,6 @@ export function useGetInvoices() {
       if (!result.success) throw new Error(result.message);
       return (result.data ?? []) as PersistedInvoice[];
     },
-    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }

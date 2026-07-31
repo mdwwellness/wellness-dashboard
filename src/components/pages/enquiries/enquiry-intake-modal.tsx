@@ -51,7 +51,7 @@ const intakeFormSchema = z.object({
 type IntakeFormValues = z.infer<typeof intakeFormSchema>;
 
 interface EnquiryIntakeModalProps {
-  /** Pre-fill fields — used from the Customers drawer for follow-up bookings. */
+  /** Pre-fill fields - used from the Customers drawer for follow-up bookings. */
   prefill?: Partial<IntakeFormValues>;
   triggerLabel?: string;
   triggerVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
@@ -108,7 +108,7 @@ export function EnquiryIntakeModal({
     phone as number,
   );
 
-  // Auto-fill only when the number belongs to exactly one known person — never
+  // Auto-fill only when the number belongs to exactly one known person - never
   // clobber a name the executive already typed (or one carried in via `prefill`),
   // and never guess when the number is shared.
   const matchedName =
@@ -211,7 +211,7 @@ export function EnquiryIntakeModal({
                   <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span>
                     This number is shared by {namesOnNumber.length} people (
-                    {namesOnNumber.join(", ")}). Type the name for this enquiry —
+                    {namesOnNumber.join(", ")}). Type the name for this enquiry -
                     we won&apos;t assume which one.
                   </span>
                 </div>
@@ -284,7 +284,7 @@ export function EnquiryIntakeModal({
               )}
             />
 
-            {/* Read-only IDs — assigned server-side on save */}
+            {/* Read-only IDs - assigned server-side on save */}
             <div className="rounded-md border bg-muted/30 p-2.5 text-xs space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Enquiry ID</span>

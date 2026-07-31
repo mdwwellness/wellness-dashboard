@@ -14,8 +14,8 @@ import {
 import type { EnquiryType } from "@/type/schema";
 import { deriveDailyPacing, monthOptions } from "./analytics-metrics";
 
-const CURRENT = "#10b981"; // this month — emerald
-const PREVIOUS = "#3b82f6"; // previous month — blue
+const CURRENT = "#10b981"; // this month - emerald
+const PREVIOUS = "#3b82f6"; // previous month - blue
 const AXIS = "#94a3b8";
 
 const shortLabel = (key: string) => {

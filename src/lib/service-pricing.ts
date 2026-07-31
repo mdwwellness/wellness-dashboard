@@ -3,9 +3,9 @@
  *
  * The GLOBAL session-rate table holds a dynamic list of tiers ([from, to]
  * sessions → ₹/session). Booking a course of N sessions is charged the rate of
- * the tier that contains N, × N. Tiers are fully user-defined — no fixed bands.
+ * the tier that contains N, × N. Tiers are fully user-defined - no fixed bands.
  *
- * The add-on prices (original / discounted) are a separate concern — see
+ * The add-on prices (original / discounted) are a separate concern - see
  * `addonPrice` below / the recommended-service flow.
  */
 

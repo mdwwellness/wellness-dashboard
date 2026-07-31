@@ -5,6 +5,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { getConfirmedAddonNames } from "@/lib/package-progress";
+import { bookingKindOf, bookingLabel } from "@/components/pages/enquiries/booking";
 import { AppointmentStatusBadge } from "@/components/status-badge";
 import { format } from "date-fns";
 
@@ -45,7 +46,7 @@ export function makeAppointmentColumns(
       ),
       cell: ({ row }) => {
         const ms = getCreatedMs(row.original);
-        if (!ms) return <span className="text-muted-foreground/40">—</span>;
+        if (!ms) return <span className="text-muted-foreground/40">-</span>;
         return (
           <span className="whitespace-nowrap tabular-nums text-xs text-muted-foreground">
             {format(new Date(ms), "yyyy-MM-dd HH:mm")}
@@ -64,7 +65,7 @@ export function makeAppointmentColumns(
         return id ? (
           <span className="font-mono text-xs text-muted-foreground">{id}</span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         );
       },
     },
@@ -73,7 +74,7 @@ export function makeAppointmentColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Name" />
       ),
-      // Add-on count lives in its own "Add-ons" column — no badge here.
+      // Add-on count lives in its own "Add-ons" column - no badge here.
       cell: ({ row }) => row.getValue("name"),
     },
     {
@@ -114,7 +115,7 @@ export function makeAppointmentColumns(
       cell: ({ row }) => {
         const stacked = row.original.recommendedServices ?? [];
         if (stacked.length === 0) {
-          return <span className="text-muted-foreground/40">—</span>;
+          return <span className="text-muted-foreground/40">-</span>;
         }
         const pending = stacked.filter((r) => r.status === "pending").length;
         const confirmed = getConfirmedAddonNames(row.original);
@@ -143,7 +144,7 @@ export function makeAppointmentColumns(
             Session {sessionNum}
           </Badge>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/40">-</span>
         );
       },
     },
@@ -169,7 +170,7 @@ export function makeAppointmentColumns(
       header: "Service",
       cell: ({ row }) => {
         // New bookings store the service in `service`; old rows kept it in the
-        // now-deprecated `category`. A pure session booking has neither — show
+        // now-deprecated `category`. A pure session booking has neither - show
         // its session count instead.
         const s = row.original.service || row.original.category;
         if (s) return s;
@@ -185,18 +186,17 @@ export function makeAppointmentColumns(
       cell: ({ row }) => row.original.slot?.time ?? "--",
     },
     {
-      accessorKey: "typeOfappointment",
+      id: "typeOfappointment",
+      // Raw enum values used to leak here ("appointment" for what is really a
+      // home visit). bookingLabel routes a course away from the intake labels.
+      accessorFn: (r) => bookingLabel(r),
       header: "Type",
       cell: ({ row }) => {
-        const typeOfBooking: string | undefined = row.original.typeOfappointment;
-        return typeOfBooking ? (
-          <Badge
-            variant={typeOfBooking === "appointment" ? "secondary" : "default"}
-          >
-            {typeOfBooking}
+        const isCourse = bookingKindOf(row.original) === "course";
+        return (
+          <Badge variant={isCourse ? "default" : "secondary"}>
+            {bookingLabel(row.original)}
           </Badge>
-        ) : (
-          "--"
         );
       },
     },

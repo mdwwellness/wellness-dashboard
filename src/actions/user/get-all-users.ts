@@ -27,7 +27,7 @@ export default async function getAllUsers(): Promise<ApiResponse<StaffUser[]>> {
             };
         }
         const result = await response.json();
-        // Backend shape: { success, data: { users: [...] } } — flatten to data: [...]
+        // Backend shape: { success, data: { users: [...] } } - flatten to data: [...]
         return {
             success: true,
             message: result.message ?? "Users fetched successfully",

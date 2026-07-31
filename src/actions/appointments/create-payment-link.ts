@@ -6,7 +6,7 @@ import type { ApiResponse } from "@/type/api";
 
 /**
  * Ask the backend for this booking's public payment token, minting one if it
- * doesn't have it yet. Idempotent — a link already sent to a customer keeps
+ * doesn't have it yet. Idempotent - a link already sent to a customer keeps
  * working, so an executive can safely hit "Request payment" twice.
  */
 export default async function createPaymentLink(

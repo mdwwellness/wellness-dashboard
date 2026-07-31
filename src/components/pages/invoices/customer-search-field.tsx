@@ -116,7 +116,7 @@ export function CustomerSearchField({
               <CommandList className="max-h-64">
                 <CommandEmpty>
                   {query.trim()
-                    ? "No matching customers — details will be saved as new."
+                    ? "No matching customers - details will be saved as new."
                     : "Type to search customers…"}
                 </CommandEmpty>
                 {suggestions.length > 0 && (

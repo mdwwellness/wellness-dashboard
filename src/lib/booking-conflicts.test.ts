@@ -5,7 +5,7 @@ import type { EnquiryType } from "@/type/schema";
 const visit = (over: Partial<EnquiryType>): EnquiryType =>
   ({ name: "x", phonenumber: 1, doctorId: "DOC-1", status: "ongoing", ...over }) as EnquiryType;
 
-// Asha booked 2026-07-20, 10:30–12:00 (explicit span).
+// Asha booked 2026-07-20, 10:30-12:00 (explicit span).
 const asha = visit({
   name: "Ravi", doctorId: "DOC-1",
   slot: { date: "2026-07-20T00:00:00.000Z", time: "10:30" },

@@ -18,7 +18,7 @@ const inr = (n: number) =>
   }).format(n ?? 0);
 
 /** Line item prices arrive as numbers from the API but as strings from the
- *  inputs — compare them as numbers or `1200` vs `"1200"` reads as a change. */
+ *  inputs - compare them as numbers or `1200` vs `"1200"` reads as a change. */
 const price = (li: InvoiceLineItem) => Number(li?.price) || 0;
 const desc = (li: InvoiceLineItem) => String(li?.description ?? "").trim();
 
@@ -44,8 +44,8 @@ function diffLineItems(
     if (renamed && repriced) {
       changes.push({
         label: "Line item",
-        from: `${desc(b)} — ${inr(price(b))}`,
-        to: `${desc(a)} — ${inr(price(a))}`,
+        from: `${desc(b)} - ${inr(price(b))}`,
+        to: `${desc(a)} - ${inr(price(a))}`,
       });
     } else if (repriced) {
       changes.push({
@@ -61,7 +61,7 @@ function diffLineItems(
   for (let i = shared; i < before.length; i++) {
     changes.push({
       label: "Removed",
-      from: `${desc(before[i]) || "Item"} — ${inr(price(before[i]))}`,
+      from: `${desc(before[i]) || "Item"} - ${inr(price(before[i]))}`,
       to: "",
     });
   }
@@ -69,7 +69,7 @@ function diffLineItems(
     changes.push({
       label: "Added",
       from: "",
-      to: `${desc(after[i]) || "Item"} — ${inr(price(after[i]))}`,
+      to: `${desc(after[i]) || "Item"} - ${inr(price(after[i]))}`,
     });
   }
 
@@ -80,7 +80,7 @@ function diffLineItems(
  * Every difference between two versions of an invoice, in the order a person
  * would read them: money first, then the facts around it.
  *
- * Only covers what `UpdateInvoiceInput` can actually write — diffing fields the
+ * Only covers what `UpdateInvoiceInput` can actually write - diffing fields the
  * drawer can't edit would report changes nobody made.
  *
  * An empty result means nothing moved, which is what lets the drawer save a
@@ -100,7 +100,7 @@ export function diffInvoice(
     ["Package", text(before.package_name), text(after.package_name)],
   ];
   for (const [label, from, to] of scalars) {
-    if (from !== to) changes.push({ label, from: from || "—", to: to || "—" });
+    if (from !== to) changes.push({ label, from: from || "-", to: to || "-" });
   }
 
   if (before.payment_status !== after.payment_status) {
