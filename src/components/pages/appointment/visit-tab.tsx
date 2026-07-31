@@ -178,18 +178,16 @@ export function VisitTab({
     ? `Complete session ${progress.currentSession} of ${progress.total}`
     : "Complete this visit";
 
-  // No therapist means there is no visit to run yet - assigning one is the only
-  // thing that can happen on this tab.
-  if (!appointment.doctorId) {
-    return (
+  return (
+    <div className="space-y-3">
+      {/* Always present: who is doing the visit, and a way to change them. */}
       <AssignTherapistCard
         appointment={appointment}
         allAppointments={allAppointments}
       />
-    );
-  }
 
-  return (
+      {/* There is no visit to run until someone is assigned to it. */}
+      {!appointment.doctorId ? null : (
     <div className="space-y-4 rounded-lg border p-3">
       {packageDone && (
         <p className="rounded-md border border-emerald-200 bg-emerald-50/50 px-2.5 py-2 text-xs font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -367,6 +365,8 @@ export function VisitTab({
             </Button>
           </div>
         </Step>
+      )}
+    </div>
       )}
     </div>
   );
