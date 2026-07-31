@@ -161,18 +161,24 @@ export default function AppointmentBookingForm() {
   const deliveryType = (form.watch("typeOfappointment") ?? "appointment") as BookingType;
   const intakeFee = isCourse ? undefined : catalogueFee(deliveryType, services);
 
-  // Price follows the branch. An effect, not just the session field's onChange:
-  // a count typed before the rate card resolves would otherwise stay unpriced.
+  // The price this booking should carry, derived during render. A course prices
+  // from the rate table, an intake from the services catalogue.
+  const autoPrice = isCourse
+    ? sessionTotal(tiers, sessions ?? 0) || undefined
+    : intakeFee;
+
+  // Apply it as an effect, not just in the session field's onChange: a count
+  // typed before the rate card resolves would otherwise stay unpriced.
+  //
+  // Depends on the PRICE, never on `tiers` - that is `rateCard?.tiers ?? []`,
+  // a fresh array identity every render, which made this effect re-run, setValue,
+  // re-render, and loop until React bailed out. A primitive dep also means a
+  // hand-typed price survives, since it doesn't change what this computes.
   // No shouldValidate - that would paint an error the moment the modal opens.
   useEffect(() => {
-    if (isCourse) {
-      const total = sessionTotal(tiers, sessions ?? 0);
-      form.setValue("quotedPrice", total > 0 ? total : undefined);
-    } else {
-      form.setValue("quotedPrice", intakeFee);
-    }
+    form.setValue("quotedPrice", autoPrice);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCourse, sessions, intakeFee, tiers]);
+  }, [autoPrice]);
 
   // Has this customer ever been through an intake? Matched on customer_id when
   // one is linked, else on phone. Cancelled records don't count as a consultation.
