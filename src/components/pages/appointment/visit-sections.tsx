@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { format } from "date-fns";
-import { CalendarPlus, Check, Loader2, Plus, Stethoscope } from "lucide-react";
+import { useState } from "react";
+import { Check, Loader2, Plus, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,16 +19,9 @@ import {
   useAddAppointmentRecommendation,
   useConfirmAppointmentRecommendation,
   useSetAddonPaymentStatus,
-  useUpdateAppointment,
 } from "@/data/appointment/appointment";
-import type { slotBookingZodType, ServiceType } from "@/type/schema";
-import {
-  getPackageProgressForAppointment,
-  visitStatusLabel,
-  type PackageProgress,
-} from "@/lib/package-progress";
+import type { slotBookingZodType } from "@/type/schema";
 import { addonPrice } from "@/lib/service-pricing";
-import { BookingTermsSection } from "./booking-terms-section";
 
 function formatINR(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -57,212 +49,6 @@ function PaymentBadge({
     >
       {label}: {paid ? "Received" : "Pending"}
     </Badge>
-  );
-}
-
-export function PackageVisitSection({
-  appointment,
-  progress,
-}: {
-  appointment: slotBookingZodType;
-  services: ServiceType[];
-  progress: PackageProgress;
-}) {
-  const { mutate: update, isPending } = useUpdateAppointment({ silent: true });
-  const [nextDate, setNextDate] = useState("");
-  const [nextTime, setNextTime] = useState("");
-
-  const pct =
-    progress.total > 0
-      ? Math.round((progress.completed / progress.total) * 100)
-      : 0;
-  const needsNextSlot =
-    progress.completed > 0 &&
-    progress.completed < progress.total &&
-    appointment.status === "scheduled";
-
-  // Map session number → date it was completed, parsed from the activity log
-  // (the backend logs "Session N of M completed" / "Package complete" on each
-  // completion). Used to show a per-session performed/pending breakdown.
-  const sessionDates = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const e of appointment.activityLog ?? []) {
-      const action = e.action ?? "";
-      const m = /Session (\d+) of/.exec(action);
-      if (m) map.set(Number(m[1]), e.at);
-      else if (/Package complete/i.test(action)) map.set(progress.total, e.at);
-    }
-    return map;
-  }, [appointment.activityLog, progress.total]);
-
-  function saveNextSlot() {
-    if (!nextDate || !nextTime) {
-      toast.error("Pick date and time for the next session");
-      return;
-    }
-    update({
-      ...appointment,
-      slot: { date: nextDate, time: nextTime },
-      status: "scheduled",
-    });
-    setNextDate("");
-    setNextTime("");
-    toast.success(`Session ${progress.currentSession} scheduled`);
-  }
-
-  return (
-    <section className="rounded-lg border border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 p-3 space-y-2.5">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
-            Package visit
-          </p>
-          <p className="text-sm font-semibold">{progress.packageName}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Session {progress.currentSession} of {progress.total} ·{" "}
-            {visitStatusLabel(appointment.status)}
-          </p>
-        </div>
-        <Badge variant="outline" className="border-emerald-600 text-emerald-700 shrink-0">
-          {progress.label}
-        </Badge>
-      </div>
-
-      <div className="h-2 w-full rounded-full bg-emerald-100 dark:bg-emerald-900 overflow-hidden">
-        <div
-          className="h-full rounded-full bg-emerald-600 transition-all"
-          style={{ width: `${Math.min(pct, 100)}%` }}
-        />
-      </div>
-
-      {/* Per-session breakdown - performed vs left; each performed session's
-          note expands in place (click the row). One report, in one spot. */}
-      <div className="space-y-1 rounded-md border bg-background/60 p-2">
-        <p className="text-xs font-medium">
-          Sessions ({progress.completed} performed ·{" "}
-          {Math.max(progress.total - progress.completed, 0)} left)
-        </p>
-        <ul className="space-y-0.5">
-          {Array.from({ length: progress.total }, (_, i) => {
-            const n = i + 1;
-            const performed = n <= progress.completed;
-            const rec = (appointment.sessionNotes ?? []).find(
-              (s) => s.session === n,
-            );
-            const date = rec?.at ?? sessionDates.get(n);
-            const dateStr = date
-              ? ` · ${format(new Date(date), "yyyy-MM-dd")}`
-              : "";
-            if (performed && rec?.note) {
-              return (
-                <li key={n} className="text-xs">
-                  <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                      <span>
-                        Session {n} - performed{dateStr}
-                        {rec.therapist ? ` · ${rec.therapist}` : ""}
-                      </span>
-                      <span className="ml-auto text-[11px] text-muted-foreground group-open:hidden">
-                        note ▾
-                      </span>
-                      <span className="ml-auto hidden text-[11px] text-muted-foreground group-open:inline">
-                        hide ▴
-                      </span>
-                    </summary>
-                    <p className="mt-1 ml-5 whitespace-pre-wrap rounded bg-muted/50 p-2">
-                      {rec.note}
-                    </p>
-                  </details>
-                </li>
-              );
-            }
-            return (
-              <li key={n} className="flex items-center gap-2 text-xs">
-                {performed ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                ) : (
-                  <span className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
-                )}
-                <span className={performed ? "" : "text-muted-foreground"}>
-                  Session {n} - {performed ? "performed" : "pending"}
-                  {performed ? dateStr : ""}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-
-        {(appointment.recommendedServices ?? []).length > 0 && (
-          <>
-            <p className="text-xs font-medium pt-1.5 mt-1.5 border-t">
-              Add-on services
-            </p>
-            <ul className="space-y-1">
-              {(appointment.recommendedServices ?? []).map((a, i) => {
-                const confirmed = a.status === "confirmed";
-                return (
-                  <li
-                    key={`${a.serviceId}-${a.recommendedAt}-${i}`}
-                    className="flex items-center gap-2 text-xs"
-                  >
-                    {confirmed ? (
-                      <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <span className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
-                    )}
-                    <span className={confirmed ? "" : "text-muted-foreground"}>
-                      {a.serviceName} -{" "}
-                      {confirmed ? "confirmed" : "awaiting customer"}
-                      {a.paymentCollected ? " · paid" : ""} ·{" "}
-                      {formatINR(a.quotedPrice)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
-      </div>
-
-      {appointment.slot?.date && (
-        <p className="text-xs text-muted-foreground">
-          Next visit: {format(new Date(appointment.slot.date), "dd MMM yyyy")}
-          {appointment.slot.time ? ` · ${appointment.slot.time}` : ""}
-        </p>
-      )}
-
-      {needsNextSlot && (
-        <div className="rounded-md border bg-background p-2.5 space-y-2">
-          <p className="text-xs font-medium flex items-center gap-1">
-            <CalendarPlus className="h-3.5 w-3.5" />
-            Schedule next visit (optional)
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="date"
-              value={nextDate}
-              onChange={(e) => setNextDate(e.target.value)}
-              aria-label="Next session date"
-            />
-            <Input
-              type="time"
-              value={nextTime}
-              onChange={(e) => setNextTime(e.target.value)}
-              aria-label="Next session time"
-            />
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            disabled={isPending}
-            onClick={saveNextSlot}
-          >
-            Update visit date
-          </Button>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -511,34 +297,3 @@ export function AddonsVisitSection({
   );
 }
 
-export function VisitSections({
-  appointment,
-  allAppointments,
-  services,
-}: {
-  appointment: slotBookingZodType;
-  allAppointments: slotBookingZodType[];
-  services: ServiceType[];
-}) {
-  const progress = getPackageProgressForAppointment(
-    appointment,
-    allAppointments,
-    services,
-  );
-
-  return (
-    <div className="space-y-4">
-      {progress && (
-        <PackageVisitSection
-          appointment={appointment}
-          services={services}
-          progress={progress}
-        />
-      )}
-      {/* Always shown: an intake has no package block, but its price and
-          payment still need to be correctable. */}
-      <BookingTermsSection appointment={appointment} />
-      <AddonsVisitSection appointment={appointment} />
-    </div>
-  );
-}

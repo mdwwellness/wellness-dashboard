@@ -68,10 +68,6 @@ import {
 
 type StackedService = { serviceId: string; discount: boolean };
 
-/** Assignable visit lengths, in minutes - same options and default as the
- * enquiry-side control (therapist-availability-grid.tsx / enquiry-detail-drawer.tsx). */
-const DURATION_OPTIONS = [30, 60, 90, 120];
-
 export default function AppointmentBookingForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);

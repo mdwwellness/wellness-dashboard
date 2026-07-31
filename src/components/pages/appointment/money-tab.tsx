@@ -1,0 +1,174 @@
+"use client";
+
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import type { slotBookingZodType } from "@/type/schema";
+import { bookingLedger } from "@/lib/booking-money";
+import { bookingLabel } from "@/components/pages/enquiries/booking";
+import { formatINR } from "@/components/pages/services/services-columns";
+import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
+import { publicOrigin } from "@/lib/brand";
+import {
+  paymentRequestMessage,
+  paymentConfirmedMessage,
+} from "@/lib/payment-messages";
+import createPaymentLink from "@/actions/appointments/create-payment-link";
+import { BookingTermsSection } from "./booking-terms-section";
+import { AddonsVisitSection } from "./visit-sections";
+
+const DOT: Record<string, string> = {
+  paid: "bg-emerald-600",
+  due: "bg-amber-500",
+  pending: "bg-muted-foreground/40",
+};
+
+/**
+ * The executive's half of the panel: what was sold, what is owed, and the two
+ * things they actually do about it - ask for the money, or confirm it arrived.
+ *
+ * Requesting payment was missing from this page entirely, so an unpaid visit had
+ * to be chased from the Enquiries drawer instead. It asks for the FULL balance -
+ * the booking plus any confirmed unpaid add-on - not just the booking fee.
+ */
+export function MoneyTab({ appointment }: { appointment: slotBookingZodType }) {
+  const [requesting, setRequesting] = useState(false);
+  const { lines, due, paid } = bookingLedger(appointment);
+
+  async function requestPayment() {
+    if (!appointment._id) return;
+    if (!toWhatsAppNumber(appointment.phonenumber)) {
+      toast.error("This customer has no usable phone number");
+      return;
+    }
+    if (due <= 0) {
+      toast.error("Nothing is outstanding on this booking");
+      return;
+    }
+    setRequesting(true);
+    const link = await createPaymentLink(appointment._id);
+    setRequesting(false);
+    if (!link.success || !link.data?.payToken) {
+      toast.error(link.message ?? "Couldn't create the payment link");
+      return;
+    }
+    // One memo for the whole balance: the booking and every confirmed add-on.
+    const items = lines
+      .filter((l) => l.state === "due")
+      .map((l) => `${l.label} - ${formatINR(l.amount)}`)
+      .join("\n");
+    const wa = whatsAppLink(
+      appointment.phonenumber,
+      paymentRequestMessage({
+        name: appointment.name,
+        bookingId: appointment.enquiryId,
+        item: items || bookingLabel(appointment),
+        amount: due,
+        payUrl: `${publicOrigin()}/pay/${link.data.payToken}`,
+      }),
+    );
+    if (wa) window.open(wa, "_blank", "noopener,noreferrer");
+  }
+
+  function sendReceipt() {
+    const wa = whatsAppLink(
+      appointment.phonenumber,
+      paymentConfirmedMessage({
+        name: appointment.name,
+        amount: appointment.paymentAmount ?? appointment.quotedPrice,
+        method: appointment.paymentMethod,
+        receivedAt: appointment.paymentReceivedAt ?? new Date().toISOString(),
+        visitLabel:
+          appointment.slot?.date && appointment.slot?.time
+            ? `${bookingLabel(appointment)}: ${appointment.slot.date} ${appointment.slot.time}`
+            : "",
+      }),
+    );
+    if (!wa) {
+      toast.error("This customer has no usable phone number");
+      return;
+    }
+    window.open(wa, "_blank", "noopener,noreferrer");
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-lg border p-3">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Sold on this booking
+        </p>
+
+        {lines.length === 0 ? (
+          <p className="py-2 text-sm text-muted-foreground">
+            Nothing priced yet - set a price under Booking terms.
+          </p>
+        ) : (
+          <ul>
+            {lines.map((l) => (
+              <li
+                key={l.key}
+                className="flex items-center gap-2.5 border-b border-dashed py-2 last:border-0"
+              >
+                <span
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[l.state]}`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-medium">
+                    {l.label}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {l.meta}
+                  </span>
+                </span>
+                <span className="font-mono text-[13px] font-semibold tabular-nums">
+                  {formatINR(l.amount)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-2 flex items-baseline justify-between border-t pt-2.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {due > 0 ? "Total due" : "Collected"}
+          </span>
+          <span
+            className={`font-mono text-base font-bold tabular-nums ${
+              due > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600"
+            }`}
+          >
+            {formatINR(due > 0 ? due : paid)}
+          </span>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          {due > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              className="flex-1"
+              disabled={requesting}
+              onClick={requestPayment}
+            >
+              {requesting ? "Preparing..." : "Request payment"}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              onClick={sendReceipt}
+            >
+              Send receipt
+            </Button>
+          )}
+        </div>
+      </section>
+
+      <AddonsVisitSection appointment={appointment} />
+      <BookingTermsSection appointment={appointment} />
+    </div>
+  );
+}

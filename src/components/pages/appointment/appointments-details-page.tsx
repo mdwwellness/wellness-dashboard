@@ -4,7 +4,6 @@ import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { slotBookingZodSchema, slotBookingZodType } from "@/type/schema";
@@ -28,24 +27,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useUpdateAppointment } from "@/data/appointment/appointment";
-import { useAuthStore } from "@/providers/permission-provider";
 import { toast } from "sonner";
 import z from "zod";
 
 interface AppointmentDetailsPageProps {
   data: slotBookingZodType;
   onClose: () => void;
-  /** Hides the visit date/time when the package block above already manages it. */
+  /** Hides the visit date/time when a course's own scheduler already manages it. */
   compact?: boolean;
-  /** e.g. "Session 2 of 4" - labels the clinical note with the current session. */
-  sessionLabel?: string;
 }
 
 export default function AppointmentDetailsPage({
   data,
   onClose,
   compact = false,
-  sessionLabel,
 }: AppointmentDetailsPageProps) {
   const { mutate: updateMutate, isPending: isUpdating } =
     useUpdateAppointment();
@@ -54,20 +49,10 @@ export default function AppointmentDetailsPage({
   // all preserved; only the status flips to "cancelled".
   const { mutate: cancelMutate, isPending: isCancelling } =
     useUpdateAppointment({ silent: true });
-  // Persist the clinical note on blur so it can't be lost by completing the
-  // session (further down the drawer) without first hitting "Save changes".
-  const { mutate: saveNote } = useUpdateAppointment({ silent: true });
 
   // Customer identity is set during the enquiry funnel and rarely edited during
   // a visit - keep it tucked away so the drawer stays visit-focused.
   const [showCustomer, setShowCustomer] = useState(false);
-
-  // Who's recording the note - stamped onto the session on completion.
-  const { user } = useAuthStore();
-  const authorName =
-    `${user?.userfName ?? ""} ${user?.userlName ?? ""}`.trim() ||
-    user?.userEmail ||
-    "you";
 
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
     resolver: zodResolver(slotBookingZodSchema),
@@ -143,36 +128,8 @@ export default function AppointmentDetailsPage({
             </div>
           )}
 
-          <FormField
-            control={form.control}
-            name="note"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Clinical note{sessionLabel ? ` - ${sessionLabel}` : ""}
-                </FormLabel>
-                <p className="text-xs text-muted-foreground">
-                  Findings, diagnosis and observations for this visit. Filed into
-                  the Sessions report when you complete the session.
-                </p>
-                <FormControl>
-                  <Textarea
-                    rows={4}
-                    placeholder="Findings, diagnosis, observations…"
-                    {...field}
-                    onBlur={() => {
-                      field.onBlur();
-                      saveNote(form.getValues());
-                    }}
-                  />
-                </FormControl>
-                <p className="text-[11px] text-muted-foreground">
-                  Writing as {authorName}
-                </p>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* The note is edited on the Visit tab, beside the work it describes.
+              Deliberately not repeated here: two editors on one field diverge. */}
 
           {/* Customer details - collapsed by default. */}
           <div className="border-t pt-4">
