@@ -4,7 +4,7 @@ import type { EnquiryType, ServiceType } from "@/type/schema";
  * The booking an executive confirms at step 3 of the client-approved funnel:
  * an online consultation, or a home visit.
  *
- * This rides on the EXISTING `typeOfappointment` field rather than a new one —
+ * This rides on the EXISTING `typeOfappointment` field rather than a new one -
  * the backend model is strict, so an unknown field would be silently dropped on
  * save. The two enum values map 1:1 onto the two choices, so nothing is lost.
  */
@@ -33,7 +33,7 @@ export const BOOKING_TYPES: {
  *
  * Only meaningful on enquiry-funnel records, where the value was set by the
  * drawer. Appointments booked directly from the booking form also carry
- * `typeOfappointment: "appointment"` but mean "a session", not a home visit —
+ * `typeOfappointment: "appointment"` but mean "a session", not a home visit -
  * so don't relabel that table with this.
  */
 export function bookingTypeLabel(t: BookingType | undefined): string | undefined {
@@ -44,7 +44,7 @@ export function bookingTypeLabel(t: BookingType | undefined): string | undefined
  * The catalogue fee for a booking type, or `undefined` when the executive
  * hasn't put that service on the Services page yet.
  *
- * Undefined is surfaced as a prompt to go add it — never silently priced at 0,
+ * Undefined is surfaced as a prompt to go add it - never silently priced at 0,
  * because an unpriced record generates no invoice at all.
  */
 export function catalogueFee(
@@ -64,7 +64,7 @@ export function catalogueFee(
  *
  * `slot.date` is a Date in the backend model, so it arrives as a full ISO
  * string, while the date picker produces "yyyy-MM-dd". Comparing the two raw
- * would never match — every slot would look free.
+ * would never match - every slot would look free.
  */
 export function toDayKey(d: string | undefined): string {
   if (!d) return "";

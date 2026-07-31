@@ -117,7 +117,7 @@ const AnalyticsPage = () => {
   const mom = React.useMemo(() => deriveMoM(records), [records]);
 
   // Analytics is a back-office view; therapists get their own dashboard.
-  // ponytail: nav/role visibility only — real enforcement is server-side when
+  // ponytail: nav/role visibility only - real enforcement is server-side when
   // the access model needs it (see spec §4).
   if (role === "THERAPIST") {
     return (
@@ -162,7 +162,7 @@ const AnalyticsPage = () => {
         skeleton={<AnalyticsSkeleton />}
       >
         {!a.hasData ? (
-          <Empty>Not enough data yet — analytics fill in as bookings arrive.</Empty>
+          <Empty>Not enough data yet - analytics fill in as bookings arrive.</Empty>
         ) : (
           <>
             {/* ── Business health ── */}

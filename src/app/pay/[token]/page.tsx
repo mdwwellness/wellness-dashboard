@@ -27,7 +27,7 @@ const inr = (n: number) =>
   }).format(n);
 
 /**
- * Plain fetch, not fetchWithAuth — the customer has no dashboard session. The
+ * Plain fetch, not fetchWithAuth - the customer has no dashboard session. The
  * unguessable token in the URL is what authorises this read; the backend
  * returns only the handful of fields rendered below.
  */
@@ -71,7 +71,7 @@ export default async function PayPage({
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
       <div className="mx-auto w-full max-w-md space-y-4">
-        {/* Who this is from — named up front, before any mention of money. */}
+        {/* Who this is from - named up front, before any mention of money. */}
         <header className="text-center">
           <h1
             className="text-2xl font-semibold"
@@ -86,7 +86,7 @@ export default async function PayPage({
           {summary.paymentReceived ? (
             <div className="space-y-2 text-center">
               <p className="text-lg font-medium text-emerald-700">
-                Payment received — thank you{summary.name ? `, ${summary.name}` : ""}.
+                Payment received - thank you{summary.name ? `, ${summary.name}` : ""}.
               </p>
               <p className="text-sm text-slate-600">
                 Nothing more to pay. We&apos;ll confirm your therapist and visit
@@ -110,7 +110,7 @@ export default async function PayPage({
                 )}
               </div>
 
-              {/* Itemised — the customer sees exactly what the money is for. */}
+              {/* Itemised - the customer sees exactly what the money is for. */}
               <dl className="space-y-2 border-y py-3 text-sm">
                 <div className="flex items-baseline justify-between gap-4">
                   <dt className="text-slate-600">{item}</dt>
@@ -126,7 +126,7 @@ export default async function PayPage({
                 <div className="space-y-4">
                   {/* Where the money goes, stated before we ask for it. A
                       customer can paste this into their own UPI app and check
-                      the name resolves before committing a rupee — that check
+                      the name resolves before committing a rupee - that check
                       is the whole point, so don't hide the ID behind a button. */}
                   <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
                     <p className="text-xs text-slate-500">Paying to</p>
@@ -152,11 +152,11 @@ export default async function PayPage({
                   {qr && (
                     <div className="space-y-2 border-t pt-4 text-center">
                       <p className="text-xs text-slate-500">
-                        On a computer? Scan with any UPI app — the amount and
+                        On a computer? Scan with any UPI app - the amount and
                         booking reference are already in the code:
                       </p>
                       {/* qr is an SVG string we generated ourselves from our
-                          own UPI link — no user input reaches it. */}
+                          own UPI link - no user input reaches it. */}
                       <div
                         className="mx-auto h-44 w-44 [&>svg]:h-full [&>svg]:w-full"
                         dangerouslySetInnerHTML={{ __html: qr }}

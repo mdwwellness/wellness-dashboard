@@ -105,9 +105,9 @@ export function makeInvoiceColumns({
       ),
       cell: ({ row }) => {
         const iso = row.original.createdAt;
-        if (!iso) return <span className="text-muted-foreground/40">—</span>;
+        if (!iso) return <span className="text-muted-foreground/40">-</span>;
         const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return <span className="text-muted-foreground/40">—</span>;
+        if (Number.isNaN(d.getTime())) return <span className="text-muted-foreground/40">-</span>;
         return (
           <span className="text-xs text-muted-foreground whitespace-nowrap" title={d.toLocaleString()}>
             {formatDistanceToNow(d, { addSuffix: true })}

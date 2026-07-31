@@ -173,7 +173,7 @@ export function CreateInvoiceSheet({
             <SheetHeader className="p-0 text-left">
               <SheetTitle>Add an invoice</SheetTitle>
               <SheetDescription>
-                Create a new invoice — search a customer or enter details below.
+                Create a new invoice - search a customer or enter details below.
               </SheetDescription>
             </SheetHeader>
           </div>
@@ -197,7 +197,7 @@ export function CreateInvoiceSheet({
             onSubmit={form.handleSubmit(onSubmit)}
             className="grid grid-cols-1 lg:grid-cols-5 gap-0 min-h-0"
           >
-            {/* Left — details */}
+            {/* Left - details */}
             <div className="lg:col-span-3 space-y-6 p-6 border-b lg:border-b-0 lg:border-r">
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold">Invoice details</h3>
@@ -395,7 +395,7 @@ export function CreateInvoiceSheet({
               </section>
             </div>
 
-            {/* Right — summary */}
+            {/* Right - summary */}
             <div className="lg:col-span-2 p-6 bg-muted/30 space-y-4">
               <h3 className="text-sm font-semibold">Invoice summary</h3>
 

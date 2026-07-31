@@ -3,7 +3,7 @@ import type { EnquiryType } from "@/type/schema";
 
 /**
  * Analytics for a SERVICE business, derived client-side from the appointments
- * list the app already fetches — same pattern as the dashboard/customers pages.
+ * list the app already fetches - same pattern as the dashboard/customers pages.
  * Everything here is a plain function so it can be unit-tested with arrays.
  *
  * ponytail: client-side derivation; when record counts outgrow a single fetch,
@@ -15,7 +15,7 @@ const BOOKING_STATUSES = ["scheduled", "ongoing", "completed"];
 const statusOf = (r: EnquiryType) => r.status ?? "enquiry";
 const isCancelled = (r: EnquiryType) => statusOf(r) === "cancelled";
 
-/** The money on a record — the amount actually taken, else the quoted price. */
+/** The money on a record - the amount actually taken, else the quoted price. */
 const amountOf = (r: EnquiryType) => r.paymentAmount ?? r.quotedPrice ?? 0;
 
 /** A confirmed booking: a booking type was chosen (pay-first funnel) or it has
@@ -40,17 +40,17 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export interface AnalyticsResult {
-  // Zone A — business health
+  // Zone A - business health
   revenueThisMonth: number;
   collected: number;
   pending: number;
-  collectedPct: number; // 0–100
+  collectedPct: number; // 0-100
   bookingsThisMonth: number;
-  conversionPct: number; // paid ÷ enquiries, 0–100
+  conversionPct: number; // paid ÷ enquiries, 0-100
   pipeline: { enquiries: number; bookings: number; paid: number };
   serviceMix: { label: string; revenue: number }[]; // desc
   revenueTrend: { month: string; revenue: number; momPct: number | null }[]; // oldest→newest
-  // Zone B — operational
+  // Zone B - operational
   pendingCount: number;
   needsFirstContact: number;
   therapistLoad: { name: string; bookings: number }[]; // desc, this week
@@ -127,7 +127,7 @@ export function deriveAnalytics(
       (r.reachAttempts ?? 0) === 0,
   ).length;
 
-  // Therapist load this week — bookings with a therapist + slot this week.
+  // Therapist load this week - bookings with a therapist + slot this week.
   const weekStart = startOfWeek(now);
   const loadByName = new Map<string, number>();
   for (const r of live) {
@@ -186,7 +186,7 @@ const idKey = (r: EnquiryType) =>
 const paidMonth = (r: EnquiryType) => monthKey(r.paymentReceivedAt ?? readCreatedISO(r));
 const createdMonth = (r: EnquiryType) => monthKey(readCreatedISO(r));
 
-/** N+1 "YYYY-MM" keys ending at `now`'s month — the extra leading month gives
+/** N+1 "YYYY-MM" keys ending at `now`'s month - the extra leading month gives
  *  the first displayed month a real previous value for its delta. */
 function monthWindow(now: Date, count: number): string[] {
   const keys: string[] = [];
@@ -317,7 +317,7 @@ export function deriveDailyPacing(
   return out;
 }
 
-/** Month options for the pacing picker — the last `count` months, newest first. */
+/** Month options for the pacing picker - the last `count` months, newest first. */
 export function monthOptions(
   now: Date = new Date(),
   count = 12,

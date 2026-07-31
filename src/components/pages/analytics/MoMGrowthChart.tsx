@@ -59,7 +59,7 @@ export function MoMGrowthChart({
   const deltas = shown.map((d) => d.delta);
   const dataMax = Math.max(0, ...deltas);
   const dataMin = Math.min(0, ...deltas);
-  // Offset where the gradient flips blue→red — the zero crossing.
+  // Offset where the gradient flips blue→red - the zero crossing.
   const off = dataMax <= 0 ? 0 : dataMin >= 0 ? 1 : dataMax / (dataMax - dataMin);
 
   const chartData = shown.map((d) => ({

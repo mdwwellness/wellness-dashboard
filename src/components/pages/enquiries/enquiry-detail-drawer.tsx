@@ -124,7 +124,7 @@ export function EnquiryDetailDrawer({
   // Local edit buffer keeps the form responsive without writing every keystroke.
   // Re-syncs to the latest record prop whenever the parent re-renders with
   // fresh data (e.g. after a server update). Unsaved local edits are lost on
-  // re-sync — acceptable for MVP because saves happen on every blur and toggle.
+  // re-sync - acceptable for MVP because saves happen on every blur and toggle.
   const [draft, setDraft] = useState<EnquiryType | null>(record);
 
   // ── All remaining hooks MUST be declared above the early return so the
@@ -164,12 +164,12 @@ export function EnquiryDetailDrawer({
 
   // Editable inline state for the admin reachedOutBy override.
   const [editingReachedBy, setEditingReachedBy] = useState(false);
-  // Lead info is what the customer already told us — read-only by default.
+  // Lead info is what the customer already told us - read-only by default.
   // Editing is deliberate: a phone typo silently splits one customer in two.
   const [editingLead, setEditingLead] = useState(false);
 
   // Delete confirmation modal open state. Lifted to React state (instead of
-  // Radix AlertDialogTrigger) so the dialog can be rendered OUTSIDE the Sheet —
+  // Radix AlertDialogTrigger) so the dialog can be rendered OUTSIDE the Sheet -
   // nesting a Radix AlertDialog inside a Sheet causes the Sheet's pointer-events
   // overlay to swallow the trigger's first click, forcing the user to double-tap.
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -178,7 +178,7 @@ export function EnquiryDetailDrawer({
   // "All changes saved" label so it doesn't show before any edit happens.
   const [savedOnce, setSavedOnce] = useState(false);
 
-  // Minting the pay link is a server round-trip — don't let it be double-fired.
+  // Minting the pay link is a server round-trip - don't let it be double-fired.
   const [requestingPayment, setRequestingPayment] = useState(false);
 
   // Status-override flow: picking a new status stages it here and reveals a
@@ -214,7 +214,7 @@ export function EnquiryDetailDrawer({
     doctor: string;
     time: string;
   } | null>(null);
-  // Visit length owned by the drawer — the grid is a controlled child. Seeded
+  // Visit length owned by the drawer - the grid is a controlled child. Seeded
   // from the record's saved span on open (see the seed effect below).
   const [assignDuration, setAssignDuration] = useState(60);
   // A too-close candidate is staged here (with its already-built change and any
@@ -234,8 +234,8 @@ export function EnquiryDetailDrawer({
 
     // Price the booking from its type without waiting for a click. The type is
     // whatever the customer already chose (public form) or what their service
-    // implies — either way the fee follows it from the catalogue, so a booking
-    // that's already decided opens already priced. Local seed only — it persists
+    // implies - either way the fee follows it from the catalogue, so a booking
+    // that's already decided opens already priced. Local seed only - it persists
     // on the first real save (every save sends the full draft), so opening a
     // lead writes nothing.
     if (record) {
@@ -286,7 +286,7 @@ export function EnquiryDetailDrawer({
     setEditingAssignment(false);
   }, [record]);
 
-  // Only NOW is it safe to early-return — hooks above have all run.
+  // Only NOW is it safe to early-return - hooks above have all run.
   if (!record || !draft) return null;
 
   const bookingFee = draft.typeOfappointment
@@ -295,7 +295,7 @@ export function EnquiryDetailDrawer({
 
   // A therapist is already locked in on the saved record.
   const hasAssignment = Boolean(draft.doctorId && draft.slot?.time);
-  // The staged pick already matches what's saved — nothing left to confirm.
+  // The staged pick already matches what's saved - nothing left to confirm.
   const isAssigned = Boolean(
     assignPick &&
       draft.doctorId === assignPick.doctorId &&
@@ -335,7 +335,7 @@ export function EnquiryDetailDrawer({
       out.executiveReachedOutAt = new Date().toISOString();
     }
 
-    // Capture "handled by" if not already set — the first person to take action on this lead.
+    // Capture "handled by" if not already set - the first person to take action on this lead.
     if (!d.reachedOutBy && currentUser) {
       out.reachedOutBy = {
         userId: currentUser.id,
@@ -362,7 +362,7 @@ export function EnquiryDetailDrawer({
 
     // Soft lock (T3/T5): a non-owner exec must give a reason before editing.
     if (!canEdit && !effectiveReason) {
-      toast.warning(`This lead is owned by ${ownerName} — add a reason to edit.`);
+      toast.warning(`This lead is owned by ${ownerName} - add a reason to edit.`);
       setPendingSave({ extra, advance: isFunnelAdvance });
       setReasonDraft("");
       setReasonDialogOpen(true);
@@ -403,7 +403,7 @@ export function EnquiryDetailDrawer({
     );
   }
 
-  // Apply a staged status change — requires a non-empty reason note, which is
+  // Apply a staged status change - requires a non-empty reason note, which is
   // recorded as an activity-log entry.
   function applyStatusOverride() {
     if (!pendingStatus) return;
@@ -456,7 +456,7 @@ export function EnquiryDetailDrawer({
       at: new Date().toISOString(),
       userId: currentUser?.id,
       name: currentActorName(),
-      action: `Attempted to call — no answer (#${n})`,
+      action: `Attempted to call - no answer (#${n})`,
     };
     save({
       reachAttempts: n,
@@ -477,7 +477,7 @@ export function EnquiryDetailDrawer({
 
   // ── Step 3: confirm the booking ──
   // The fee belongs to the type, so switching type re-prices from the
-  // catalogue. It stays editable afterwards — exceptions happen.
+  // catalogue. It stays editable afterwards - exceptions happen.
   function chooseBookingType(t: BookingType) {
     const fee = catalogueFee(t, services);
     save(
@@ -489,7 +489,7 @@ export function EnquiryDetailDrawer({
     );
   }
 
-  // ── Step 4: payment — the gate for step 5 ──
+  // ── Step 4: payment - the gate for step 5 ──
   function togglePayment(checked: boolean) {
     if (!checked) {
       // Un-ticking re-locks the therapist step; the assignment itself stands.
@@ -516,7 +516,7 @@ export function EnquiryDetailDrawer({
         paymentReceived: true,
         paymentReceivedAt: new Date().toISOString(),
         paymentAmount: amount,
-        // Paid but not yet assigned — step 5 moves it to "ongoing".
+        // Paid but not yet assigned - step 5 moves it to "ongoing".
         status: "scheduled",
         activityLog: [
           ...(draft.activityLog ?? []),
@@ -537,10 +537,10 @@ export function EnquiryDetailDrawer({
   // ── Step 5: assign the therapist → the booking lands on Appointments ──
   function confirmAssignment() {
     if (!assignDate || !assignPick) return;
-    // The backend never prices from the rate table — if the frontend doesn't
+    // The backend never prices from the rate table - if the frontend doesn't
     // send a quotedPrice the record is unpriceable and generates NO invoice.
     if (!draft?.quotedPrice) {
-      toast.error("Set the booking fee in step 3 — without it no invoice is raised.");
+      toast.error("Set the booking fee in step 3 - without it no invoice is raised.");
       return;
     }
 
@@ -564,12 +564,12 @@ export function EnquiryDetailDrawer({
           at: new Date().toISOString(),
           userId: currentUser?.id,
           name: currentActorName(),
-          action: `Assigned ${assignPick.doctor} — ${assignDate} ${assignPick.time}–${end}`,
+          action: `Assigned ${assignPick.doctor} - ${assignDate} ${assignPick.time}-${end}`,
         },
       ],
     };
 
-    // Touching a booking that's already settled always confirms first — a
+    // Touching a booking that's already settled always confirms first - a
     // stray click must never silently move a customer's visit. Non-admins
     // additionally have to give a reason for the trail. The conflict check
     // runs AFTER that reason is given (in the dialog's confirm), never before.
@@ -602,7 +602,7 @@ export function EnquiryDetailDrawer({
     );
     if (conflict.status === "overlap") {
       toast.error(
-        `${assignDuration} min from ${assignPick.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit — shorten it or pick another start.`,
+        `${assignDuration} min from ${assignPick.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit - shorten it or pick another start.`,
       );
       return;
     }
@@ -620,7 +620,7 @@ export function EnquiryDetailDrawer({
    * Tone is deliberate. The customer just spoke to this executive, so the memo
    * names the clinic, quotes the booking ID and the exact item and amount, and
    * sends them to a page that shows the same before any money moves. It never
-   * invents urgency and never asks for a credential — that's what separates it
+   * invents urgency and never asks for a credential - that's what separates it
    * from the scam texts everyone gets.
    */
   async function requestPaymentWa() {
@@ -709,7 +709,7 @@ export function EnquiryDetailDrawer({
         if (!next) onClose();
       }}
     >
-      {/* Wide enough for the therapist × time-slot grid to breathe — 12 slots
+      {/* Wide enough for the therapist × time-slot grid to breathe - 12 slots
           plus a therapist name column don't fit in the default sm:max-w-xl. */}
       <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
         <SheetHeader>
@@ -787,7 +787,7 @@ export function EnquiryDetailDrawer({
                       {label}
                     </dt>
                     <dd className="truncate text-sm" title={value || undefined}>
-                      {value?.trim() || "—"}
+                      {value?.trim() || "-"}
                     </dd>
                   </div>
                 ))}
@@ -878,7 +878,7 @@ export function EnquiryDetailDrawer({
                   Offering
                 </span>
                 <span className="text-sm font-medium">
-                  {draft.service ?? "—"}
+                  {draft.service ?? "-"}
                 </span>
                 {draft.vitals?.map((v) => (
                   <span
@@ -908,7 +908,7 @@ export function EnquiryDetailDrawer({
           <section id="enq-sec-reach" className="space-y-2 border-t pt-4 scroll-mt-4">
             <h3 className="text-sm font-semibold">2. Executive reach-out</h3>
             <p className="text-xs text-muted-foreground">
-              A quick call to reach the customer and agree what they need — no
+              A quick call to reach the customer and agree what they need - no
               charge.
             </p>
             <label className="flex items-center gap-2 text-sm">
@@ -926,7 +926,7 @@ export function EnquiryDetailDrawer({
               </p>
             )}
 
-            {/* Couldn't-connect path — only relevant until we successfully reach them. */}
+            {/* Couldn't-connect path - only relevant until we successfully reach them. */}
             {!draft.executiveReachedOut && (
               <div className="space-y-1.5 pt-1">
                 <Button
@@ -1006,7 +1006,7 @@ export function EnquiryDetailDrawer({
               />
               {!draft.typeOfappointment ? (
                 <p className="text-xs text-muted-foreground pt-1">
-                  Pick a booking type — the fee pre-fills from the Services
+                  Pick a booking type - the fee pre-fills from the Services
                   catalogue.
                 </p>
               ) : bookingFee === undefined ? (
@@ -1017,19 +1017,19 @@ export function EnquiryDetailDrawer({
                       (b) => b.value === draft.typeOfappointment,
                     )?.serviceName
                   }
-                  &rdquo; isn&apos;t on the Services page — add it there so the
+                  &rdquo; isn&apos;t on the Services page - add it there so the
                   fee pre-fills, or type it in here.
                 </p>
               ) : draft.quotedPrice !== bookingFee ? (
                 <p className="text-xs text-muted-foreground pt-1">
-                  Catalogue price is {formatINR(bookingFee)} — this booking is
+                  Catalogue price is {formatINR(bookingFee)} - this booking is
                   an exception.
                 </p>
               ) : null}
             </div>
           </section>
 
-          {/* ── Section: Payment — the gate for the therapist step ── */}
+          {/* ── Section: Payment - the gate for the therapist step ── */}
           <section
             id="enq-sec-payment"
             className="space-y-3 border-t pt-4 scroll-mt-4"
@@ -1148,14 +1148,14 @@ export function EnquiryDetailDrawer({
             ) : null}
           </section>
 
-          {/* ── Section: Assign therapist — the last step of the enquiry ── */}
+          {/* ── Section: Assign therapist - the last step of the enquiry ── */}
           <section
             id="enq-sec-therapist"
             className="space-y-3 border-t pt-4 scroll-mt-4"
           >
             <h3 className="text-sm font-semibold">5. Assign therapist</h3>
             <p className="text-xs text-muted-foreground">
-              Confirming puts this booking on the Appointments page — the
+              Confirming puts this booking on the Appointments page - the
               enquiry is then done.
             </p>
 
@@ -1165,7 +1165,7 @@ export function EnquiryDetailDrawer({
               </p>
             )}
 
-            {/* Settled booking — collapsed. The grid is one deliberate click away. */}
+            {/* Settled booking - collapsed. The grid is one deliberate click away. */}
             {hasAssignment && !editingAssignment && (
               <div className="flex items-center justify-between gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2">
                 <p className="min-w-0 text-sm">
@@ -1404,7 +1404,7 @@ export function EnquiryDetailDrawer({
                   return;
                 }
                 if (next === "cancelled") {
-                  // Cancelling requires a reason — stage it and ask.
+                  // Cancelling requires a reason - stage it and ask.
                   setPendingStatus(next);
                   return;
                 }
@@ -1435,7 +1435,7 @@ export function EnquiryDetailDrawer({
               </SelectContent>
             </Select>
 
-            {/* Required reason note — only when cancelling a lead. */}
+            {/* Required reason note - only when cancelling a lead. */}
             {pendingStatus === "cancelled" && (
               <div className="rounded-md border bg-muted/40 p-3 space-y-2">
                 <label className="text-sm font-medium">
@@ -1504,7 +1504,7 @@ export function EnquiryDetailDrawer({
       </SheetContent>
 
       {/* AlertDialog lives OUTSIDE the SheetContent (but still inside the
-          Sheet root — that's fine; the bug was about it being inside the
+          Sheet root - that's fine; the bug was about it being inside the
           SheetContent's pointer-events trap). Controlled by React state
           instead of an AlertDialogTrigger, so the first click on the
           destructive Button opens the confirm reliably. */}
@@ -1533,7 +1533,7 @@ export function EnquiryDetailDrawer({
         <AlertDialogHeader>
           <AlertDialogTitle>Editing {ownerName}&apos;s lead</AlertDialogTitle>
           <AlertDialogDescription>
-            This lead is owned by {ownerName}. Add a reason to edit it — it&apos;s
+            This lead is owned by {ownerName}. Add a reason to edit it - it&apos;s
             recorded in the activity trail.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -1566,7 +1566,7 @@ export function EnquiryDetailDrawer({
           <AlertDialogTitle>Move this booking?</AlertDialogTitle>
           <AlertDialogDescription>
             This visit is already confirmed. The customer has been told who is
-            coming and when — only change it if that&apos;s really what you
+            coming and when - only change it if that&apos;s really what you
             mean to do.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -1627,7 +1627,7 @@ export function EnquiryDetailDrawer({
     </AlertDialog>
 
     {/* T9: soft-warn when the start is within the booking gap of another visit.
-        Overlap never reaches here — it's blocked at the toast in attemptSave. */}
+        Overlap never reaches here - it's blocked at the toast in attemptSave. */}
     <AlertDialog
       open={pendingTooClose !== null}
       onOpenChange={(o) => {
@@ -1667,13 +1667,13 @@ export function EnquiryDetailDrawer({
 // ── Local helpers ──
 
 /**
- * Build a chronological activity timeline of EXECUTIVE actions only —
+ * Build a chronological activity timeline of EXECUTIVE actions only -
  * name · what they did · timestamp. No "system" events.
  *
  * Merges the backend-stored `activityLog` (real per-action attribution, once
  * the backend supports the field) with milestones DERIVED from the timestamp
  * fields we already persist. Derived milestones are only included when we know
- * which person to attribute them to (the lead's handler) — anything we can't
+ * which person to attribute them to (the lead's handler) - anything we can't
  * tie to a person is left out rather than shown as "system".
  */
 function buildActivity(d: EnquiryType): ActivityEntry[] {

@@ -50,7 +50,7 @@ export function TherapistDetailDrawer({
     <>
       <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
         <SheetContent className="w-full sm:max-w-2xl p-0 gap-0 flex flex-col">
-          {/* accessible label — visible header lives inside the form */}
+          {/* accessible label - visible header lives inside the form */}
           <SheetTitle className="sr-only">Therapist details</SheetTitle>
           <SheetDescription className="sr-only">
             Update the therapist&apos;s profile, specialization and certificates.

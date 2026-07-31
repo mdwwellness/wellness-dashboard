@@ -60,7 +60,7 @@ import {
 
 type StackedService = { serviceId: string; discount: boolean };
 
-/** Assignable visit lengths, in minutes — same options and default as the
+/** Assignable visit lengths, in minutes - same options and default as the
  * enquiry-side control (therapist-availability-grid.tsx / enquiry-detail-drawer.tsx). */
 const DURATION_OPTIONS = [30, 60, 90, 120];
 
@@ -71,7 +71,7 @@ export default function AppointmentBookingForm() {
   const [attachServices, setAttachServices] = useState(false);
   const [stacked, setStacked] = useState<StackedService[]>([]);
   // Visit length that drives the therapy span (therapyStartTime/EndTime) and
-  // the conflict check below — same control + default as the enquiry side.
+  // the conflict check below - same control + default as the enquiry side.
   const [durationMin, setDurationMin] = useState(60);
   // A too-close candidate is staged here (with its already-built payload)
   // until the exec confirms the soft-warn dialog.
@@ -141,8 +141,8 @@ export default function AppointmentBookingForm() {
   const servicesTotal = stackedPriced.reduce((sum, r) => sum + r.price, 0);
   const grandTotal = (quotedPrice ?? 0) + servicesTotal;
 
-  // Human label for the payment memos — includes the session count so the amount
-  // reads clearly (e.g. "Home Visit × 6 sessions — ₹3,600").
+  // Human label for the payment memos - includes the session count so the amount
+  // reads clearly (e.g. "Home Visit × 6 sessions - ₹3,600").
   const itemLabel =
     (form.watch("typeOfappointment") === "consultation"
       ? "Online Consultation"
@@ -207,7 +207,7 @@ export default function AppointmentBookingForm() {
   }
 
   // Remote pay: save the booking as a pending enquiry (unpaid, no therapist) so a
-  // pay-link can be minted, then WhatsApp it — reusing the enquiry funnel's exact
+  // pay-link can be minted, then WhatsApp it - reusing the enquiry funnel's exact
   // link + message. The exec finishes it on Enquiries once the customer pays.
   async function requestPaymentWa() {
     const v = form.getValues();
@@ -255,7 +255,7 @@ export default function AppointmentBookingForm() {
     for (const key of ["appointments", "enquiries", "customers"]) {
       queryClient.invalidateQueries({ queryKey: [key] });
     }
-    toast.success("Payment request sent — finish it on Enquiries once paid.");
+    toast.success("Payment request sent - finish it on Enquiries once paid.");
     handleDialogChange(false);
   }
 
@@ -315,7 +315,7 @@ export default function AppointmentBookingForm() {
 
     if (conflict.status === "overlap") {
       toast.error(
-        `${durationMin} min from ${values.slot?.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit — shorten it or pick another start.`,
+        `${durationMin} min from ${values.slot?.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit - shorten it or pick another start.`,
       );
       return;
     }
@@ -354,7 +354,7 @@ export default function AppointmentBookingForm() {
       <DialogContent className="w-full max-w-6xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Book an Appointment</DialogTitle>
-          <p className="text-sm text-muted-foreground">Pick a date, then a therapist — the list shows who&apos;s free that day.</p>
+          <p className="text-sm text-muted-foreground">Pick a date, then a therapist - the list shows who&apos;s free that day.</p>
         </DialogHeader>
 
         <Form {...form}>
@@ -385,7 +385,7 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              {/* date first — drives the therapist load */}
+              {/* date first - drives the therapist load */}
               <FormField
                 control={form.control}
                 name="slot.date"
@@ -422,7 +422,7 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              {/* Therapist & time — the shared availability grid (rows =
+              {/* Therapist & time - the shared availability grid (rows =
                   therapists, columns = slots; includes the duration control and
                   specialization search). Locked until payment is marked, so a
                   therapist is never picked before the money is clear. */}
@@ -492,15 +492,15 @@ export default function AppointmentBookingForm() {
                 }}
               />
 
-              {/* Read-only IDs — auto-filled, not editable */}
+              {/* Read-only IDs - auto-filled, not editable */}
               <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Therapist ID</span>
-                  <span className="font-mono">{doctorId || "—"}</span>
+                  <span className="font-mono">{doctorId || "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Customer ID</span>
-                  <span className="font-mono">{customerId || "— (new customer)"}</span>
+                  <span className="font-mono">{customerId || "- (new customer)"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Booking ID</span>
@@ -545,7 +545,7 @@ export default function AppointmentBookingForm() {
                     </FormControl>
                     {noTier && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">
-                        No rate tier covers {sessions} sessions — set one in Services → Session rates, or enter the price manually.
+                        No rate tier covers {sessions} sessions - set one in Services → Session rates, or enter the price manually.
                       </p>
                     )}
                     <FormMessage />
@@ -558,7 +558,7 @@ export default function AppointmentBookingForm() {
                 name="quotedPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Session price (₹) — auto from the rate table</FormLabel>
+                    <FormLabel>Session price (₹) - auto from the rate table</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -580,7 +580,7 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              {/* Payment — the gate for the therapist grid (same rule as the
+              {/* Payment - the gate for the therapist grid (same rule as the
                   Enquiry funnel; the server backs it via createBooking). */}
               <div className="rounded-md border p-3 space-y-3">
                 <p className="text-sm font-medium">Payment</p>
@@ -702,7 +702,7 @@ export default function AppointmentBookingForm() {
                             ) : (
                               services.map((s) => (
                                 <SelectItem key={s.serviceId} value={s.serviceId}>
-                                  {s.name} — ₹{addonPrice(s, row.discount)}
+                                  {s.name} - ₹{addonPrice(s, row.discount)}
                                 </SelectItem>
                               ))
                             )}
@@ -840,9 +840,9 @@ export default function AppointmentBookingForm() {
     </Dialog>
 
     {/* Soft-warn when the start is within the booking gap of another visit.
-        Overlap never reaches here — it's blocked with a toast in onSubmit.
+        Overlap never reaches here - it's blocked with a toast in onSubmit.
         Rendered as a sibling of Dialog (not nested in DialogContent) so it
-        isn't caught in the Dialog overlay's pointer-events trap — same
+        isn't caught in the Dialog overlay's pointer-events trap - same
         pattern as enquiry-detail-drawer.tsx. */}
     <AlertDialog
       open={pendingTooClose !== null}

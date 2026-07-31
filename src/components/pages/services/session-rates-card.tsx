@@ -60,7 +60,7 @@ export function SessionRatesCard() {
         <div>
           <CardTitle>Session rates</CardTitle>
           <CardDescription>
-            Global per-session pricing by tier — a booking of N sessions is
+            Global per-session pricing by tier - a booking of N sessions is
             charged the matching tier&apos;s rate × N. Leave <b>To</b> blank for
             an open-ended top tier.
           </CardDescription>
@@ -131,7 +131,7 @@ export function SessionRatesCard() {
 
         {rows.length === 0 && (
           <p className="py-2 text-sm text-muted-foreground">
-            No tiers yet — add one to start.
+            No tiers yet - add one to start.
           </p>
         )}
 

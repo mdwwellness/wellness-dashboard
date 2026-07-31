@@ -117,7 +117,7 @@ export interface CustomerStats {
   returningCustomers: number;
 }
 
-/** KPI cards — all derived client-side from grouped customers. */
+/** KPI cards - all derived client-side from grouped customers. */
 export function computeCustomerStats(customers: Customer[]): CustomerStats {
   const monthStart = new Date(
     new Date().getFullYear(),
@@ -148,7 +148,7 @@ export interface CustomerTodayStats {
   returningToday: number;
 }
 
-/** "Today" KPI cards for the Customers page — derived from grouped customers. */
+/** "Today" KPI cards for the Customers page - derived from grouped customers. */
 export function computeCustomerTodayStats(
   customers: Customer[],
 ): CustomerTodayStats {
@@ -194,7 +194,7 @@ export function useGetCustomers(
       return deriveCustomers(records, persistedByKey);
     },
     refetchOnWindowFocus: false,
-    // undefined leaves React Query's default (enabled) — existing callers keep
+    // undefined leaves React Query's default (enabled) - existing callers keep
     // fetching; the intake modal passes `false` until it's actually open.
     enabled: options?.enabled,
   });

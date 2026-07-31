@@ -45,11 +45,11 @@ interface TherapistAvailabilityGridProps {
   date: string;
   /** Currently chosen therapist, so their cell can be shown as selected. */
   selectedDoctorId?: string;
-  /** The chosen START time, "HH:MM" — the grid shades the span it covers. */
+  /** The chosen START time, "HH:MM" - the grid shades the span it covers. */
   selectedStart?: string;
-  /** This enquiry's own record — its slot must not count against itself. */
+  /** This enquiry's own record - its slot must not count against itself. */
   excludeRecordId?: string;
-  /** Visit length in minutes — controlled by the caller (owns the conflict check). */
+  /** Visit length in minutes - controlled by the caller (owns the conflict check). */
   durationMin: number;
   onDurationChange: (d: number) => void;
   onPick: (pick: {
@@ -131,7 +131,7 @@ export function TherapistAvailabilityGrid({
   if (all.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        No therapists on file yet — add one on the Therapists page.
+        No therapists on file yet - add one on the Therapists page.
       </p>
     );
   }
@@ -232,9 +232,9 @@ export function TherapistAvailabilityGrid({
                             disabled={isBusy}
                             title={
                               isBusy
-                                ? `Booked — ${probe?.with?.name ?? "existing visit"}`
+                                ? `Booked - ${probe?.with?.name ?? "existing visit"}`
                                 : isTooClose
-                                  ? `${therapist.name} · ${cell} — within the ${gap}-min booking gap`
+                                  ? `${therapist.name} · ${cell} - within the ${gap}-min booking gap`
                                   : `${therapist.name} · ${cell}`
                             }
                             aria-label={`${therapist.name} at ${cell}${
@@ -296,7 +296,7 @@ export function TherapistAvailabilityGrid({
 
 /**
  * Therapist name + their specializations on demand. Some therapists carry a
- * dozen specializations, so they can't sit inline — the popover keeps the grid
+ * dozen specializations, so they can't sit inline - the popover keeps the grid
  * compact while saving a trip to the Therapists page.
  */
 function TherapistNameCell({ therapist }: { therapist: TherapistformType }) {

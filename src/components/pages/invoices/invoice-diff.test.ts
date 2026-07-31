@@ -21,7 +21,7 @@ const withItems = (items: { description: string; price: number }[]) =>
 
 describe("diffInvoice", () => {
   it("reports nothing when nothing changed", () => {
-    // Drives the silent save — a paid invoice opened and closed unchanged must
+    // Drives the silent save - a paid invoice opened and closed unchanged must
     // not prompt, or the warning gets trained away.
     expect(diffInvoice(base, { ...base })).toEqual([]);
   });
@@ -57,7 +57,7 @@ describe("diffInvoice", () => {
   it("reports a removed line without claiming the rest changed", () => {
     const after = withItems([{ description: "Home Visit Consultation", price: 1200 }]);
     expect(diffInvoice(base, after)).toEqual([
-      { label: "Removed", from: "Hot pack — ₹300", to: "" },
+      { label: "Removed", from: "Hot pack - ₹300", to: "" },
     ]);
   });
 
@@ -67,7 +67,7 @@ describe("diffInvoice", () => {
       { description: "Taping", price: 250 },
     ]);
     expect(diffInvoice(base, after)).toEqual([
-      { label: "Added", from: "", to: "Taping — ₹250" },
+      { label: "Added", from: "", to: "Taping - ₹250" },
     ]);
   });
 
@@ -79,8 +79,8 @@ describe("diffInvoice", () => {
     expect(diffInvoice(base, after)).toEqual([
       {
         label: "Line item",
-        from: "Home Visit Consultation — ₹1,200",
-        to: "Home Visit (extended) — ₹1,500",
+        from: "Home Visit Consultation - ₹1,200",
+        to: "Home Visit (extended) - ₹1,500",
       },
     ]);
   });
@@ -95,7 +95,7 @@ describe("diffInvoice", () => {
     expect(diffInvoice(base, after)).toEqual([
       { label: "Therapist", from: "Asha Rao", to: "Rohan" },
       { label: "Session", from: "1", to: "2" },
-      { label: "Package", from: "—", to: "6-session course" },
+      { label: "Package", from: "-", to: "6-session course" },
     ]);
   });
 

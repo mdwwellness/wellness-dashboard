@@ -117,7 +117,7 @@ export default function FollowUpsPage() {
           <div>
             <CardTitle>Follow-ups</CardTitle>
             <CardDescription>
-              Leads we&apos;ve tried to reach but couldn&apos;t connect with yet —
+              Leads we&apos;ve tried to reach but couldn&apos;t connect with yet -
               call them back and tick &ldquo;Mark as reached out&rdquo; once you
               get through.
             </CardDescription>
@@ -136,7 +136,7 @@ export default function FollowUpsPage() {
               search={search}
               onSearchChange={setSearch}
               searchPlaceholder="Search follow-ups..."
-              emptyMessage="No follow-ups — every attempted lead has been reached."
+              emptyMessage="No follow-ups - every attempted lead has been reached."
               paginated
               onRowClick={setOpenDetail}
               hiddenColumnIds={HIDDEN_COLUMN_IDS}

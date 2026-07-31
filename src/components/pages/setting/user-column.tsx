@@ -60,7 +60,7 @@ const ROLE_OPTIONS = [
   { value: "THERAPIST", label: "Therapist" },
 ];
 
-// Admin edit — name, email, phone, role. Pre-filled from the row.
+// Admin edit - name, email, phone, role. Pre-filled from the row.
 function EditUserDialog({
   user,
   userId,
@@ -201,7 +201,7 @@ function EditUserDialog({
   );
 }
 
-// Row actions — admins only. Edit anyone; delete anyone but yourself (the
+// Row actions - admins only. Edit anyone; delete anyone but yourself (the
 // backend also blocks self-delete + demoting/deleting the last admin).
 function UserActions({ user }: { user: UserRow }) {
   const currentUser = useAuthStore((s) => s.user);

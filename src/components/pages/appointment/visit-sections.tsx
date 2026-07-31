@@ -134,7 +134,7 @@ export function PackageVisitSection({
         />
       </div>
 
-      {/* Per-session breakdown — performed vs left; each performed session's
+      {/* Per-session breakdown - performed vs left; each performed session's
           note expands in place (click the row). One report, in one spot. */}
       <div className="space-y-1 rounded-md border bg-background/60 p-2">
         <p className="text-xs font-medium">
@@ -159,7 +159,7 @@ export function PackageVisitSection({
                     <summary className="flex cursor-pointer list-none items-center gap-2">
                       <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                       <span>
-                        Session {n} — performed{dateStr}
+                        Session {n} - performed{dateStr}
                         {rec.therapist ? ` · ${rec.therapist}` : ""}
                       </span>
                       <span className="ml-auto text-[11px] text-muted-foreground group-open:hidden">
@@ -184,7 +184,7 @@ export function PackageVisitSection({
                   <span className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
                 )}
                 <span className={performed ? "" : "text-muted-foreground"}>
-                  Session {n} — {performed ? "performed" : "pending"}
+                  Session {n} - {performed ? "performed" : "pending"}
                   {performed ? dateStr : ""}
                 </span>
               </li>
@@ -211,7 +211,7 @@ export function PackageVisitSection({
                       <span className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
                     )}
                     <span className={confirmed ? "" : "text-muted-foreground"}>
-                      {a.serviceName} —{" "}
+                      {a.serviceName} -{" "}
                       {confirmed ? "confirmed" : "awaiting customer"}
                       {a.paymentCollected ? " · paid" : ""} ·{" "}
                       {formatINR(a.quotedPrice)}
@@ -471,7 +471,7 @@ export function AddonsVisitSection({
             <SelectContent>
               {services.map((s) => (
                 <SelectItem key={s.serviceId} value={s.serviceId}>
-                  {s.name} — ₹{addonPrice(s, applyDiscount)}
+                  {s.name} - ₹{addonPrice(s, applyDiscount)}
                 </SelectItem>
               ))}
             </SelectContent>

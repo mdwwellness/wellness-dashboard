@@ -69,12 +69,12 @@ import { isTodayISO, readCreatedISO } from "@/lib/metrics";
 
 const COLLAPSED_ATTENDED_ROWS = 5;
 
-/** Stale thresholds — rows older than these get an amber highlight. */
+/** Stale thresholds - rows older than these get an amber highlight. */
 const UNTOUCHED_STALE_MS = 24 * 60 * 60 * 1000; // 1 day
 const ATTENDED_STALE_MS = 48 * 60 * 60 * 1000; // 2 days
 
 /** Stages considered "active" in the attended pile (i.e. still need work).
- *  "assigned" is terminal here — the enquiry's job ends once a therapist is
+ *  "assigned" is terminal here - the enquiry's job ends once a therapist is
  *  on it; the booking is Appointments work from then on. */
 const ATTENDED_NON_TERMINAL_STAGES = new Set<FunnelStage>([
   "reached_out",
@@ -138,7 +138,7 @@ interface SectionTableProps {
   searchPlaceholder: string;
   emptyMessage: string;
   paginated?: boolean;
-  /** Optional per-row className — used to highlight stale rows in amber. */
+  /** Optional per-row className - used to highlight stale rows in amber. */
   rowClassName?: (record: EnquiryType) => string;
   /** Click anywhere on a row to open it (matches the other dashboard tables). */
   onRowClick?: (record: EnquiryType) => void;
@@ -328,7 +328,7 @@ export default function EnquiriesPage() {
   }, [refetch]);
 
   // Sound-on-new-enquiry, with a persisted mute toggle. Read the stored pref on
-  // mount (not during render) so server and first client render agree — reading
+  // mount (not during render) so server and first client render agree - reading
   // localStorage in the initializer would trip a hydration mismatch.
   const [soundMuted, setSoundMuted] = useState(false);
   useEffect(() => setSoundMuted(isEnquirySoundMuted()), []);
@@ -337,7 +337,7 @@ export default function EnquiriesPage() {
     setSoundMuted((prev) => {
       const next = !prev;
       setEnquirySoundMuted(next);
-      // Unmuting is a click — a user gesture — so it both confirms audibly and
+      // Unmuting is a click - a user gesture - so it both confirms audibly and
       // primes the AudioContext, making the later focus-triggered beeps land.
       if (!next) playEnquiryBeep();
       return next;
@@ -376,12 +376,12 @@ export default function EnquiriesPage() {
   }, [allRecords]);
 
   // Partition by whether the lead has been touched in ANY way.
-  // Untouched ("Needs first contact" — top section): default-state enquiries
+  // Untouched ("Needs first contact" - top section): default-state enquiries
   //   that nobody has acted on yet. Status is still "enquiry" AND no executive
   //   has marked reach-out. As soon as ANY action happens (reach-out tick,
   //   slot booked, status manually changed to cancelled/scheduled/etc.),
   //   the lead moves to "Attended".
-  // Attended (bottom section): everything else — including leads cancelled
+  // Attended (bottom section): everything else - including leads cancelled
   //   without ever being contacted (executive looked, decided nothing more
   //   to do, set status=cancelled).
   const unattendedRecords = useMemo(
@@ -418,7 +418,7 @@ export default function EnquiriesPage() {
     });
   }, [attendedRecords]);
 
-  // Per-stage counts within attended only — used by the stage filter dropdown.
+  // Per-stage counts within attended only - used by the stage filter dropdown.
   // Seeded from STAGE_ORDER so adding a stage can't leave a hole here.
   const attendedStageCounts = useMemo(() => {
     const counts = Object.fromEntries(
@@ -464,7 +464,7 @@ export default function EnquiriesPage() {
   const topEmptyMessage =
     enquiryRecords.length === 0
       ? "No enquiries yet. Click + New Enquiry to log one."
-      : "All caught up — every lead has been contacted.";
+      : "All caught up - every lead has been contacted.";
 
   const enquiryTodayStats = useMemo(
     () => ({
@@ -512,8 +512,8 @@ export default function EnquiriesPage() {
               aria-pressed={soundMuted}
               title={
                 soundMuted
-                  ? "New-enquiry sound is off — click to turn on"
-                  : "New-enquiry sound is on — click to mute"
+                  ? "New-enquiry sound is off - click to turn on"
+                  : "New-enquiry sound is on - click to mute"
               }
               aria-label={
                 soundMuted ? "Turn new-enquiry sound on" : "Mute new-enquiry sound"
@@ -552,7 +552,7 @@ export default function EnquiriesPage() {
                   </span>
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Leads no one has reached out to yet — call them and tick
+                  Leads no one has reached out to yet - call them and tick
                   &ldquo;Mark as reached out&rdquo; in their drawer.
                 </p>
               </div>
@@ -610,7 +610,7 @@ export default function EnquiriesPage() {
                   </Button>
                 )}
               </div>
-              {/* Stage filter dropdown — narrows the attended pile by funnel stage */}
+              {/* Stage filter dropdown - narrows the attended pile by funnel stage */}
               <div className="mb-3 flex items-center gap-2">
                 <Select
                   value={attendedStageFilter}
@@ -677,7 +677,7 @@ export default function EnquiriesPage() {
               <p className="text-xs text-muted-foreground mt-3 flex items-center gap-2">
                 <span className="inline-block w-3 h-3 rounded-sm bg-amber-200 border-l-4 border-l-amber-500" />
                 Rows highlighted amber haven&apos;t been touched in 48+ hours
-                (untouched section: 24+ hours) — likely need a follow-up.
+                (untouched section: 24+ hours) - likely need a follow-up.
               </p>
             </section>
           </QueryWrapper>

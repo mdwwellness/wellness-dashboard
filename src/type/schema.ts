@@ -133,7 +133,7 @@ export const enquirySchema = z.object({
     )
     .optional(),
 
-  // ── Therapist work checklist — completed item keys
+  // ── Therapist work checklist - completed item keys
   // ("arrived" | "performed" | "payment" | "completed"). ──
   workChecklist: z.array(z.string()).optional(),
 
@@ -163,7 +163,7 @@ export const enquirySchema = z.object({
   // Recording payment auto-advances status to "ongoing". Fields persist only
   // once the backend model accepts them (see FUNNEL_COMPLETION_BACKEND_PATCH.md).
   // Unguessable token for the customer-facing /pay/<token> page. Minted by the
-  // backend on demand (POST /api/appointments/:id/pay-link) — never set here.
+  // backend on demand (POST /api/appointments/:id/pay-link) - never set here.
   payToken: z.string().optional(),
 
   paymentReceived: z.boolean().optional(),
@@ -265,7 +265,7 @@ export type ActivityEntry = {
 
 export type EnquiryType = z.infer<typeof enquirySchema>;
 
-// Back-compat aliases — existing call sites import these names.
+// Back-compat aliases - existing call sites import these names.
 // New code should import `enquirySchema` / `EnquiryType` directly.
 export const slotBookingZodSchema = enquirySchema;
 export type slotBookingZodType = EnquiryType;
@@ -282,7 +282,7 @@ export const TherapistformSchema = z.object({
   name: z.string().min(1, "Name is required"),
   // Auto-allocated server-side (THR-####) when left blank.
   doctorId: z.string().optional(),
-  // Temporary login password — required only when CREATING a therapist (the add
+  // Temporary login password - required only when CREATING a therapist (the add
   // form enforces it); not used when editing.
   password: z.string().optional(),
   gender:z.enum(["male","female"]),
@@ -305,7 +305,7 @@ export const serviceFormSchema = z.object({
   hsnCode: z
     .string()
     .min(1, "HSN/SAC code is required")
-    .regex(/^\d{4,8}$/, "HSN/SAC must be 4–8 digits"),
+    .regex(/^\d{4,8}$/, "HSN/SAC must be 4-8 digits"),
   // ── T31: the service's two prices (used when it's added to a visit) ──
   // discountedPrice when a therapist recommends it + discount applied, else originalPrice.
   originalPrice: z
@@ -315,7 +315,7 @@ export const serviceFormSchema = z.object({
     .number({ error: "Discounted price is required" })
     .nonnegative("Can't be negative"),
 
-  // ── DEPRECATED — kept optional until the T31 data migration; not on the form ──
+  // ── DEPRECATED - kept optional until the T31 data migration; not on the form ──
   category: z.string().optional(),
   price: z.number().nonnegative().optional(),
   recommendedPrice: z.number().nonnegative().optional(),

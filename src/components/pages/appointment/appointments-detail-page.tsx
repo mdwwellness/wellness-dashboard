@@ -1,4 +1,4 @@
-// Appointment detail — right-side drawer (controlled by the table's row click).
+// Appointment detail - right-side drawer (controlled by the table's row click).
 "use client";
 
 import { useMemo } from "react";
@@ -41,7 +41,7 @@ const AppointmentDetailDrawer = ({
     );
   }, [data, allAppointments]);
 
-  // Multi-session (catalogue package OR ad-hoc N-session) — the package block
+  // Multi-session (catalogue package OR ad-hoc N-session) - the package block
   // owns the visit date/time and shows the session number, so the details form
   // hides its own date/time and labels the note with the current session.
   const progress = live
@@ -55,7 +55,7 @@ const AppointmentDetailDrawer = ({
         <SheetHeader>
           <SheetTitle>{live?.name ?? "Appointment"}</SheetTitle>
           <SheetDescription>
-            One visit row — package and add-ons update here. Invoice syncs
+            One visit row - package and add-ons update here. Invoice syncs
             automatically.
           </SheetDescription>
         </SheetHeader>

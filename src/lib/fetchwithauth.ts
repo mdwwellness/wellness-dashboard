@@ -6,7 +6,7 @@ type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
 // Build the Cookie header from ONLY the tokens that actually exist. Previously
 // this always emitted `accessToken=${accessToken}`, so a missing/expired cookie
-// sent the literal string "accessToken=undefined" — which the backend's
+// sent the literal string "accessToken=undefined" - which the backend's
 // jwt.verify() rejects as "Invalid token" (instead of a clean "no token").
 function buildCookieHeader(
   accessToken?: string,
@@ -42,7 +42,7 @@ async function refreshAccessToken(
     if (!newAccessToken) return null;
 
     // Persist for subsequent requests. cookies().set() throws outside a Server
-    // Action / Route Handler — swallow that: the token is still usable for the
+    // Action / Route Handler - swallow that: the token is still usable for the
     // immediate retry below even if we can't persist it here.
     try {
       cookieStore.set("accessToken", newAccessToken, {
@@ -53,7 +53,7 @@ async function refreshAccessToken(
         maxAge: 15 * 60,
       });
     } catch {
-      /* not in a mutable-cookie context — ignore, retry still works */
+      /* not in a mutable-cookie context - ignore, retry still works */
     }
 
     return newAccessToken;

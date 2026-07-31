@@ -96,9 +96,9 @@ export function InvoiceDetailDrawer({
   }, [invoice?.invoice_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createdAtText = useMemo(() => {
-    if (!invoice?.createdAt) return "—";
+    if (!invoice?.createdAt) return "-";
     const d = new Date(invoice.createdAt);
-    if (Number.isNaN(d.getTime())) return "—";
+    if (Number.isNaN(d.getTime())) return "-";
     return format(d, "yyyy-MM-dd HH:mm");
   }, [invoice?.createdAt]);
 
@@ -208,7 +208,7 @@ export function InvoiceDetailDrawer({
       ? diffInvoice(invoice, { ...invoice, ...values } as PersistedInvoice)
       : [];
 
-    // Nothing actually moved (or the invoice isn't settled) — just save. The
+    // Nothing actually moved (or the invoice isn't settled) - just save. The
     // confirm only earns its keep when it has something real to show.
     if (changes.length === 0) {
       commitSave(values);
@@ -396,7 +396,7 @@ export function InvoiceDetailDrawer({
                 <div className="space-y-2">
                   <div className="text-xs text-muted-foreground">Line items</div>
 
-                  {/* Column headers shown once — the labels no longer repeat per row. */}
+                  {/* Column headers shown once - the labels no longer repeat per row. */}
                   <div className="flex gap-2 items-center">
                     <div className="flex-1 px-3 text-xs text-muted-foreground">
                       Description
@@ -550,7 +550,7 @@ export function InvoiceDetailDrawer({
                   Void invoice
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Cancels this invoice — it stays on record for the audit trail
+                  Cancels this invoice - it stays on record for the audit trail
                   but is excluded from live totals. Use for a mistaken or
                   duplicate invoice.
                 </p>
@@ -606,7 +606,7 @@ export function InvoiceDetailDrawer({
       </AlertDialogContent>
     </AlertDialog>
 
-    {/* Gate 1 — entering edit on a settled invoice. */}
+    {/* Gate 1 - entering edit on a settled invoice. */}
     <AlertDialog open={confirmEditOpen} onOpenChange={setConfirmEditOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -614,7 +614,7 @@ export function InvoiceDetailDrawer({
           <AlertDialogDescription>
             {invoice.customer_name} has a copy showing{" "}
             {formatINR(invoice.total)}. Editing it changes your books and the
-            PDF they were sent — only continue if that&apos;s really what you
+            PDF they were sent - only continue if that&apos;s really what you
             mean to do.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -633,7 +633,7 @@ export function InvoiceDetailDrawer({
       </AlertDialogContent>
     </AlertDialog>
 
-    {/* Gate 2 — the itemised diff, only ever shown when something really moved. */}
+    {/* Gate 2 - the itemised diff, only ever shown when something really moved. */}
     <AlertDialog
       open={pendingSave !== null}
       onOpenChange={(o) => {

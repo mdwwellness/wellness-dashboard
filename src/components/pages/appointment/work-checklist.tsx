@@ -22,7 +22,7 @@ const CHECKLIST = [
 ];
 
 /**
- * Visit workflow only — payment status lives on package / add-on sections above.
+ * Visit workflow only - payment status lives on package / add-on sections above.
  */
 export function WorkChecklist({
   appointment,
@@ -53,7 +53,7 @@ export function WorkChecklist({
   );
   // Multi-session = a catalogue package OR an ad-hoc N-session (modal) booking.
   const isMulti = !!progress;
-  // Package is fully delivered — no more sessions may be completed.
+  // Package is fully delivered - no more sessions may be completed.
   const packageDone = !!progress && progress.completed >= progress.total;
 
   function toggle(key: string, label: string, checked: boolean) {
@@ -61,12 +61,12 @@ export function WorkChecklist({
     // here (with feedback) rather than via a disabled box, so the user learns why.
     if (key === "completed" && checked && !verified) {
       toast.error(
-        "Verify the visit OTP first — send the code and enter what the customer reads back.",
+        "Verify the visit OTP first - send the code and enter what the customer reads back.",
       );
       return;
     }
     // Package session completion goes through the atomic complete-session
-    // endpoint (server-side $inc), not a client-computed PUT — this is the
+    // endpoint (server-side $inc), not a client-computed PUT - this is the
     // only path that can be double-fired by a rapid double-click or two open
     // tabs, so it must not rely on a client-read-then-write value.
     if (key === "completed" && checked && isMulti && appointment._id) {
@@ -77,7 +77,7 @@ export function WorkChecklist({
       markSessionComplete(appointment._id, {
         onSuccess: (result) => {
           if (result.data) setDraft(result.data as slotBookingZodType);
-          // Backend consumed the verification — the next visit needs a fresh OTP.
+          // Backend consumed the verification - the next visit needs a fresh OTP.
           setVerified(false);
         },
       });
@@ -102,7 +102,7 @@ export function WorkChecklist({
     };
 
     if (key === "completed" && checked) {
-      // No package on this row — plain completion, no session counter.
+      // No package on this row - plain completion, no session counter.
       patch.status = "completed";
       patch.completedAt = new Date().toISOString();
     } else if (key === "completed" && !checked) {
@@ -136,17 +136,17 @@ export function WorkChecklist({
       </p>
       {packageDone && (
         <div className="rounded-md border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30 px-3 py-2 text-xs font-medium text-emerald-800 dark:text-emerald-300">
-          Package complete — all {progress?.total} sessions done. No further
+          Package complete - all {progress?.total} sessions done. No further
           visits to record.
         </div>
       )}
-      {/* Visit verification — the OTP proves the therapist reached the customer.
+      {/* Visit verification - the OTP proves the therapist reached the customer.
           Required before the session can be completed / checked out. */}
       <div className="space-y-2 rounded-md border p-3">
         <p className="text-sm font-medium">Visit verification</p>
         {verified ? (
           <p className="text-xs text-emerald-700 dark:text-emerald-400">
-            Verified — you can complete the session.
+            Verified - you can complete the session.
           </p>
         ) : (
           <>

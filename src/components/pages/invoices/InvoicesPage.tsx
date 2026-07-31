@@ -209,7 +209,7 @@ export default function InvoicesPage() {
                           className="h-24 text-center text-muted-foreground"
                         >
                           {invoices.length === 0
-                            ? "No invoices yet — mark a session complete to generate one."
+                            ? "No invoices yet - mark a session complete to generate one."
                             : "No invoices match your search."}
                         </TableCell>
                       </TableRow>

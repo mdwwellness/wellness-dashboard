@@ -13,7 +13,7 @@ const statusOf = (r: EnquiryType) => r.status ?? "enquiry";
 /**
  * Back-office dashboard totals, derived purely from the lists the app already
  * fetches. Kept as a plain function (no hooks) so it can be unit-tested in
- * isolation — feed it arrays, assert the counts.
+ * isolation - feed it arrays, assert the counts.
  */
 export function deriveDashboardTotals(
   records: EnquiryType[],

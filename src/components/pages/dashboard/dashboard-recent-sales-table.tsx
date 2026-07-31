@@ -38,7 +38,7 @@ const DashboardTable = () => {
     refetch,
   } = useGetAllAppointments({ role, id, userEmail });
 
-  // "Recent" — newest bookings first.
+  // "Recent" - newest bookings first.
   const sorted = React.useMemo(() => {
     const list = appointmentData ?? [];
     return [...list].sort(
@@ -94,7 +94,7 @@ const DashboardTable = () => {
                     {paginatedAppointments.map((appt) => (
                       <TableRow key={appt._id}>
                         <TableCell className="font-mono text-xs">
-                          {appt.enquiryId ?? "—"}
+                          {appt.enquiryId ?? "-"}
                         </TableCell>
                         <TableCell>{appt.doctor}</TableCell>
                         <TableCell>{appt.name}</TableCell>

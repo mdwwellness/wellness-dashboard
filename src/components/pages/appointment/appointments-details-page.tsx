@@ -37,7 +37,7 @@ interface AppointmentDetailsPageProps {
   onClose: () => void;
   /** Hides the visit date/time when the package block above already manages it. */
   compact?: boolean;
-  /** e.g. "Session 2 of 4" — labels the clinical note with the current session. */
+  /** e.g. "Session 2 of 4" - labels the clinical note with the current session. */
   sessionLabel?: string;
 }
 
@@ -59,10 +59,10 @@ export default function AppointmentDetailsPage({
   const { mutate: saveNote } = useUpdateAppointment({ silent: true });
 
   // Customer identity is set during the enquiry funnel and rarely edited during
-  // a visit — keep it tucked away so the drawer stays visit-focused.
+  // a visit - keep it tucked away so the drawer stays visit-focused.
   const [showCustomer, setShowCustomer] = useState(false);
 
-  // Who's recording the note — stamped onto the session on completion.
+  // Who's recording the note - stamped onto the session on completion.
   const { user } = useAuthStore();
   const authorName =
     `${user?.userfName ?? ""} ${user?.userlName ?? ""}`.trim() ||
@@ -102,7 +102,7 @@ export default function AppointmentDetailsPage({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        {/* Visit-focused details — customer identity is collapsed below. */}
+        {/* Visit-focused details - customer identity is collapsed below. */}
         <div className="w-full mx-auto p-6 border rounded-lg space-y-5 [&>*]:min-w-0">
           {data.doctor && (
             <div>
@@ -149,7 +149,7 @@ export default function AppointmentDetailsPage({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  Clinical note{sessionLabel ? ` — ${sessionLabel}` : ""}
+                  Clinical note{sessionLabel ? ` - ${sessionLabel}` : ""}
                 </FormLabel>
                 <p className="text-xs text-muted-foreground">
                   Findings, diagnosis and observations for this visit. Filed into
@@ -174,7 +174,7 @@ export default function AppointmentDetailsPage({
             )}
           />
 
-          {/* Customer details — collapsed by default. */}
+          {/* Customer details - collapsed by default. */}
           <div className="border-t pt-4">
             <button
               type="button"
@@ -317,7 +317,7 @@ export default function AppointmentDetailsPage({
 }
 
 // Preserve every field on the record (including ones no longer shown in this
-// drawer — therapist id, appointment type, package id, therapy start/end times)
+// drawer - therapist id, appointment type, package id, therapy start/end times)
 // so an "Update Details" save never silently wipes them.
 function buildDefaults(data: slotBookingZodType) {
   return {

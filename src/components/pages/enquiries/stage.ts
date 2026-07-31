@@ -14,7 +14,7 @@ export type FunnelStage =
  * Where a lead sits in the client-approved funnel. Ordered most-advanced first:
  * reach out → confirm the booking → payment clears → assign a therapist.
  *
- * "assigned" is the terminal enquiry stage — once a therapist is on it the
+ * "assigned" is the terminal enquiry stage - once a therapist is on it the
  * booking belongs to the Appointments page.
  */
 export function deriveStage(r: EnquiryType): FunnelStage {
@@ -29,7 +29,7 @@ export function deriveStage(r: EnquiryType): FunnelStage {
   return "enquiry";
 }
 
-/** A lead we've attempted but not yet connected with — surfaced on /dashboard/follow-ups. */
+/** A lead we've attempted but not yet connected with - surfaced on /dashboard/follow-ups. */
 export const isFollowUp = (r: EnquiryType): boolean => deriveStage(r) === "follow_up";
 
 export const STAGE_LABELS: Record<FunnelStage, string> = {

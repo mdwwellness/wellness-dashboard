@@ -5,7 +5,7 @@ import { AppointmentStatusBadge } from "@/components/status-badge";
 
 /**
  * Compact reference block shown consistently on the appointment drawer, the
- * enquiry drawer, and (as columns) the table — so every booking surfaces the
+ * enquiry drawer, and (as columns) the table - so every booking surfaces the
  * same IDs and status no matter where you look at it.
  */
 
@@ -15,7 +15,7 @@ function IdCell({ label, value }: { label: string; value?: string }) {
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <span className="font-mono text-xs">{value || "—"}</span>
+      <span className="font-mono text-xs">{value || "-"}</span>
     </div>
   );
 }

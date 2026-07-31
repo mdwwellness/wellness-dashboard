@@ -5,10 +5,10 @@ import { formatINR } from "@/components/pages/services/services-columns";
  * The two customer-facing payment WhatsApp memos, shared by the Enquiry drawer
  * and the Book-Appointment modal so both send the exact same wording. Tone is
  * deliberate: name the clinic, quote the booking + item + amount, never invent
- * urgency, never ask for a credential — that's what separates it from a scam text.
+ * urgency, never ask for a credential - that's what separates it from a scam text.
  */
 
-/** "Please pay" — includes the /pay link the customer scans. */
+/** "Please pay" - includes the /pay link the customer scans. */
 export function paymentRequestMessage(o: {
   name?: string;
   bookingId?: string;
@@ -17,16 +17,16 @@ export function paymentRequestMessage(o: {
   payUrl: string;
 }): string {
   return (
-    `Hi ${o.name ?? ""} — this is ${BRAND.name}, following up on our call.\n\n` +
+    `Hi ${o.name ?? ""} - this is ${BRAND.name}, following up on our call.\n\n` +
     `Booking ${o.bookingId ?? ""}\n` +
-    `${o.item} — ${formatINR(o.amount)}\n\n` +
+    `${o.item} - ${formatINR(o.amount)}\n\n` +
     `View the details and pay here:\n${o.payUrl}\n\n` +
     `We'll confirm your therapist and visit time once the payment clears. ` +
     `Any questions, just reply here.`
   );
 }
 
-/** "Payment received" — the receipt sent after the money lands. */
+/** "Payment received" - the receipt sent after the money lands. */
 export function paymentConfirmedMessage(o: {
   name?: string;
   amount?: number;
