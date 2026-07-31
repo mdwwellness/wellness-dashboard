@@ -5,28 +5,20 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useUpdateAppointment } from "@/data/appointment/appointment";
 import type { slotBookingZodType } from "@/type/schema";
 import { bookingKindOf, bookingLabel } from "@/components/pages/enquiries/booking";
 
 /**
- * The commercial terms of a booking - what was sold, for how much, and whether
- * it has been paid - editable after the fact.
+ * What was sold and for how much - the definition of the booking, not its
+ * payment state.
  *
- * Everything else about a booking could be corrected from the drawer except
- * these, so a mistyped session count or a mis-recorded payment had nowhere to be
- * fixed.
+ * It used to show a bare "Price" with no indication of what was being charged
+ * for, alongside payment fields that repeated what the ledger above already
+ * said. Payment now lives in one place (the ledger); this owns the terms.
  *
  * Saved behind an explicit button rather than on blur: every PUT re-derives the
- * invoice and re-uploads its PDF to UploadThing, so blur-saving these fields
- * would upload a PDF per keystroke. The clinical note auto-saves; this must not.
+ * invoice and re-uploads its PDF, so blur-saving would upload one per keystroke.
  */
 export function BookingTermsSection({
   appointment,
@@ -40,22 +32,16 @@ export function BookingTermsSection({
     appointment.totalSessions,
   );
   const [price, setPrice] = useState<number | undefined>(appointment.quotedPrice);
-  const [paid, setPaid] = useState(!!appointment.paymentReceived);
-  const [amount, setAmount] = useState<number | undefined>(
-    appointment.paymentAmount,
-  );
-  const [method, setMethod] = useState(appointment.paymentMethod ?? "");
 
-  // Re-seed when the drawer switches to another booking.
   useEffect(() => {
     setSessions(appointment.totalSessions);
     setPrice(appointment.quotedPrice);
-    setPaid(!!appointment.paymentReceived);
-    setAmount(appointment.paymentAmount);
-    setMethod(appointment.paymentMethod ?? "");
   }, [appointment._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const completed = appointment.sessionsCompleted ?? 0;
+  const dirty =
+    price !== appointment.quotedPrice ||
+    (isCourse && sessions !== appointment.totalSessions);
 
   function save() {
     if (!(price && price > 0)) {
@@ -72,31 +58,26 @@ export function BookingTermsSection({
       ...appointment,
       ...(isCourse ? { totalSessions: sessions } : {}),
       quotedPrice: price,
-      paymentReceived: paid,
-      paymentAmount: paid ? (amount ?? price) : undefined,
-      paymentMethod: paid
-        ? (method as slotBookingZodType["paymentMethod"]) || undefined
-        : undefined,
-      paymentReceivedAt: paid
-        ? (appointment.paymentReceivedAt ?? new Date().toISOString())
-        : undefined,
     });
   }
 
   return (
     <section className="rounded-lg border p-3 space-y-2.5">
-      <div className="flex items-center justify-between gap-2">
+      <div>
         <h3 className="text-sm font-semibold">Booking terms</h3>
-        <span className="text-xs text-muted-foreground">
-          {bookingLabel(appointment)}
-        </span>
+        <p className="text-[11px] text-muted-foreground">
+          Charging for <strong>{bookingLabel(appointment)}</strong>
+          {isCourse && completed > 0
+            ? ` - ${completed} already delivered`
+            : ""}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {isCourse && (
           <div>
             <label className="text-xs text-muted-foreground">
-              Total sessions
+              Sessions in the course
             </label>
             <Input
               type="number"
@@ -111,7 +92,9 @@ export function BookingTermsSection({
           </div>
         )}
         <div>
-          <label className="text-xs text-muted-foreground">Price (₹)</label>
+          <label className="text-xs text-muted-foreground">
+            {isCourse ? "Course price (₹)" : "Fee (₹)"}
+          </label>
           <Input
             type="number"
             min={0}
@@ -123,50 +106,16 @@ export function BookingTermsSection({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground">Amount paid (₹)</label>
-          <Input
-            type="number"
-            min={0}
-            disabled={!paid}
-            placeholder={String(price ?? 0)}
-            value={amount ?? ""}
-            onChange={(e) =>
-              setAmount(e.target.value === "" ? undefined : Number(e.target.value))
-            }
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground">Method</label>
-          <Select value={method} onValueChange={setMethod} disabled={!paid}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Method" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cash">Cash</SelectItem>
-              <SelectItem value="upi">UPI</SelectItem>
-              <SelectItem value="card">Card</SelectItem>
-              <SelectItem value="bank">Bank</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-2">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={paid}
-            onChange={(e) => setPaid(e.target.checked)}
-          />
-          Payment received
-        </label>
-        <Button type="button" size="sm" disabled={isPending} onClick={save}>
-          {isPending ? "Saving..." : "Save terms"}
-        </Button>
-      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="w-full"
+        disabled={isPending || !dirty}
+        onClick={save}
+      >
+        {isPending ? "Saving..." : dirty ? "Save terms" : "Saved"}
+      </Button>
     </section>
   );
 }

@@ -22,6 +22,8 @@ import {
 } from "@/data/appointment/appointment";
 import type { slotBookingZodType } from "@/type/schema";
 import { addonPrice } from "@/lib/service-pricing";
+import { whatsAppLink } from "@/lib/whatsapp";
+import { sendAddonOtp } from "@/actions/appointments/addon-otp";
 
 function formatINR(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -71,6 +73,8 @@ export function AddonsVisitSection({
   // Therapist-recommended add-ons are charged the discounted price by default;
   // uncheck to charge the original (e.g. requested after the therapist left).
   const [applyDiscount, setApplyDiscount] = useState(true);
+  // Consent code per add-on, keyed by serviceId|recommendedAt.
+  const [codes, setCodes] = useState<Record<string, string>>({});
 
   const selected = services.find((s) => s.serviceId === serviceId);
 
@@ -111,12 +115,32 @@ export function AddonsVisitSection({
     );
   }
 
+  async function handleSendCode(recServiceId: string, recommendedAt: string) {
+    if (!appointment._id) return;
+    const r = await sendAddonOtp(appointment._id, recServiceId, recommendedAt);
+    if (!r.success || !r.code) {
+      toast.error(r.message ?? "Could not create a code");
+      return;
+    }
+    const rec = stacked.find(
+      (s) => s.serviceId === recServiceId && s.recommendedAt === recommendedAt,
+    );
+    const link = whatsAppLink(
+      appointment.phonenumber,
+      `Your MDW confirmation code for ${rec?.serviceName ?? "the add-on"}` +
+        `${rec ? ` (${formatINR(rec.quotedPrice)})` : ""} is ${r.code}`,
+    );
+    if (link) window.open(link, "_blank", "noopener,noreferrer");
+    else toast.error("This customer's number can't be messaged on WhatsApp");
+  }
+
   function handleConfirm(recServiceId: string, recommendedAt: string) {
     if (!appointment._id) return;
     confirmRecommendation({
       appointmentId: appointment._id,
       serviceId: recServiceId,
       recommendedAt,
+      code: (codes[`${recServiceId}|${recommendedAt}`] ?? "").trim(),
     });
   }
 
@@ -201,24 +225,58 @@ export function AddonsVisitSection({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {rec.status === "pending" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={isConfirming}
-                      onClick={() =>
-                        handleConfirm(rec.serviceId, rec.recommendedAt)
-                      }
-                    >
-                      {isConfirming ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <>
-                          <Check className="h-3 w-3 mr-1" />
-                          Customer confirmed
-                        </>
-                      )}
-                    </Button>
+                    /* Consent by code, not by staff assertion: the customer
+                       reads back a code they were sent, and that IS the
+                       confirmation. */
+                    <div className="flex w-full gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 shrink-0"
+                        onClick={() =>
+                          handleSendCode(rec.serviceId, rec.recommendedAt)
+                        }
+                      >
+                        Send code
+                      </Button>
+                      <Input
+                        className="h-8"
+                        placeholder="Code from customer"
+                        aria-label={`Confirmation code for ${rec.serviceName}`}
+                        value={codes[`${rec.serviceId}|${rec.recommendedAt}`] ?? ""}
+                        onChange={(e) =>
+                          setCodes((c) => ({
+                            ...c,
+                            [`${rec.serviceId}|${rec.recommendedAt}`]:
+                              e.target.value,
+                          }))
+                        }
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 shrink-0"
+                        disabled={
+                          isConfirming ||
+                          !(
+                            codes[`${rec.serviceId}|${rec.recommendedAt}`] ?? ""
+                          ).trim()
+                        }
+                        onClick={() =>
+                          handleConfirm(rec.serviceId, rec.recommendedAt)
+                        }
+                      >
+                        {isConfirming ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="h-3 w-3 mr-1" />
+                            Confirm
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   )}
                   {isConfirmed && (
                     <label className="flex items-center gap-2 text-xs cursor-pointer">

@@ -4,6 +4,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useUpdateAppointment } from "@/data/appointment/appointment";
 import type { slotBookingZodType } from "@/type/schema";
 import { bookingLedger } from "@/lib/booking-money";
 import { bookingLabel } from "@/components/pages/enquiries/booking";
@@ -34,7 +43,36 @@ const DOT: Record<string, string> = {
  */
 export function MoneyTab({ appointment }: { appointment: slotBookingZodType }) {
   const [requesting, setRequesting] = useState(false);
+  const [takingPayment, setTakingPayment] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState("");
+  const { mutate: update, isPending: isSaving } = useUpdateAppointment();
   const { lines, due, paid } = bookingLedger(appointment);
+
+  function markPaid() {
+    const received = amount === "" ? appointment.quotedPrice : Number(amount);
+    if (!(received && received > 0)) {
+      toast.error("Enter the amount received");
+      return;
+    }
+    update(
+      {
+        ...appointment,
+        paymentReceived: true,
+        paymentAmount: received,
+        paymentMethod: (method ||
+          undefined) as slotBookingZodType["paymentMethod"],
+        paymentReceivedAt: new Date().toISOString(),
+      },
+      {
+        onSuccess: () => {
+          setTakingPayment(false);
+          setAmount("");
+          setMethod("");
+        },
+      },
+    );
+  }
 
   async function requestPayment() {
     if (!appointment._id) return;
@@ -144,15 +182,27 @@ export function MoneyTab({ appointment }: { appointment: slotBookingZodType }) {
 
         <div className="mt-3 flex gap-2">
           {due > 0 ? (
-            <Button
-              type="button"
-              size="sm"
-              className="flex-1"
-              disabled={requesting}
-              onClick={requestPayment}
-            >
-              {requesting ? "Preparing..." : "Request payment"}
-            </Button>
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1"
+                disabled={requesting}
+                onClick={requestPayment}
+              >
+                {requesting ? "Preparing..." : "Request payment"}
+              </Button>
+              {!appointment.paymentReceived && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setTakingPayment((v) => !v)}
+                >
+                  Mark paid
+                </Button>
+              )}
+            </>
           ) : (
             <Button
               type="button"
@@ -165,6 +215,47 @@ export function MoneyTab({ appointment }: { appointment: slotBookingZodType }) {
             </Button>
           )}
         </div>
+
+        {/* Recording the booking payment - the one place money state changes. */}
+        {takingPayment && (
+          <div className="mt-3 space-y-2 rounded-md border bg-muted/30 p-2.5">
+            <p className="text-[11px] font-medium">
+              Record the payment for {bookingLabel(appointment)}
+            </p>
+            <div className="flex gap-1.5">
+              <Input
+                type="number"
+                min={0}
+                className="h-8"
+                placeholder={String(appointment.quotedPrice ?? 0)}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                aria-label="Amount received"
+              />
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger className="h-8 w-32">
+                  <SelectValue placeholder="Method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="bank">Bank</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 shrink-0"
+                disabled={isSaving}
+                onClick={markPaid}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
 
       <AddonsVisitSection appointment={appointment} />

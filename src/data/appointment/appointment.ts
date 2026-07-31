@@ -111,14 +111,18 @@ export function useConfirmAppointmentRecommendation() {
       appointmentId,
       serviceId,
       recommendedAt,
+      code,
     }: {
       appointmentId: string;
       serviceId: string;
       recommendedAt: string;
+      /** The customer's consent code - the server refuses without it. */
+      code: string;
     }) => {
       const result = await confirmAppointmentRecommendation(appointmentId, {
         serviceId,
         recommendedAt,
+        code,
       });
       if (!result.success) throw new Error(result.message);
       return { ...result, appointmentId };

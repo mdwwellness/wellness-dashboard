@@ -7,7 +7,7 @@ import type { slotBookingZodType } from "@/type/schema";
 
 export default async function confirmAppointmentRecommendation(
   appointmentId: string,
-  values: { serviceId: string; recommendedAt: string },
+  values: { serviceId: string; recommendedAt: string; code: string },
 ): Promise<ApiResponse<slotBookingZodType>> {
   try {
     const response = await fetchWithAuth(
