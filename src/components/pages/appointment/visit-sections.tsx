@@ -29,6 +29,7 @@ import {
   type PackageProgress,
 } from "@/lib/package-progress";
 import { addonPrice } from "@/lib/service-pricing";
+import { BookingTermsSection } from "./booking-terms-section";
 
 function formatINR(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -230,11 +231,6 @@ export function PackageVisitSection({
           {appointment.slot.time ? ` · ${appointment.slot.time}` : ""}
         </p>
       )}
-
-      <PaymentBadge
-        paid={!!appointment.paymentReceived}
-        label="Package payment"
-      />
 
       {needsNextSlot && (
         <div className="rounded-md border bg-background p-2.5 space-y-2">
@@ -539,6 +535,9 @@ export function VisitSections({
           progress={progress}
         />
       )}
+      {/* Always shown: an intake has no package block, but its price and
+          payment still need to be correctable. */}
+      <BookingTermsSection appointment={appointment} />
       <AddonsVisitSection appointment={appointment} />
     </div>
   );

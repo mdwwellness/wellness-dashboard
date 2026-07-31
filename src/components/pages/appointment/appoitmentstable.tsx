@@ -5,6 +5,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { getConfirmedAddonNames } from "@/lib/package-progress";
+import { bookingKindOf, bookingLabel } from "@/components/pages/enquiries/booking";
 import { AppointmentStatusBadge } from "@/components/status-badge";
 import { format } from "date-fns";
 
@@ -185,18 +186,17 @@ export function makeAppointmentColumns(
       cell: ({ row }) => row.original.slot?.time ?? "--",
     },
     {
-      accessorKey: "typeOfappointment",
+      id: "typeOfappointment",
+      // Raw enum values used to leak here ("appointment" for what is really a
+      // home visit). bookingLabel routes a course away from the intake labels.
+      accessorFn: (r) => bookingLabel(r),
       header: "Type",
       cell: ({ row }) => {
-        const typeOfBooking: string | undefined = row.original.typeOfappointment;
-        return typeOfBooking ? (
-          <Badge
-            variant={typeOfBooking === "appointment" ? "secondary" : "default"}
-          >
-            {typeOfBooking}
+        const isCourse = bookingKindOf(row.original) === "course";
+        return (
+          <Badge variant={isCourse ? "default" : "secondary"}>
+            {bookingLabel(row.original)}
           </Badge>
-        ) : (
-          "--"
         );
       },
     },

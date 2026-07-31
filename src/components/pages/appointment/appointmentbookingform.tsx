@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,6 +35,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useBookAppointment, useGetAllAppointments } from "@/data/appointment/appointment";
+import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
+import {
+  BOOKING_TYPES,
+  bookingKindOf,
+  bookingLabel,
+  catalogueFee,
+  type BookingType,
+} from "@/components/pages/enquiries/booking";
 import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
 import { useGetServices } from "@/data/service/service";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
@@ -94,8 +102,21 @@ export default function AppointmentBookingForm() {
     role: authUser?.role,
     userEmail: authUser?.userEmail,
   });
+  // Enquiry-stage records too: the appointments query filters out status
+  // "enquiry", and an intake sold through "Request payment on WhatsApp" is saved
+  // exactly that way - so without these, its customer would look like they had
+  // never had a consultation.
+  const { data: enquiries = [], isLoading: enquiriesLoading } =
+    useGetAllEnquiries({
+      id: authUser?.id,
+      role: authUser?.role,
+      userEmail: authUser?.userEmail,
+    });
   const { data: clinicSettings } = useGetClinicSettings();
   const gapMinutes = clinicSettings?.bookingGapMinutes ?? 60;
+
+  // Reason the consultation is being skipped (fast-track customers only).
+  const [skipReason, setSkipReason] = useState("");
 
   const form = useForm<z.infer<typeof slotBookingZodSchema>>({
     resolver: zodResolver(slotBookingZodSchema),
@@ -107,6 +128,8 @@ export default function AppointmentBookingForm() {
       customer_id: "",
       sessionNumber: undefined,
       quotedPrice: undefined,
+      // Intake is the front door: a first-time customer starts here.
+      bookingKind: "intake",
       typeOfappointment: "appointment",
       slot: {
         date: format(new Date(), "yyyy-MM-dd"),
@@ -133,6 +156,49 @@ export default function AppointmentBookingForm() {
   const tiers = rateCard?.tiers ?? [];
   const noTier = (sessions ?? 0) > 0 && sessionRate(tiers, sessions ?? 0) === 0;
 
+  // ── Intake vs course ──────────────────────────────────────────────────────
+  // An intake is the one-off diagnostic front door (online consultation or home
+  // visit), priced from the services catalogue. A course is the treatment block
+  // bought afterwards: always delivered at home, priced from the rate table.
+  const bookingKind = form.watch("bookingKind") ?? "intake";
+  const isCourse = bookingKind === "course";
+  const deliveryType = (form.watch("typeOfappointment") ?? "appointment") as BookingType;
+  const intakeFee = isCourse ? undefined : catalogueFee(deliveryType, services);
+
+  // Price follows the branch. An effect, not just the session field's onChange:
+  // a count typed before the rate card resolves would otherwise stay unpriced.
+  // No shouldValidate - that would paint an error the moment the modal opens.
+  useEffect(() => {
+    if (isCourse) {
+      const total = sessionTotal(tiers, sessions ?? 0);
+      form.setValue("quotedPrice", total > 0 ? total : undefined);
+    } else {
+      form.setValue("quotedPrice", intakeFee);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCourse, sessions, intakeFee, tiers]);
+
+  // Has this customer ever been through an intake? Matched on customer_id when
+  // one is linked, else on phone. Cancelled records don't count as a consultation.
+  const phone = form.watch("phonenumber");
+  const historyLoading = enquiriesLoading;
+  const hasPriorIntake = useMemo(() => {
+    if (!customerId && !phone) return false;
+    const seen = [...appointments, ...enquiries];
+    return seen.some(
+      (r) =>
+        r.status !== "cancelled" &&
+        (customerId ? r.customer_id === customerId : r.phonenumber === phone) &&
+        bookingKindOf(r) === "intake",
+    );
+  }, [appointments, enquiries, customerId, phone]);
+
+  // Fast-track: booking a course for someone with no consultation on record.
+  // Held back while history loads, so the prompt can't flash on open.
+  const identified = !!customerId || !!phone;
+  const needsSkipReason =
+    isCourse && identified && !historyLoading && !hasPriorIntake;
+
   // Priced stacked services + running totals for the breakdown.
   const stackedPriced = stacked.map((row) => {
     const svc = services.find((s) => s.serviceId === row.serviceId);
@@ -141,17 +207,51 @@ export default function AppointmentBookingForm() {
   const servicesTotal = stackedPriced.reduce((sum, r) => sum + r.price, 0);
   const grandTotal = (quotedPrice ?? 0) + servicesTotal;
 
-  // Human label for the payment memos - includes the session count so the amount
-  // reads clearly (e.g. "Home Visit × 6 sessions - ₹3,600").
-  const itemLabel =
-    (form.watch("typeOfappointment") === "consultation"
-      ? "Online Consultation"
-      : "Home Visit") + (sessions && sessions > 1 ? ` × ${sessions} sessions` : "");
+  // Human label for the payment memos, from the shared helper so a course is
+  // never labelled with an intake type (e.g. "Therapy course (6 sessions)").
+  const itemLabel = bookingLabel({
+    bookingKind,
+    totalSessions: isCourse ? sessions : undefined,
+    typeOfappointment: deliveryType,
+  });
 
-  // Auto-fill the session price from the GLOBAL rate table × session count.
-  function recomputePrice(nextSessions: number | undefined) {
-    const total = sessionTotal(tiers, nextSessions ?? 0);
-    form.setValue("quotedPrice", total > 0 ? total : undefined);
+  // Everything that makes a booking unsaveable, in one place - both save paths
+  // (Confirm, and "Request payment on WhatsApp") run it. An unpriced record
+  // generates no invoice at all, so a missing price is a hard stop, not a nag.
+  function blockingReason(
+    v: z.infer<typeof slotBookingZodSchema>,
+  ): string | null {
+    if (!v.name?.trim()) return "Enter the customer name";
+    if (isCourse && !(v.sessionNumber && v.sessionNumber >= 1)) {
+      return "Enter how many sessions this course is";
+    }
+    if (!(v.quotedPrice && v.quotedPrice > 0)) {
+      return isCourse
+        ? "No price yet - set a rate tier for this session count, or type the price"
+        : "No price yet - add this service to the Services page, or type the price";
+    }
+    if (needsSkipReason && !skipReason.trim()) {
+      return "Give a reason for skipping the consultation";
+    }
+    return null;
+  }
+
+  // The fast-track reason belongs in the audit trail, not in `note` - the
+  // clinical note is snapshotted and cleared on every session completion, so a
+  // reason stored there would vanish with session 1.
+  function skipReasonLog() {
+    if (!needsSkipReason || !skipReason.trim()) return [];
+    return [
+      {
+        at: new Date().toISOString(),
+        userId: authUser?.id,
+        name:
+          `${authUser?.userfName ?? ""} ${authUser?.userlName ?? ""}`.trim() ||
+          authUser?.userEmail ||
+          "Someone",
+        action: `Booked without a consultation - reason: ${skipReason.trim()}`,
+      },
+    ];
   }
 
   const toggleAttach = (on: boolean) => {
@@ -174,9 +274,18 @@ export default function AppointmentBookingForm() {
   ): z.infer<typeof slotBookingZodSchema> {
     const payload = { ...values };
     // Stable total for per-session tracking (the completion flow repurposes
-    // sessionNumber as a moving pointer, so snapshot the count here).
-    if (values.sessionNumber && values.sessionNumber > 0) {
+    // sessionNumber as a moving pointer, so snapshot the count here). Only a
+    // course has one - an intake is a single visit and must stay countless, or
+    // bookingKindOf would read it back as a course.
+    if (isCourse && values.sessionNumber && values.sessionNumber > 0) {
       payload.totalSessions = values.sessionNumber;
+    } else if (!isCourse) {
+      payload.sessionNumber = undefined;
+      payload.totalSessions = undefined;
+    }
+    const skipLog = skipReasonLog();
+    if (skipLog.length) {
+      payload.activityLog = [...(values.activityLog ?? []), ...skipLog];
     }
     if (attachServices) {
       const now = new Date().toISOString();
@@ -212,8 +321,12 @@ export default function AppointmentBookingForm() {
   async function requestPaymentWa() {
     const v = form.getValues();
     const amount = v.paymentAmount ?? v.quotedPrice ?? grandTotal;
-    if (!v.name || !amount) {
-      toast.error("Enter the customer name and amount first");
+    // This path bypasses the resolver entirely (it saves directly, as an
+    // enquiry), so it needs the same gate as Confirm - otherwise it is exactly
+    // where an unbillable record slips through.
+    const blocked = blockingReason(v);
+    if (blocked) {
+      toast.error(blocked);
       return;
     }
     if (!toWhatsAppNumber(v.phonenumber)) {
@@ -228,7 +341,8 @@ export default function AppointmentBookingForm() {
       status: "enquiry",
       paymentReceived: false,
       paymentAmount: amount,
-      totalSessions: v.sessionNumber,
+      totalSessions: isCourse ? v.sessionNumber : undefined,
+      activityLog: [...(v.activityLog ?? []), ...skipReasonLog()],
     });
     if (!saved.success || !saved.data?._id) {
       setRequesting(false);
@@ -302,6 +416,15 @@ export default function AppointmentBookingForm() {
   //   ok        → submit straight through.
   // Mirrors enquiry-detail-drawer.tsx's attemptSave.
   function onSubmit(values: z.infer<typeof slotBookingZodSchema>) {
+    // Branch rules live here, not in slotBookingZodSchema: that schema is shared
+    // with the enquiry funnel and the drawer's edit form, where a missing price
+    // is perfectly legitimate. Tightening it there would reject public enquiries.
+    const blocked = blockingReason(values);
+    if (blocked) {
+      toast.error(blocked);
+      return;
+    }
+
     const conflict = checkConflict(
       {
         doctorId: values.doctorId ?? "",
@@ -335,6 +458,7 @@ export default function AppointmentBookingForm() {
       setAttachServices(false);
       setStacked([]);
       setDurationMin(60);
+      setSkipReason("");
       setPendingTooClose(null);
     }
   }
@@ -363,27 +487,71 @@ export default function AppointmentBookingForm() {
             className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mt-5"
           >
             <div className="w-full space-y-5">
-              <FormField
-                control={form.control}
-                name="typeOfappointment"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type of appointment</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Appointment Type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="appointment">Appointment</SelectItem>
-                        <SelectItem value="consultation">Consultation</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* What is being sold decides everything below it: an intake is
+                  one diagnostic visit priced from the catalogue; a course is N
+                  home sessions priced from the rate table. */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">What are you booking?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      kind: "intake" as const,
+                      title: "Consultation / Assessment",
+                      hint: "First visit - diagnose what they need",
+                    },
+                    {
+                      kind: "course" as const,
+                      title: "Therapy sessions",
+                      hint: "A course of home visits",
+                    },
+                  ].map((opt) => (
+                    <button
+                      key={opt.kind}
+                      type="button"
+                      onClick={() => form.setValue("bookingKind", opt.kind)}
+                      className={cn(
+                        "rounded-md border p-3 text-left transition-colors",
+                        bookingKind === opt.kind
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/50",
+                      )}
+                    >
+                      <span className="block text-sm font-medium">{opt.title}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {opt.hint}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Delivery is an intake-only question - a course is always at home. */}
+              {!isCourse && (
+                <FormField
+                  control={form.control}
+                  name="typeOfappointment"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>How is it delivered?</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Pick one" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {BOOKING_TYPES.map((b) => (
+                            <SelectItem key={b.value} value={b.value}>
+                              {b.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {/* date first - drives the therapist load */}
               <FormField
@@ -520,45 +688,77 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="sessionNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of sessions</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        placeholder="e.g. 6"
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) => {
-                          const n =
-                            e.target.value === ""
-                              ? undefined
-                              : e.target.valueAsNumber;
-                          field.onChange(n);
-                          recomputePrice(n);
-                        }}
-                      />
-                    </FormControl>
-                    {noTier && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        No rate tier covers {sessions} sessions - set one in Services → Session rates, or enter the price manually.
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isCourse && (
+                <FormField
+                  control={form.control}
+                  name="sessionNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of sessions</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="e.g. 6"
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === ""
+                                ? undefined
+                                : e.target.valueAsNumber,
+                            )
+                          }
+                        />
+                      </FormControl>
+                      {noTier && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          No rate tier covers {sessions} sessions - set one in Services → Session rates, or enter the price manually.
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Fast-track: a course with no consultation on record. Allowed,
+                  but the reason goes on the record's audit trail. */}
+              {needsSkipReason && (
+                <div className="space-y-1.5 rounded-md border border-amber-500/50 bg-amber-50/50 p-3 dark:bg-amber-950/20">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    No consultation on record for this customer
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Fine for someone already experienced - just say why, for the
+                    record.
+                  </p>
+                  <Textarea
+                    rows={2}
+                    value={skipReason}
+                    onChange={(e) => setSkipReason(e.target.value)}
+                    placeholder="e.g. existing patient, treated with us since March"
+                  />
+                </div>
+              )}
+
+              {!isCourse && intakeFee === undefined && (
+                <p className="rounded-md border border-dashed p-3 text-xs text-amber-600 dark:text-amber-400">
+                  No catalogue price for this service yet - add it on the Services
+                  page, or type the price below.
+                </p>
+              )}
 
               <FormField
                 control={form.control}
                 name="quotedPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Session price (₹) - auto from the rate table</FormLabel>
+                    <FormLabel>
+                      {isCourse
+                        ? "Course price (₹) - auto from the rate table"
+                        : "Fee (₹) - auto from the services catalogue"}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="number"

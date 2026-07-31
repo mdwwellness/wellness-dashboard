@@ -95,6 +95,10 @@ export const enquirySchema = z.object({
   category: z.string().optional(),
   note: z.string().optional(),
   typeOfappointment: z.enum(["consultation", "appointment"]).optional(),
+  // What was sold: a one-off intake (consultation / home visit) or a course of
+  // therapy sessions. typeOfappointment alone cannot tell them apart, because a
+  // course is always delivered at home. See bookingKindOf in enquiries/booking.ts.
+  bookingKind: z.enum(["intake", "course"]).optional(),
 
   // ── Which offering the customer is approaching (from the public site):
   // "Online Consultation" | "Home Therapy" | "Vitals Check". ──

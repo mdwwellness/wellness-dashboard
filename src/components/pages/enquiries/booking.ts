@@ -29,12 +29,49 @@ export const BOOKING_TYPES: {
 ];
 
 /**
- * Label for a confirmed booking type.
+ * What was sold: a one-off intake (the diagnostic front door - an online
+ * consultation or a home visit), or a course of therapy sessions bought after it.
+ */
+export type BookingKind = "intake" | "course";
+
+/**
+ * The kind of a booking record.
  *
- * Only meaningful on enquiry-funnel records, where the value was set by the
- * drawer. Appointments booked directly from the booking form also carry
- * `typeOfappointment: "appointment"` but mean "a session", not a home visit -
- * so don't relabel that table with this.
+ * Prefers the stored field, and otherwise derives it from the session count, so
+ * records written before the field existed still read correctly. An intake sells
+ * no session course; a course sells at least one. Delivery mode deliberately
+ * plays no part - a course is always at home, which is exactly why the mode
+ * alone cannot separate a Home Visit intake from a course of home sessions.
+ */
+export function bookingKindOf(record: {
+  bookingKind?: BookingKind;
+  totalSessions?: number;
+}): BookingKind {
+  if (record.bookingKind) return record.bookingKind;
+  return (record.totalSessions ?? 0) >= 1 ? "course" : "intake";
+}
+
+/**
+ * Label for a booking, correct for both kinds: a course is always home-delivered
+ * therapy, so it is never labelled with an intake type.
+ */
+export function bookingLabel(record: {
+  bookingKind?: BookingKind;
+  totalSessions?: number;
+  typeOfappointment?: BookingType;
+}): string {
+  if (bookingKindOf(record) === "course") {
+    const n = record.totalSessions ?? 0;
+    return n > 1 ? `Therapy course (${n} sessions)` : "Therapy session";
+  }
+  return bookingTypeLabel(record.typeOfappointment) ?? "Consultation";
+}
+
+/**
+ * Label for a confirmed intake type.
+ *
+ * Only meaningful for intake records. Use `bookingLabel` when the record could
+ * be either kind - it routes courses away from these two labels.
  */
 export function bookingTypeLabel(t: BookingType | undefined): string | undefined {
   return BOOKING_TYPES.find((b) => b.value === t)?.label;
