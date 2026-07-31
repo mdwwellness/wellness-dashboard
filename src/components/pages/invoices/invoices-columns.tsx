@@ -62,12 +62,34 @@ export function makeInvoiceColumns({
       ),
     },
     {
+      accessorKey: "enquiry_id",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Enquiry ID" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.enquiry_id || "-"}
+        </span>
+      ),
+    },
+    {
       accessorKey: "customer_name",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Customer" />
       ),
       cell: ({ row }) => (
         <span className="font-medium">{row.original.customer_name}</span>
+      ),
+    },
+    {
+      accessorKey: "customer_id",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Customer ID" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.customer_id || "-"}
+        </span>
       ),
     },
     {

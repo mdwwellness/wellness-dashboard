@@ -71,7 +71,11 @@ export default function InvoicesPage() {
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  // Customer ID is a precise cross-ref, not everyday scanning — hidden by
+  // default, toggle it on via the View menu.
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    customer_id: false,
+  });
 
   const columns = useMemo(
     () =>
@@ -102,6 +106,8 @@ export default function InvoicesPage() {
       const r = row.original;
       return (
         (r.invoice_id ?? "").toLowerCase().includes(q) ||
+        (r.enquiry_id ?? "").toLowerCase().includes(q) ||
+        (r.customer_id ?? "").toLowerCase().includes(q) ||
         (r.customer_name ?? "").toLowerCase().includes(q) ||
         String(r.customer_phone ?? "").includes(q)
       );
@@ -145,7 +151,7 @@ export default function InvoicesPage() {
             >
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                 <Input
-                  placeholder="Search invoice ID, customer name, phone…"
+                  placeholder="Search invoice / enquiry / customer ID, name, phone…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="max-w-sm"
