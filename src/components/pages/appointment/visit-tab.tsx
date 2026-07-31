@@ -17,6 +17,7 @@ import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
 import { whatsAppLink } from "@/lib/whatsapp";
 import { sendVisitOtp, verifyVisitOtp } from "@/actions/appointments/visit-otp";
+import { AssignTherapistCard } from "./assign-therapist-card";
 
 function Step({
   n,
@@ -58,7 +59,13 @@ function Step({
  * This used to be the last thing on a long scroll, below the money and the
  * booking terms - the person with one hand free had the most to scroll past.
  */
-export function VisitTab({ appointment }: { appointment: slotBookingZodType }) {
+export function VisitTab({
+  appointment,
+  allAppointments,
+}: {
+  appointment: slotBookingZodType;
+  allAppointments: slotBookingZodType[];
+}) {
   const { user } = useAuthStore();
   const { data: services = [] } = useGetServices();
   const { mutate: update } = useUpdateAppointment({ silent: true });
@@ -170,6 +177,17 @@ export function VisitTab({ appointment }: { appointment: slotBookingZodType }) {
   const label = progress
     ? `Complete session ${progress.currentSession} of ${progress.total}`
     : "Complete this visit";
+
+  // No therapist means there is no visit to run yet - assigning one is the only
+  // thing that can happen on this tab.
+  if (!appointment.doctorId) {
+    return (
+      <AssignTherapistCard
+        appointment={appointment}
+        allAppointments={allAppointments}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 rounded-lg border p-3">

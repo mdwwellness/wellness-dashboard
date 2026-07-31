@@ -85,7 +85,10 @@ const AppointmentDetailDrawer = ({
               </TabsList>
 
               <TabsContent value="visit" className="mt-3">
-                <VisitTab appointment={live} />
+                <VisitTab
+                  appointment={live}
+                  allAppointments={allAppointments}
+                />
               </TabsContent>
 
               <TabsContent value="money" className="mt-3">
