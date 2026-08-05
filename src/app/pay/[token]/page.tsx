@@ -76,7 +76,7 @@ export default async function PayPage({
     : null;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
+    <main className="min-h-dvh bg-slate-50 px-4 py-10 text-slate-900 overflow-hidden">
       <div className="mx-auto w-full max-w-md space-y-4">
         {/* Who this is from - named up front, before any mention of money. */}
         <header className="text-center">
