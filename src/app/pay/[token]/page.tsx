@@ -12,6 +12,7 @@ type PaySummary = {
   typeOfappointment?: "consultation" | "appointment";
   amount?: number;
   paymentReceived?: boolean;
+  items?: { label: string; amount: number }[];
 };
 
 const ITEM_LABELS: Record<string, string> = {
@@ -56,6 +57,12 @@ export default async function PayPage({
   const item =
     ITEM_LABELS[summary.typeOfappointment ?? ""] ?? "Consultation";
   const amount = summary.amount ?? 0;
+  const payItems =
+    summary.items && summary.items.length > 0
+      ? summary.items
+      : amount > 0
+        ? [{ label: item, amount }]
+        : [];
   const reference = summary.enquiryId ?? "";
   const link = amount > 0 ? upiLink(amount, reference) : null;
 
@@ -112,10 +119,15 @@ export default async function PayPage({
 
               {/* Itemised - the customer sees exactly what the money is for. */}
               <dl className="space-y-2 border-y py-3 text-sm">
-                <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-slate-600">{item}</dt>
-                  <dd className="tabular-nums">{inr(amount)}</dd>
-                </div>
+                {payItems.map((row) => (
+                  <div
+                    key={row.label}
+                    className="flex items-baseline justify-between gap-4"
+                  >
+                    <dt className="text-slate-600">{row.label}</dt>
+                    <dd className="tabular-nums">{inr(row.amount)}</dd>
+                  </div>
+                ))}
               </dl>
               <div className="flex items-baseline justify-between gap-4 py-3 text-base font-semibold">
                 <span>Total</span>
