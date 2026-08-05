@@ -14,6 +14,8 @@ import { slotBookingZodType, UserType } from "@/type/schema";
 import { dedupePackageAppointments } from "@/lib/package-progress";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { handleAuthError } from "@/lib/auth-error-handler";
 
 export const appointmentsQueryOptions = (user: UserType) => ({
   queryKey: ["appointments", user],
@@ -49,6 +51,7 @@ function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<typeof u
 
 export function useBookAppointment() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: async (values: slotBookingZodType) => {
@@ -59,6 +62,10 @@ export function useBookAppointment() {
     onSuccess: (result) => {
       toast.success("Appointment booked", { description: result.message });
       invalidateAppointmentAndEnquiryQueries(queryClient);
+    },
+    onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message);
     },
   });
 }
@@ -79,6 +86,7 @@ function patchAppointmentInCache(
 
 export function useAddAppointmentRecommendation() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: async ({
@@ -99,12 +107,16 @@ export function useAddAppointmentRecommendation() {
       toast.success("Add-on stacked on visit", { description: result.message });
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message);
+    },
   });
 }
 
 export function useConfirmAppointmentRecommendation() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: async ({
@@ -134,12 +146,16 @@ export function useConfirmAppointmentRecommendation() {
       toast.success("Add-on confirmed", { description: result.message });
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message);
+    },
   });
 }
 
 export function useSetAddonPaymentStatus() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: async ({
@@ -167,12 +183,16 @@ export function useSetAddonPaymentStatus() {
       }
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message);
+    },
   });
 }
 
 export function useCompleteSession() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: async (appointmentId: string) => {
@@ -187,12 +207,16 @@ export function useCompleteSession() {
       toast.success(result.message);
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message);
+    },
   });
 }
 
 export function useDeleteAppointment() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -204,11 +228,16 @@ export function useDeleteAppointment() {
       toast.success("Appointment cancelled", { description: result.message });
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
+    onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message);
+    },
   });
 }
 
 export function useUpdateAppointment(opts?: { silent?: boolean }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: async (values: slotBookingZodType) => {
@@ -225,6 +254,7 @@ export function useUpdateAppointment(opts?: { silent?: boolean }) {
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
     onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
       toast.error(err.message || "Update failed");
     },
   });

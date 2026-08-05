@@ -1,6 +1,9 @@
 "use server";
 import { cookies } from "next/headers";
 import { base_url } from "@/constant";
+import { AuthRefreshFailedError } from "./auth-errors";
+
+export { AuthRefreshFailedError };
 
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
@@ -50,7 +53,7 @@ async function refreshAccessToken(
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 15 * 60,
+        maxAge: 5 * 60 * 60, // 5 Hours
       });
     } catch {
       /* not in a mutable-cookie context - ignore, retry still works */
@@ -82,13 +85,17 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   let res = await run(accessToken);
 
   // Access token missing/expired/invalid → try a one-time refresh with the
-  // (7-day) refresh token, then replay the original request. This closes the
-  // gap where a server action fires after the 15-min access token has lapsed
+  // (30-day) refresh token, then replay the original request. This closes the
+  // gap where a server action fires after the access token has lapsed
   // (page-navigation middleware can't cover that same-request case).
   if (res.status === 401 && refreshToken) {
     const newAccessToken = await refreshAccessToken(cookieStore, refreshToken);
     if (newAccessToken) {
       res = await run(newAccessToken);
+    } else {
+      // Refresh token is also invalid/expired - throw error so client can
+      // show a proper toast and redirect to login.
+      throw new AuthRefreshFailedError();
     }
   }
 

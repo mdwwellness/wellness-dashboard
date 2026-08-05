@@ -2,11 +2,12 @@
 
 import { base_url } from "@/constant";
 import { fetchWithAuth } from "@/lib/fetchwithauth";
+import { withAuthErrorHandling } from "@/lib/server-action-error";
 import { ApiResponse } from "@/type/api";
 import { UserType } from "@/type/schema";
 
 export default async function getAllAppointments(user: UserType): Promise<ApiResponse<any>> {
-  try {
+  return withAuthErrorHandling(async () => {
     const response = await fetchWithAuth(
       `${base_url}/api/appointments?role=${user?.role}&id=${user?.id}&email=${user?.userEmail}`,
       {
@@ -28,8 +29,5 @@ export default async function getAllAppointments(user: UserType): Promise<ApiRes
       message: result.message || "Appointments fetched successfully",
       data: result.data,
     };
-  } catch (error) {
-    console.error("[getAllAppointments]", error);
-    return { success: false, message: "Network error, please try again" };
-  }
+  });
 }

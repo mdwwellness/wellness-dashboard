@@ -2,6 +2,7 @@
 
 import { base_url } from "@/constant";
 import { fetchWithAuth } from "@/lib/fetchwithauth";
+import { withAuthErrorHandling } from "@/lib/server-action-error";
 import type { ApiResponse } from "@/type/api";
 import type { EnquiryType } from "@/type/schema";
 
@@ -13,7 +14,7 @@ export type CreateEnquiryInput = Pick<
 export default async function createEnquiry(
   values: CreateEnquiryInput,
 ): Promise<ApiResponse<EnquiryType>> {
-  try {
+  return withAuthErrorHandling(async () => {
     const payload: Partial<EnquiryType> = {
       ...values,
       status: "enquiry",
@@ -40,8 +41,5 @@ export default async function createEnquiry(
       message: result.message || "Enquiry created successfully",
       data: result.data,
     };
-  } catch (err) {
-    console.error("[createEnquiry]", err);
-    return { success: false, message: "Network error, please try again" };
-  }
+  });
 }
