@@ -66,21 +66,25 @@ export const DoctorsListColumn: ColumnDef<TherapistformType>[] = [
   },
   {
     accessorKey: "specialization",
-    header:"Specialization",
-    cell: ({ row }) =>{
-      const list =  row.getValue("specialization") as []
-      return(
+    header: "Specialization",
+    filterFn: (row, columnId, filterValue) => {
+      const cellValue = row.getValue(columnId);
+      const specs = Array.isArray(cellValue) ? cellValue.map(String) : [];
+      const filters = Array.isArray(filterValue) ? filterValue : [filterValue];
+      return filters.some((f) => specs.some((s) => s.toLowerCase() === String(f).toLowerCase()));
+    },
+    cell: ({ row }) => {
+      const list = row.getValue("specialization") as string[];
+      return (
         <>
-         {list?.map((val,index)=>{
-            return(
-              <div key={index}>
-                  <span>{val}</span>
-              </div>
-            )
-         })}
+          {list?.map((val, index) => (
+            <div key={index}>
+              <span>{val}</span>
+            </div>
+          ))}
         </>
-      )
-      },
+      );
+    },
   },
   {
     accessorKey: "bio",
