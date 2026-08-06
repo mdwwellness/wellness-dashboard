@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
-import { THERAPY_CATEGORYES } from "@/lib/constant";
 import {
   Sheet,
   SheetContent,
@@ -13,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { CirclePlus, X, Loader2 } from "lucide-react";
+import { CirclePlus, X, Loader2, Plus } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -42,6 +41,10 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAddTherapist } from "@/data/therapist/therapist";
+import {
+  useAddSpecialization,
+  useGetSpecializations,
+} from "@/data/specializations/specializations";
 import { TherapistformSchema, TherapistformType } from "@/type/schema";
 import { ProfilePicUploader } from "./profile-pic-uploader";
 import { CertificatesSection } from "./certificates-section";
@@ -60,6 +63,11 @@ export default function AddDoctorForm() {
   const [searchValue, setSearchValue] = useState("");
 
   const mutation = useAddTherapist();
+  const {
+    data: specializations = [],
+    isLoading: isLoadingSpecializations,
+  } = useGetSpecializations();
+  const addSpecializationMutation = useAddSpecialization();
 
   const form = useForm<z.infer<typeof TherapistformSchema>>({
     resolver: zodResolver(TherapistformSchema),
@@ -82,12 +90,20 @@ export default function AddDoctorForm() {
   const watchedName = form.watch("name");
 
   const filteredTherapies = useMemo(() => {
-    return THERAPY_CATEGORYES.filter(
+    return specializations.filter(
       (therapy) =>
         therapy.label.toLowerCase().includes(searchValue.toLowerCase()) &&
         !specialization.includes(therapy.value),
     );
-  }, [searchValue, specialization]);
+  }, [searchValue, specialization, specializations]);
+
+  const trimmedSearch = searchValue.trim();
+  const isExactMatch = specializations.some(
+    (s) =>
+      s.label.toLowerCase() === trimmedSearch.toLowerCase() ||
+      s.value.toLowerCase() === trimmedSearch.toLowerCase(),
+  );
+  const showAddOption = trimmedSearch.length > 0 && !isExactMatch;
 
   function handleAddSpecialization(val: string) {
     const current = form.getValues("specialization");
@@ -98,6 +114,19 @@ export default function AddDoctorForm() {
     }
     setSearchValue("");
     setIsDropdownOpen(false);
+  }
+
+  function handleAddCustomSpecialization() {
+    if (!trimmedSearch) return;
+    addSpecializationMutation.mutate(
+      { value: trimmedSearch, label: trimmedSearch },
+      {
+        onSuccess: (created) => {
+          const createdValue = created?.value ?? trimmedSearch;
+          handleAddSpecialization(createdValue);
+        },
+      },
+    );
   }
 
   function handleRemoveSpecialization(val: string) {
@@ -309,21 +338,50 @@ export default function AddDoctorForm() {
                             <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border border-border rounded-md shadow-md max-h-52 overflow-y-auto">
                               <Command>
                                 <CommandList>
+                                  {showAddOption && (
+                                    <CommandGroup>
+                                      <CommandItem
+                                        onSelect={handleAddCustomSpecialization}
+                                        disabled={
+                                          addSpecializationMutation.isPending
+                                        }
+                                        className="cursor-pointer"
+                                      >
+                                        {addSpecializationMutation.isPending ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Plus className="h-4 w-4" />
+                                        )}
+                                        Add &quot;{trimmedSearch}&quot;
+                                      </CommandItem>
+                                    </CommandGroup>
+                                  )}
                                   <CommandEmpty>
                                     No specialization found.
                                   </CommandEmpty>
                                   <CommandGroup>
-                                    {filteredTherapies.map((therapy) => (
+                                    {isLoadingSpecializations ? (
                                       <CommandItem
-                                        key={therapy.value}
-                                        onSelect={() =>
-                                          handleAddSpecialization(therapy.value)
-                                        }
-                                        className="cursor-pointer"
+                                        disabled
+                                        className="cursor-default"
                                       >
-                                        {therapy.label}
+                                        Loading specializations...
                                       </CommandItem>
-                                    ))}
+                                    ) : (
+                                      filteredTherapies.map((therapy) => (
+                                        <CommandItem
+                                          key={therapy.value}
+                                          onSelect={() =>
+                                            handleAddSpecialization(
+                                              therapy.value,
+                                            )
+                                          }
+                                          className="cursor-pointer"
+                                        >
+                                          {therapy.label}
+                                        </CommandItem>
+                                      ))
+                                    )}
                                   </CommandGroup>
                                 </CommandList>
                               </Command>
@@ -340,8 +398,11 @@ export default function AddDoctorForm() {
                                 className="gap-1 py-1 pl-3 pr-1.5"
                               >
                                 <span className="whitespace-nowrap">
-                                  {THERAPY_CATEGORYES.find((t) => t.value === val)
-                                    ?.label ?? val}
+                                  {specializations.find(
+                                    (t) =>
+                                      t.value.toLowerCase() ===
+                                      val.toLowerCase(),
+                                  )?.label ?? val}
                                 </span>
                                 <button
                                   type="button"
