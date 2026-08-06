@@ -3,8 +3,6 @@
 import { AuthRefreshFailedError, AUTH_REFRESH_FAILED_CODE } from "./auth-errors";
 import type { ApiResponse } from "@/type/api";
 
-export { AUTH_REFRESH_FAILED_CODE };
-
 /**
  * Helper to wrap server action calls and convert AuthRefreshFailedError
  * into a proper ApiResponse with the error code.

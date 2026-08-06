@@ -3,8 +3,6 @@ import { cookies } from "next/headers";
 import { base_url } from "@/constant";
 import { AuthRefreshFailedError } from "./auth-errors";
 
-export { AuthRefreshFailedError };
-
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
 // Build the Cookie header from ONLY the tokens that actually exist. Previously
