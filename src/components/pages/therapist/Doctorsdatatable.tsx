@@ -27,6 +27,7 @@ import { DataTableViewOptions } from "@/components/tables/data-table-view-option
 import { DataTableFacetedFilter } from "@/components/tables/data-table-faceted-filter";
 import { Button } from "@/components/ui/button";
 import { X } from 'lucide-react';
+import { useGetSpecializations } from "@/data/specializations/specializations";
 
 interface AppointmentDataType<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
@@ -41,6 +42,7 @@ export function DoctorsDataTable<TData, TValue>(
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
     const [rowSelection, setRowSelection] = React.useState({});
+    const { data: specializations } = useGetSpecializations();
 
     const table = useReactTable({
         data,
@@ -81,7 +83,7 @@ export function DoctorsDataTable<TData, TValue>(
                             <DataTableFacetedFilter
                                 column={table.getColumn("specialization")}
                                 title="specialization"
-                                options={CATEGORYES}
+                                options={specializations?.map(s => ({ value: s.value, label: s.label })) ?? []}
                             />
                         )}
                         {isFiltered && (
@@ -159,40 +161,3 @@ export function DoctorsDataTable<TData, TValue>(
     )
 }
 
-
-
-
-const CATEGORYES = [
-    {
-        value: "Dentist",
-        label: "Dentist",
-    },
-    {
-        value: "Dermatologist",
-        label: "Dermatologist",
-    },
-    {
-        value: "Cardiologist",
-        label: "Cardiologist",
-    },
-    {
-        value: "Pediatrician",
-        label: "Pediatrician",
-    },
-    {
-        value: "Orthopedic",
-        label: "Orthopedic",
-    },
-    {
-        value: "General Physician",
-        label: "General Physician",
-    },
-    {
-        value: "Neurologist",
-        label: "Neurologist",
-    },
-    {
-        value: "Psychiatrist",
-        label: "Psychiatrist",
-    },
-]
