@@ -27,7 +27,6 @@ import { DataTableViewOptions } from "@/components/tables/data-table-view-option
 import { DataTableFacetedFilter } from "@/components/tables/data-table-faceted-filter";
 import { Button } from "@/components/ui/button";
 import { X } from 'lucide-react';
-import { useGetSpecializations } from "@/data/specializations/specializations";
 
 interface AppointmentDataType<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
@@ -43,7 +42,18 @@ export function DoctorsDataTable<TData, TValue>(
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
     const [rowSelection, setRowSelection] = React.useState({});
     const [globalFilter, setGlobalFilter] = React.useState("");
-    const { data: specializations } = useGetSpecializations();
+
+    // Derive specialization options from actual therapist data
+    const specializationOptions = React.useMemo(() => {
+        const specSet = new Set<string>();
+        for (const row of data) {
+            const specs = (row as Record<string, unknown>).specialization;
+            if (Array.isArray(specs)) {
+                for (const s of specs) specSet.add(String(s));
+            }
+        }
+        return Array.from(specSet).sort().map((s) => ({ value: s, label: s }));
+    }, [data]);
 
     const table = useReactTable({
         data,
@@ -93,7 +103,7 @@ export function DoctorsDataTable<TData, TValue>(
                             <DataTableFacetedFilter
                                 column={table.getColumn("specialization")}
                                 title="specialization"
-                                options={specializations?.map(s => ({ value: s.value, label: s.label })) ?? []}
+                                options={specializationOptions}
                             />
                         )}
                         {(isFiltered || globalFilter) && (
