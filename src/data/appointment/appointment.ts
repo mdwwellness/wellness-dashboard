@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import { handleAuthError } from "@/lib/auth-error-handler";
 
 export const appointmentsQueryOptions = (user: UserType) => ({
-  queryKey: ["appointments", user],
+  queryKey: ["appointments", user?.id, user?.role, user?.userEmail] as const,
   queryFn: async () => {
     const result = await getAllAppointments(user);
     if (!result.success) throw new Error(result.message);
@@ -30,6 +30,7 @@ export const appointmentsQueryOptions = (user: UserType) => ({
     return dedupePackageAppointments(filtered);
   },
   refetchOnWindowFocus: false,
+  staleTime: 30 * 1000, // 30 seconds
   retry: 3,
 });
 

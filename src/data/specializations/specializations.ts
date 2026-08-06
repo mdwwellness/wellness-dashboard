@@ -19,6 +19,7 @@ export function useGetSpecializations() {
       return (result.data ?? []) as Specialization[];
     },
     refetchOnWindowFocus: false,
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 

@@ -174,7 +174,7 @@ export function useGetCustomers(
   options?: { enabled?: boolean },
 ) {
   return useQuery({
-    queryKey: ["customers", user] as const,
+    queryKey: ["customers", user?.id, user?.role, user?.userEmail] as const,
     queryFn: async (): Promise<Customer[]> => {
       const [apptResult, custResult] = await Promise.all([
         getAllAppointments(user),
@@ -194,6 +194,7 @@ export function useGetCustomers(
       return deriveCustomers(records, persistedByKey);
     },
     refetchOnWindowFocus: false,
+    staleTime: 30 * 1000, // 30 seconds
     // undefined leaves React Query's default (enabled) - existing callers keep
     // fetching; the intake modal passes `false` until it's actually open.
     enabled: options?.enabled,

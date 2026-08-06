@@ -303,8 +303,12 @@ export default function EnquiriesPage() {
   // We don't auto-refresh the table. On window-focus we do a light peek; if the
   // server has MORE records than we're showing, a minimal toast offers a Reload.
   // Keeps backend/compute use low while still flagging fresh bookings.
+  // The peek is throttled to at most one per minute so repeatedly clicking back
+  // into the tab can't fire a flood of API calls (which hung the page before).
   const [newCount, setNewCount] = useState(0);
   const knownCountRef = useRef(0);
+  const lastPeekAtRef = useRef(0);
+  const FOCUS_PEEK_THROTTLE_MS = 60 * 1000;
 
   useEffect(() => {
     knownCountRef.current = allRecords?.length ?? knownCountRef.current;
@@ -312,6 +316,9 @@ export default function EnquiriesPage() {
 
   useEffect(() => {
     function peek() {
+      const now = Date.now();
+      if (now - lastPeekAtRef.current < FOCUS_PEEK_THROTTLE_MS) return;
+      lastPeekAtRef.current = now;
       getAllAppointments({ role, id, userEmail }).then((res) => {
         if (!res?.success) return;
         const diff = (res.data ?? []).length - knownCountRef.current;

@@ -19,6 +19,7 @@ export function useGetSessionRates() {
       return result.data ?? { tiers: [] };
     },
     refetchOnWindowFocus: false,
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 

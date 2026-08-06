@@ -15,13 +15,14 @@ const OPEN_STATUSES = new Set<NonNullable<EnquiryType["status"]>>([
 ]);
 
 export const enquiriesQueryOptions = (user: UserType) => ({
-  queryKey: ["enquiries", user] as const,
+  queryKey: ["enquiries", user?.id, user?.role, user?.userEmail] as const,
   queryFn: async (): Promise<EnquiryType[]> => {
     const result = await getAllAppointments(user);
     if (!result.success) throw new Error(result.message);
     return (result.data ?? []) as EnquiryType[];
   },
   refetchOnWindowFocus: false,
+  staleTime: 30 * 1000, // 30 seconds
 });
 
 export function useGetAllEnquiries(user: UserType) {

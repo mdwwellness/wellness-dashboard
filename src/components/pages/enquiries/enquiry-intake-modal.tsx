@@ -68,7 +68,7 @@ export function EnquiryIntakeModal({
   const createMutation = useCreateEnquiry();
 
   // Known customers, for the duplicate-phone lookup. Only fetched once the
-  // modal is open (and reuses the ["customers", user] cache the Customers page
+  // modal is open (and reuses the ["customers"] cache the Customers page
   // already fills).
   const user = useAuthStore((s) => s.user);
   const { data: customers } = useGetCustomers(
