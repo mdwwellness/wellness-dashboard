@@ -42,6 +42,7 @@ export function DoctorsDataTable<TData, TValue>(
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
     const [rowSelection, setRowSelection] = React.useState({});
+    const [globalFilter, setGlobalFilter] = React.useState("");
     const { data: specializations } = useGetSpecializations();
 
     const table = useReactTable({
@@ -55,11 +56,22 @@ export function DoctorsDataTable<TData, TValue>(
         getFilteredRowModel: getFilteredRowModel(),
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
+        onGlobalFilterChange: setGlobalFilter,
+        globalFilterFn: (row, _columnId, value) => {
+            const q = String(value).toLowerCase();
+            if (!q) return true;
+            const r = row.original as Record<string, unknown>;
+            const name = String(r.name ?? "").toLowerCase();
+            const specs = Array.isArray(r.specialization) ? r.specialization : [];
+            const specMatch = specs.some((s) => String(s).toLowerCase().includes(q));
+            return name.includes(q) || specMatch;
+        },
         state: {
             sorting,
             columnFilters,
             columnVisibility,
             rowSelection,
+            globalFilter,
         },
     });
 
@@ -72,11 +84,9 @@ export function DoctorsDataTable<TData, TValue>(
                 <div>
                     <div className="flex items-center py-4 flex-wrap">
                         <Input
-                            placeholder="Filter names..."
-                            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                            onChange={(event) =>
-                                table.getColumn("name")?.setFilterValue(event.target.value)
-                            }
+                            placeholder="Search by name or specialization..."
+                            value={globalFilter}
+                            onChange={(event) => setGlobalFilter(event.target.value)}
                             className="max-w-sm mb-2 md:mb-0"
                         />
                         {table.getColumn("specialization") && (
@@ -86,10 +96,13 @@ export function DoctorsDataTable<TData, TValue>(
                                 options={specializations?.map(s => ({ value: s.value, label: s.label })) ?? []}
                             />
                         )}
-                        {isFiltered && (
+                        {(isFiltered || globalFilter) && (
                             <Button
                                 variant="ghost"
-                                onClick={() => table.resetColumnFilters()}
+                                onClick={() => {
+                                    table.resetColumnFilters();
+                                    setGlobalFilter("");
+                                }}
                                 className="h-8 px-2 lg:px-3 flex justify-center items-center gap-2"
                             >
                                 Reset
