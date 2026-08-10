@@ -261,13 +261,13 @@ export function EnquiryDetailDrawer({
     }
 
     setOverrideReason("");
-    setAssignDate(toDayKey(record?.slot?.date));
+    setAssignDate(record?.physioSlot?.date ?? "");
     setAssignPick(
-      record?.doctorId && record?.slot?.time
+      record?.doctorId && record?.physioSlot?.time
         ? {
             doctorId: record.doctorId,
             doctor: record.doctor ?? "",
-            time: record.slot.time,
+            time: record.physioSlot.time,
           }
         : null,
     );
@@ -294,13 +294,13 @@ export function EnquiryDetailDrawer({
     : undefined;
 
   // A therapist is already locked in on the saved record.
-  const hasAssignment = Boolean(draft.doctorId && draft.slot?.time);
+  const hasAssignment = Boolean(draft.doctorId && (draft.physioSlot?.time || draft.slot?.time));
   // The staged pick already matches what's saved - nothing left to confirm.
   const isAssigned = Boolean(
     assignPick &&
       draft.doctorId === assignPick.doctorId &&
-      draft.slot?.time === assignPick.time &&
-      toDayKey(draft.slot?.date) === assignDate,
+      (draft.physioSlot?.time || draft.slot?.time) === assignPick.time &&
+      (draft.physioSlot?.date || toDayKey(draft.slot?.date)) === assignDate,
   );
   // Collapse to a summary once settled, until the user asks to change it.
   const showPicker = !hasAssignment || editingAssignment;
@@ -552,7 +552,7 @@ export function EnquiryDetailDrawer({
     ).padStart(2, "0")}`;
 
     const change: Partial<EnquiryType> = {
-      slot: { date: assignDate, time: assignPick.time },
+      physioSlot: { date: assignDate, time: assignPick.time },
       therapyStartTime: assignPick.time,
       therapyEndTime: end,
       doctorId: assignPick.doctorId,
@@ -1172,7 +1172,7 @@ export function EnquiryDetailDrawer({
                   <span className="font-medium">{draft.doctor}</span>
                   <span className="text-muted-foreground">
                     {" "}
-                    · {toDayKey(draft.slot?.date)} at {draft.slot?.time}
+                    · {draft.physioSlot?.date ?? "Not set"} at {draft.physioSlot?.time ?? ""}
                   </span>
                 </p>
                 <Button
@@ -1262,13 +1262,13 @@ export function EnquiryDetailDrawer({
                           size="sm"
                           onClick={() => {
                             setEditingAssignment(false);
-                            setAssignDate(toDayKey(draft.slot?.date));
+                            setAssignDate(draft.physioSlot?.date ?? "");
                             setAssignPick(
-                              draft.doctorId && draft.slot?.time
+                              draft.doctorId && draft.physioSlot?.time
                                 ? {
                                     doctorId: draft.doctorId,
                                     doctor: draft.doctor ?? "",
-                                    time: draft.slot.time,
+                                    time: draft.physioSlot.time,
                                   }
                                 : null,
                             );
@@ -1574,14 +1574,14 @@ export function EnquiryDetailDrawer({
         <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm space-y-1">
           <p>
             <span className="text-muted-foreground">Now: </span>
-            {draft?.doctor} · {toDayKey(draft?.slot?.date)} at{" "}
-            {draft?.slot?.time}
+            {draft?.doctor} · {draft?.physioSlot?.date ?? "Not set"} at{" "}
+            {draft?.physioSlot?.time ?? ""}
           </p>
           <p>
             <span className="text-muted-foreground">Change to: </span>
             <span className="font-medium">
               {pendingAssignment?.doctor} · {assignDate} at{" "}
-              {pendingAssignment?.slot?.time}
+              {pendingAssignment?.physioSlot?.time}
             </span>
           </p>
         </div>

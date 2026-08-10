@@ -25,7 +25,7 @@ function spanOf(
   a: EnquiryType,
   defaultDurationMin: number,
 ): { startMin: number; endMin: number; time: string } | null {
-  const start = a.therapyStartTime || a.slot?.time;
+  const start = a.therapyStartTime || a.physioSlot?.time || a.slot?.time;
   if (!start) return null;
   const startMin = toMinutes(start);
   if (Number.isNaN(startMin)) return null;
@@ -61,7 +61,7 @@ export function checkConflict(
     if (e.status === "cancelled") continue;
     if (opts?.excludeId && e._id === opts.excludeId) continue;
     if (!e.doctorId || e.doctorId !== candidate.doctorId) continue;
-    if (toDayKey(e.slot?.date) !== candidate.date) continue;
+    if (toDayKey(e.physioSlot?.date || e.slot?.date) !== candidate.date) continue;
 
     const span = spanOf(e, defaultDuration);
     if (!span) continue;

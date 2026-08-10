@@ -22,10 +22,16 @@ export const appointmentsQueryOptions = (user: UserType) => ({
   queryFn: async () => {
     const result = await getAllAppointments(user);
     if (!result.success) throw new Error(result.message);
-    // Hide enquiry-stage records - they live on /dashboard/enquiries.
+    // Hide enquiry-stage records that have NO physio slot assigned yet.
+    // Bookings with a physioSlot (even if status is still "enquiry") should
+    // appear on the calendar/appointments views because a therapist is assigned.
     const records = (result.data ?? []) as slotBookingZodType[];
     const filtered = records.filter(
-      (r) => r.status !== "enquiry" && r.appointmentKind !== "recommended",
+      (r) =>
+        (r.status !== "enquiry" ||
+          Boolean(r.physioSlot?.date && r.physioSlot?.time) ||
+          Boolean(r.slot?.date && r.slot?.time)) &&
+        r.appointmentKind !== "recommended",
     );
     return dedupePackageAppointments(filtered);
   },

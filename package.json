@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:open": "vitest run --coverage && start coverage/index.html"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
@@ -27,6 +30,7 @@
     "@tanstack/react-start": "^1.131.7",
     "@tanstack/react-table": "^8.21.3",
     "@types/qrcode": "^1.5.6",
+    "@types/react-big-calendar": "^1.16.3",
     "@uploadthing/react": "^7.3.3",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
@@ -40,6 +44,7 @@
     "qrcode": "^1.5.4",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
+    "react-big-calendar": "^1.20.0",
     "react-day-picker": "^9.8.1",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.62.0",
@@ -58,6 +63,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
     "prisma": "^6.14.0",
