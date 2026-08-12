@@ -67,4 +67,26 @@ describe("bookingLedger", () => {
     });
     expect(due).toBe(0);
   });
+
+  it("uses quotedPrice as line total for multi-session add-ons", () => {
+    const { due, lines } = bookingLedger({
+      quotedPrice: 700,
+      paymentReceived: true,
+      recommendedServices: [
+        {
+          serviceId: "s1",
+          serviceName: "Home Visit Consultation",
+          quotedPrice: 3000,
+          sessions: 5,
+          status: "confirmed",
+          recommendedAt: "2026-08-05T10:00:00.000Z",
+          paymentCollected: false,
+        },
+      ],
+    });
+    expect(due).toBe(3000);
+    expect(lines.find((l) => l.label === "Home Visit Consultation")?.amount).toBe(
+      3000,
+    );
+  });
 });

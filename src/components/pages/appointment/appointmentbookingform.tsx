@@ -47,7 +47,7 @@ import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapis
 import { useGetServices } from "@/data/service/service";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { CustomerSearchField } from "@/components/pages/invoices/customer-search-field";
-import { sessionRate, sessionTotal, addonPrice } from "@/lib/service-pricing";
+import { sessionRate, sessionTotal, addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
 import {
   checkConflict,
   toMinutes,
@@ -204,9 +204,13 @@ export default function AppointmentBookingForm() {
   // Priced stacked services + running totals for the breakdown.
   const stackedPriced = stacked.map((row) => {
     const svc = services.find((s) => s.serviceId === row.serviceId);
-    const unitPrice = svc ? addonPrice(svc, row.discount) : 0;
-    const qty = row.sessions && row.sessions > 1 ? row.sessions : 1;
-    return { ...row, svc, unitPrice, price: unitPrice * qty };
+    const { perSession, total, usesTiers } = recommendedAddonTotal(
+      tiers,
+      row.sessions,
+      svc,
+      row.discount,
+    );
+    return { ...row, svc, unitPrice: perSession, price: total, usesTiers };
   });
   const servicesTotal = stackedPriced.reduce((sum, r) => sum + r.price, 0);
   const grandTotal = (quotedPrice ?? 0) + servicesTotal;
@@ -297,12 +301,16 @@ export default function AppointmentBookingForm() {
         .filter((r) => r.serviceId)
         .map((r) => {
           const svc = services.find((s) => s.serviceId === r.serviceId);
-          const unitPrice = svc ? addonPrice(svc, r.discount) : 0;
-          const qty = r.sessions && r.sessions > 1 ? r.sessions : 1;
+          const { total } = recommendedAddonTotal(
+            tiers,
+            r.sessions,
+            svc,
+            r.discount,
+          );
           return {
             serviceId: r.serviceId,
             serviceName: svc?.name ?? "",
-            quotedPrice: unitPrice * qty,
+            quotedPrice: total,
             sessions: r.sessions && r.sessions > 1 ? r.sessions : undefined,
             status: "confirmed" as const,
             recommendedAt: now,
@@ -991,8 +999,10 @@ export default function AppointmentBookingForm() {
                       >
                         <span>
                           {r.svc?.name}
-                          {r.discount ? " (disc)" : ""}
-                          {r.sessions && r.sessions > 1 ? ` ×${r.sessions}` : ""}
+                          {r.discount && !r.usesTiers ? " (disc)" : ""}
+                          {r.sessions && r.sessions > 1
+                            ? ` (${formatINR(r.unitPrice)}/session × ${r.sessions})`
+                            : ""}
                         </span>
                         <span className="tabular-nums">+ {formatINR(r.price)}</span>
                       </div>

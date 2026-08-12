@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Loader2, Plus, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,13 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useGetServices } from "@/data/service/service";
+import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import {
   useAddAppointmentRecommendation,
   useConfirmAppointmentRecommendation,
   useSetAddonPaymentStatus,
 } from "@/data/appointment/appointment";
 import type { slotBookingZodType } from "@/type/schema";
-import { addonPrice } from "@/lib/service-pricing";
+import { addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
 import { whatsAppLink } from "@/lib/whatsapp";
 import { sendAddonOtp } from "@/actions/appointments/addon-otp";
 
@@ -60,6 +61,8 @@ export function AddonsVisitSection({
   appointment: slotBookingZodType;
 }) {
   const { data: services = [] } = useGetServices();
+  const { data: rateCard } = useGetSessionRates();
+  const tiers = rateCard?.tiers ?? [];
   const { mutate: addRecommendation, isPending } = useAddAppointmentRecommendation();
   const { mutate: confirmRecommendation, isPending: isConfirming } =
     useConfirmAppointmentRecommendation();
@@ -78,22 +81,40 @@ export function AddonsVisitSection({
   const [codes, setCodes] = useState<Record<string, string>>({});
 
   const selected = services.find((s) => s.serviceId === serviceId);
+  const pricing = recommendedAddonTotal(
+    tiers,
+    sessions,
+    selected,
+    applyDiscount,
+  );
+  const noTier =
+    !!sessions && sessions > 1 && pricing.usesTiers && pricing.total === 0;
+
+  // Keep amount in sync with service, discount, and session count.
+  useEffect(() => {
+    if (!serviceId) return;
+    if (pricing.total > 0) {
+      setAmount(String(pricing.total));
+    }
+  }, [serviceId, pricing.total, applyDiscount, sessions]);
 
   function handleSelect(id: string) {
     setServiceId(id);
-    const svc = services.find((s) => s.serviceId === id);
-    setAmount(String(addonPrice(svc, applyDiscount)));
+    setSessions(undefined);
   }
 
   function handleToggleDiscount(next: boolean) {
     setApplyDiscount(next);
-    setAmount(String(addonPrice(selected, next)));
   }
 
   function handleAdd() {
     if (!appointment._id || !selected) return;
-    const quotedPrice = Number(amount);
-    if (!Number.isFinite(quotedPrice) || quotedPrice < 0) {
+    if (noTier) {
+      toast.error(`No rate tier for ${sessions} sessions`);
+      return;
+    }
+    const quotedPrice = pricing.total;
+    if (!Number.isFinite(quotedPrice) || quotedPrice <= 0) {
       toast.error("Enter a valid amount");
       return;
     }
@@ -212,9 +233,15 @@ export function AddonsVisitSection({
                     {rec.sessions && rec.sessions > 1 ? ` ×${rec.sessions}` : ""}
                   </span>
                   <Badge variant="secondary" className="text-[10px]">
-                    {rec.sessions && rec.sessions > 1 ? formatINR(rec.quotedPrice * rec.sessions) : formatINR(rec.quotedPrice)}
+                    {formatINR(rec.quotedPrice)}
                   </Badge>
                 </div>
+                {rec.sessions && rec.sessions > 1 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {formatINR(Math.round(rec.quotedPrice / rec.sessions))}/session
+                    × {rec.sessions}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-1.5">
                   <Badge
                     variant={isConfirmed ? "default" : "outline"}
@@ -336,7 +363,20 @@ export function AddonsVisitSection({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Amount ₹"
+            readOnly={!!sessions && sessions > 1}
           />
+          {serviceId && pricing.total > 0 && (
+            <p className="text-[11px] text-muted-foreground tabular-nums">
+              {sessions && sessions > 1
+                ? `${formatINR(pricing.perSession)}/session × ${sessions} = ${formatINR(pricing.total)}`
+                : `${formatINR(pricing.perSession)} per session`}
+            </p>
+          )}
+          {noTier && (
+            <p className="text-[11px] text-destructive">
+              No rate tier for {sessions} sessions — add one on the Services page.
+            </p>
+          )}
           {/* Multi-session option - only show when service is selected */}
           {serviceId && (
             <div className="flex items-center gap-2">
@@ -368,7 +408,7 @@ export function AddonsVisitSection({
               type="button"
               size="sm"
               onClick={handleAdd}
-              disabled={isPending || !serviceId}
+              disabled={isPending || !serviceId || noTier || pricing.total <= 0}
             >
               Add to this visit
             </Button>

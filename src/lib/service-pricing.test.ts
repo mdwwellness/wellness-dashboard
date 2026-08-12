@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 
-import { sessionRate, sessionTotal, addonPrice } from "./service-pricing";
+import {
+  sessionRate,
+  sessionTotal,
+  addonPrice,
+  recommendedAddonTotal,
+} from "./service-pricing";
 
 const tiers = [
   { from: 1, to: 5, rate: 600 },
@@ -52,5 +57,40 @@ describe("addonPrice", () => {
   });
   it("returns 0 for no service", () => {
     expect(addonPrice(undefined, true)).toBe(0);
+  });
+});
+
+describe("recommendedAddonTotal", () => {
+  const svc = { originalPrice: 649, discountedPrice: 549 };
+
+  it("uses catalogue price for single-session add-ons", () => {
+    expect(recommendedAddonTotal(tiers, undefined, svc, true)).toEqual({
+      perSession: 549,
+      total: 549,
+      usesTiers: false,
+    });
+    expect(recommendedAddonTotal(tiers, 1, svc, false)).toEqual({
+      perSession: 649,
+      total: 649,
+      usesTiers: false,
+    });
+  });
+
+  it("uses session-rate tiers for multi-session add-ons", () => {
+    expect(recommendedAddonTotal(tiers, 5, svc, true)).toEqual({
+      perSession: 600,
+      total: 3000,
+      usesTiers: true,
+    });
+  });
+
+  it("returns zero total when no tier matches multi-session count", () => {
+    expect(
+      recommendedAddonTotal([{ from: 1, to: 3, rate: 600 }], 5, svc, true),
+    ).toEqual({
+      perSession: 0,
+      total: 0,
+      usesTiers: true,
+    });
   });
 });

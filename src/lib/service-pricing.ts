@@ -54,3 +54,30 @@ export function addonPrice(
     service.discountedPrice ?? service.recommendedPrice ?? original;
   return applyDiscount ? discounted : original;
 }
+
+/** Result of pricing a recommended add-on (single or multi-session). */
+export type RecommendedAddonPricing = {
+  perSession: number;
+  total: number;
+  usesTiers: boolean;
+};
+
+/**
+ * Price a recommended add-on for the Money tab / booking form.
+ * Single-session uses catalogue add-on price; multi-session uses session-rate tiers.
+ */
+export function recommendedAddonTotal(
+  tiers: RateTier[],
+  sessions: number | undefined,
+  service: AddonPricedService | undefined,
+  applyDiscount: boolean,
+): RecommendedAddonPricing {
+  const count = sessions && sessions > 1 ? sessions : 1;
+  if (count <= 1) {
+    const price = addonPrice(service, applyDiscount);
+    return { perSession: price, total: price, usesTiers: false };
+  }
+  const perSession = sessionRate(tiers, count);
+  const total = sessionTotal(tiers, count);
+  return { perSession, total, usesTiers: true };
+}
