@@ -383,6 +383,22 @@ export function AddonsVisitSection({
           </div>
         </div>
       )}
+
+      {/* Always show Recommend a service button at the bottom */}
+      {!showAddForm && (
+        <div className="flex justify-end pt-3 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAddForm(true)}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Recommend a service
+          </Button>
+        </div>
+      )}
+
     </section>
   );
 }
