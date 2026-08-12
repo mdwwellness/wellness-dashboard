@@ -212,7 +212,7 @@ export function AddonsVisitSection({
                     {rec.sessions && rec.sessions > 1 ? ` ×${rec.sessions}` : ""}
                   </span>
                   <Badge variant="secondary" className="text-[10px]">
-                    {formatINR(rec.quotedPrice)}
+                    {rec.sessions && rec.sessions > 1 ? formatINR(rec.quotedPrice * rec.sessions) : formatINR(rec.quotedPrice)}
                   </Badge>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -383,22 +383,6 @@ export function AddonsVisitSection({
           </div>
         </div>
       )}
-
-      {/* Always show Recommend a service button at the bottom */}
-      {!showAddForm && (
-        <div className="flex justify-end pt-3 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAddForm(true)}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Recommend a service
-          </Button>
-        </div>
-      )}
-
     </section>
   );
 }
