@@ -70,6 +70,7 @@ export function AddonsVisitSection({
   const [showAddForm, setShowAddForm] = useState(false);
   const [serviceId, setServiceId] = useState("");
   const [amount, setAmount] = useState("");
+  const [sessions, setSessions] = useState<number | undefined>(undefined);
   // Therapist-recommended add-ons are charged the discounted price by default;
   // uncheck to charge the original (e.g. requested after the therapist left).
   const [applyDiscount, setApplyDiscount] = useState(true);
@@ -103,12 +104,14 @@ export function AddonsVisitSection({
           serviceId: selected.serviceId,
           serviceName: selected.name,
           quotedPrice,
+          sessions: sessions && sessions > 1 ? sessions : undefined,
         },
       },
       {
         onSuccess: () => {
           setServiceId("");
           setAmount("");
+          setSessions(undefined);
           setShowAddForm(false);
         },
       },
@@ -204,7 +207,10 @@ export function AddonsVisitSection({
                 className="rounded-md border bg-background p-3 space-y-2"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium text-sm">{rec.serviceName}</span>
+                  <span className="font-medium text-sm">
+                    {rec.serviceName}
+                    {rec.sessions && rec.sessions > 1 ? ` ×${rec.sessions}` : ""}
+                  </span>
                   <Badge variant="secondary" className="text-[10px]">
                     {formatINR(rec.quotedPrice)}
                   </Badge>
@@ -331,6 +337,32 @@ export function AddonsVisitSection({
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Amount ₹"
           />
+          {/* Multi-session option - only show when service is selected */}
+          {serviceId && (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!sessions && sessions > 1}
+                  onChange={(e) => setSessions(e.target.checked ? 2 : undefined)}
+                />
+                Multi-session add-on
+              </label>
+              {sessions && sessions > 1 && (
+                <Input
+                  type="number"
+                  min={2}
+                  max={100}
+                  value={sessions}
+                  onChange={(e) =>
+                    setSessions(e.target.value === "" ? 2 : Math.max(2, Number(e.target.value)))
+                  }
+                  className="w-20 h-7 text-xs"
+                  placeholder="Qty"
+                />
+              )}
+            </div>
+          )}
           <div className="flex gap-2">
             <Button
               type="button"

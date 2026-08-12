@@ -66,7 +66,7 @@ import {
   paymentConfirmedMessage,
 } from "@/lib/payment-messages";
 
-type StackedService = { serviceId: string; discount: boolean };
+type StackedService = { serviceId: string; discount: boolean; sessions?: number };
 
 export default function AppointmentBookingForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -204,7 +204,9 @@ export default function AppointmentBookingForm() {
   // Priced stacked services + running totals for the breakdown.
   const stackedPriced = stacked.map((row) => {
     const svc = services.find((s) => s.serviceId === row.serviceId);
-    return { ...row, svc, price: svc ? addonPrice(svc, row.discount) : 0 };
+    const unitPrice = svc ? addonPrice(svc, row.discount) : 0;
+    const qty = row.sessions && row.sessions > 1 ? row.sessions : 1;
+    return { ...row, svc, unitPrice, price: unitPrice * qty };
   });
   const servicesTotal = stackedPriced.reduce((sum, r) => sum + r.price, 0);
   const grandTotal = (quotedPrice ?? 0) + servicesTotal;
@@ -262,7 +264,7 @@ export default function AppointmentBookingForm() {
     else if (stacked.length === 0) setStacked([{ serviceId: "", discount: false }]);
   };
   const addStacked = () =>
-    setStacked((s) => [...s, { serviceId: "", discount: false }]);
+    setStacked((s) => [...s, { serviceId: "", discount: false, sessions: undefined }]);
   const removeStacked = (i: number) =>
     setStacked((s) => s.filter((_, idx) => idx !== i));
   const patchStacked = (i: number, patch: Partial<StackedService>) =>
@@ -295,10 +297,13 @@ export default function AppointmentBookingForm() {
         .filter((r) => r.serviceId)
         .map((r) => {
           const svc = services.find((s) => s.serviceId === r.serviceId);
+          const unitPrice = svc ? addonPrice(svc, r.discount) : 0;
+          const qty = r.sessions && r.sessions > 1 ? r.sessions : 1;
           return {
             serviceId: r.serviceId,
             serviceName: svc?.name ?? "",
-            quotedPrice: svc ? addonPrice(svc, r.discount) : 0,
+            quotedPrice: unitPrice * qty,
+            sessions: r.sessions && r.sessions > 1 ? r.sessions : undefined,
             status: "confirmed" as const,
             recommendedAt: now,
           };
@@ -887,48 +892,80 @@ export default function AppointmentBookingForm() {
                 {attachServices && (
                   <div className="space-y-2">
                     {stacked.map((row, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <Select
-                          value={row.serviceId}
-                          onValueChange={(v) => patchStacked(i, { serviceId: v })}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Pick a service" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {servicesLoading ? (
-                              <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Loading…
-                              </div>
-                            ) : (
-                              services.map((s) => (
-                                <SelectItem key={s.serviceId} value={s.serviceId}>
-                                  {s.name} - ₹{addonPrice(s, row.discount)}
-                                </SelectItem>
-                              ))
+                      <div key={i} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={row.serviceId}
+                            onValueChange={(v) => patchStacked(i, { serviceId: v })}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Pick a service" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {servicesLoading ? (
+                                <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Loading…
+                                </div>
+                              ) : (
+                                services.map((s) => (
+                                  <SelectItem key={s.serviceId} value={s.serviceId}>
+                                    {s.name} - ₹{addonPrice(s, row.discount)}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={row.discount}
+                              onChange={(e) =>
+                                patchStacked(i, { discount: e.target.checked })
+                              }
+                            />
+                            disc
+                          </label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeStacked(i)}
+                            aria-label={`Remove service ${i + 1}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                        {/* Multi-session toggle and input - only show when service is selected */}
+                        {row.serviceId && (
+                          <div className="flex items-center gap-2 pl-2">
+                            <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!row.sessions && row.sessions > 1}
+                                onChange={(e) =>
+                                  patchStacked(i, { sessions: e.target.checked ? 2 : undefined })
+                                }
+                              />
+                              Multi-session
+                            </label>
+                            {row.sessions && row.sessions > 1 && (
+                              <Input
+                                type="number"
+                                min={2}
+                                max={100}
+                                value={row.sessions}
+                                onChange={(e) =>
+                                  patchStacked(i, {
+                                    sessions: e.target.value === "" ? 2 : Math.max(2, Number(e.target.value)),
+                                  })
+                                }
+                                className="w-20 h-7 text-xs"
+                                placeholder="Qty"
+                              />
                             )}
-                          </SelectContent>
-                        </Select>
-                        <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={row.discount}
-                            onChange={(e) =>
-                              patchStacked(i, { discount: e.target.checked })
-                            }
-                          />
-                          disc
-                        </label>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeStacked(i)}
-                          aria-label={`Remove service ${i + 1}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                     <Button type="button" variant="outline" size="sm" onClick={addStacked}>
@@ -955,6 +992,7 @@ export default function AppointmentBookingForm() {
                         <span>
                           {r.svc?.name}
                           {r.discount ? " (disc)" : ""}
+                          {r.sessions && r.sessions > 1 ? ` ×${r.sessions}` : ""}
                         </span>
                         <span className="tabular-nums">+ {formatINR(r.price)}</span>
                       </div>

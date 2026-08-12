@@ -10,6 +10,7 @@ export type AddRecommendationInput = {
   serviceName: string;
   category?: string;
   quotedPrice: number;
+  sessions?: number;
   slot?: { date: string; time: string };
 };
 

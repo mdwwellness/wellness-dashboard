@@ -125,6 +125,7 @@ export const enquirySchema = z.object({
         serviceName: z.string(),
         category: z.string().optional(),
         quotedPrice: z.number(),
+        sessions: z.number().optional(),
         slot: z.object({ date: z.string(), time: z.string() }).optional(),
         status: z.enum(["pending", "confirmed"]).optional(),
         recommendedAt: z.string(),
