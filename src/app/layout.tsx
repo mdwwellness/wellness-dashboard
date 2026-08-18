@@ -26,7 +26,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="h-screen overflow-hidden">
       <body
         className={`${geistSans.variable} ${geistMono.variable} h-screen overflow-hidden`}
       >

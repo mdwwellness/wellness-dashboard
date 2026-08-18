@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   Mail,
@@ -25,8 +26,9 @@ import { Separator } from "@/components/ui/separator";
 
 import { EnquiryIntakeModal } from "@/components/pages/enquiries/enquiry-intake-modal";
 import type { Customer } from "@/data/customer/customer";
-import type { EnquiryType } from "@/type/schema";
+import type { ActivityEntry, EnquiryType } from "@/type/schema";
 import { AppointmentStatusBadge } from "@/components/status-badge";
+import { tidyActivityText } from "@/lib/utils";
 
 interface CustomerDetailDrawerProps {
   customer: Customer | null;
@@ -57,10 +59,84 @@ function formatTimeRange(r: { from?: string; to?: string } | undefined) {
   return `${toAmPm(r.from)} - ${toAmPm(r.to)}`;
 }
 
+/**
+ * Build a chronological activity timeline from ALL of a customer's bookings.
+ * Merges backend-stored activityLog entries with milestone entries derived
+ * from timestamp fields, sorted oldest-first.
+ */
+function buildCustomerActivity(bookings: EnquiryType[]): ActivityEntry[] {
+  const entries: ActivityEntry[] = [];
+
+  for (const b of bookings) {
+    const handler = b.reachedOutBy?.name;
+    const handlerId = b.reachedOutBy?.userId;
+    const enquiryId = b.enquiryId ?? "";
+
+    // Derived milestones from timestamp fields
+    if (handler) {
+      if (b.executiveReachedOutAt) {
+        entries.push({
+          at: b.executiveReachedOutAt,
+          userId: handlerId,
+          name: handler,
+          action: `${enquiryId}: Reached out to lead`,
+        });
+      }
+      if (b.consultationCompletedAt) {
+        entries.push({
+          at: b.consultationCompletedAt,
+          userId: handlerId,
+          name: handler,
+          action: `${enquiryId}: Consultation completed`,
+        });
+      }
+      if (b.physioAssignmentConfirmedAt) {
+        entries.push({
+          at: b.physioAssignmentConfirmedAt,
+          userId: handlerId,
+          name: handler,
+          action: `${enquiryId}: Therapist assigned`,
+        });
+      }
+    }
+    if (b.paymentReceivedAt) {
+      entries.push({
+        at: b.paymentReceivedAt,
+        userId: handlerId,
+        name: handler ?? "System",
+        action: `${enquiryId}: Payment received`,
+      });
+    }
+    if (b.completedAt) {
+      entries.push({
+        at: b.completedAt,
+        userId: handlerId,
+        name: handler ?? "System",
+        action: `${enquiryId}: Session completed`,
+      });
+    }
+
+    // Backend-stored activity log
+    if (b.activityLog?.length) {
+      for (const e of b.activityLog) {
+        entries.push({
+          ...e,
+          action: `${enquiryId}: ${e.action}`,
+        });
+      }
+    }
+  }
+
+  return entries
+    .filter((e) => e.name && e.name !== "System")
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+}
+
 function BookingRow({ booking, index }: { booking: EnquiryType; index: number }) {
   const [expanded, setExpanded] = useState(false);
   const status = booking.status ?? "enquiry";
   const createdAt = (booking as unknown as { createdAt?: string }).createdAt;
+  const sessionNotes = booking.sessionNotes ?? [];
 
   const serviceFromNote = (() => {
     const note = booking.note ?? "";
@@ -143,6 +219,38 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
               <p className="text-sm whitespace-pre-wrap mt-1">{booking.note}</p>
             </div>
           )}
+
+          {/* Session notes */}
+          {sessionNotes.length > 0 && (
+            <div className="pt-2 border-t">
+              <div className="text-xs font-semibold text-muted-foreground mb-1.5">
+                Completed Sessions ({sessionNotes.length})
+              </div>
+              <div className="space-y-0">
+                {sessionNotes.map((s, i) => (
+                  <details key={i} className="group border-b last:border-0">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 py-1.5 text-[13px]">
+                      <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      <span className="font-medium">Session {s.session}</span>
+                      <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">
+                        {s.at ? format(new Date(s.at), "dd MMM") : ""}
+                        {s.therapist ? ` · ${s.therapist}` : ""}
+                      </span>
+                    </summary>
+                    {s.note ? (
+                      <p className="mb-2 ml-5 whitespace-pre-wrap rounded-r border-l-2 border-emerald-500 bg-muted/50 px-2.5 py-2 text-xs leading-relaxed">
+                        {s.note}
+                      </p>
+                    ) : (
+                      <p className="mb-2 ml-5 text-xs italic text-muted-foreground">
+                        No note recorded.
+                      </p>
+                    )}
+                  </details>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -163,6 +271,12 @@ export function CustomerDetailDrawer({
   onClose,
 }: CustomerDetailDrawerProps) {
   const open = customer !== null;
+
+  const fullHistory = useMemo(
+    () => (customer ? buildCustomerActivity(customer.bookings) : []),
+    [customer],
+  );
+
   if (!customer) {
     return (
       <Sheet open={false} onOpenChange={() => onClose()}>
@@ -273,6 +387,38 @@ export function CustomerDetailDrawer({
                   <BookingRow key={b._id ?? i} booking={b} index={i} />
                 ))}
               </div>
+            )}
+          </section>
+
+          <Separator />
+
+          {/* Full activity timeline */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">
+              Full History ({fullHistory.length})
+            </h3>
+            {fullHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No activity recorded yet.
+              </p>
+            ) : (
+              <ol className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                {fullHistory.map((e, i) => (
+                  <li
+                    key={`${e.at}-${i}`}
+                    className="text-xs border-l-2 border-muted pl-3 pb-0.5"
+                  >
+                    <div className="text-foreground">
+                      {tidyActivityText(e.action)}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {e.name}
+                      {" · "}
+                      {new Date(e.at).toLocaleString()}
+                    </div>
+                  </li>
+                ))}
+              </ol>
             )}
           </section>
 
