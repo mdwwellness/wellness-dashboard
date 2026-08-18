@@ -297,6 +297,7 @@ export default function AppointmentBookingForm() {
     }
     if (attachServices) {
       const now = new Date().toISOString();
+      const paymentDone = !!values.paymentReceived;
       payload.recommendedServices = stacked
         .filter((r) => r.serviceId)
         .map((r) => {
@@ -314,6 +315,7 @@ export default function AppointmentBookingForm() {
             sessions: r.sessions && r.sessions > 1 ? r.sessions : undefined,
             status: "confirmed" as const,
             recommendedAt: now,
+            paymentCollected: paymentDone,
           };
         });
     }
