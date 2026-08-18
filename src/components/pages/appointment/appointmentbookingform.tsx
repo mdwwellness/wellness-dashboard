@@ -490,7 +490,11 @@ export default function AppointmentBookingForm() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-6xl max-h-[92vh] overflow-y-auto">
+      <DialogContent
+        className="w-full max-w-6xl max-h-[92vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Book an Appointment</DialogTitle>
           <p className="text-sm text-muted-foreground">Pick a date, then a therapist - the list shows who&apos;s free that day.</p>

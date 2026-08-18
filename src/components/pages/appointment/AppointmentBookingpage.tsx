@@ -94,9 +94,11 @@ export default function SlotBookingPage() {
           <CardTitle>Appointments</CardTitle>
           <CardDescription>Manage all your appointments.</CardDescription>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <AppointmentBookingForm />
-        </div>
+        {role !== "THERAPIST" && (
+          <div className="ml-auto flex items-center gap-2">
+            <AppointmentBookingForm />
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <QueryWrapper
