@@ -87,6 +87,21 @@ export function makeAppointmentColumns(
       ),
     },
     {
+      id: "therapist",
+      accessorFn: (row) => row.doctor ?? "",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Therapist" />
+      ),
+      cell: ({ row }) => {
+        const name = row.original.doctor;
+        return name ? (
+          <span className="text-xs">{name}</span>
+        ) : (
+          <span className="text-muted-foreground/40">-</span>
+        );
+      },
+    },
+    {
       id: "advancePayment",
       accessorFn: (row) => (row.paymentReceived ? "Paid" : "Pending"),
       header: ({ column }) => (
