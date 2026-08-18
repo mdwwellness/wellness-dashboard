@@ -20,9 +20,11 @@ import {
   useAddAppointmentRecommendation,
   useConfirmAppointmentRecommendation,
   useSetAddonPaymentStatus,
+  useUpdateAppointment,
 } from "@/data/appointment/appointment";
 import type { slotBookingZodType } from "@/type/schema";
 import { addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
+import { bookingLedger } from "@/lib/booking-money";
 import { whatsAppLink } from "@/lib/whatsapp";
 import { sendAddonOtp } from "@/actions/appointments/addon-otp";
 
@@ -68,6 +70,7 @@ export function AddonsVisitSection({
     useConfirmAppointmentRecommendation();
   const { mutate: setAddonPayment, isPending: isTogglingPayment } =
     useSetAddonPaymentStatus();
+  const { mutate: updateAppointment } = useUpdateAppointment({ silent: true });
 
   const stacked = appointment.recommendedServices ?? [];
   const [showAddForm, setShowAddForm] = useState(false);
@@ -174,12 +177,31 @@ export function AddonsVisitSection({
     collected: boolean,
   ) {
     if (!appointment._id) return;
-    setAddonPayment({
-      appointmentId: appointment._id,
-      serviceId: recServiceId,
-      recommendedAt,
-      collected,
-    });
+    setAddonPayment(
+      {
+        appointmentId: appointment._id,
+        serviceId: recServiceId,
+        recommendedAt,
+        collected,
+      },
+      {
+        onSuccess: (result) => {
+          // If addon payment was collected and all payments are now covered,
+          // auto-mark the booking as fully paid.
+          if (collected && result.data) {
+            const updated = result.data as slotBookingZodType;
+            const { due } = bookingLedger(updated);
+            if (due <= 0 && !updated.paymentReceived) {
+              updateAppointment({
+                ...updated,
+                paymentReceived: true,
+                paymentReceivedAt: new Date().toISOString(),
+              });
+            }
+          }
+        },
+      },
+    );
   }
 
   if (stacked.length === 0 && !showAddForm) {

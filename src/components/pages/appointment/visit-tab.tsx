@@ -15,6 +15,7 @@ import { useGetServices } from "@/data/service/service";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
+import { bookingLedger } from "@/lib/booking-money";
 import { whatsAppLink } from "@/lib/whatsapp";
 import { sendVisitOtp, verifyVisitOtp } from "@/actions/appointments/visit-otp";
 import { AssignTherapistCard } from "./assign-therapist-card";
@@ -143,6 +144,15 @@ export function VisitTab({
       return;
     }
     if (packageDone) return;
+
+    // Block completion if payment is outstanding - collect first.
+    const { due } = bookingLedger(draft);
+    if (due > 0) {
+      toast.error(
+        "Outstanding balance must be collected before completing this session. Go to the Money tab to record payment.",
+      );
+      return;
+    }
 
     // A course counts through the atomic complete-session endpoint (server-side
     // $inc); a single visit is a plain status change.
