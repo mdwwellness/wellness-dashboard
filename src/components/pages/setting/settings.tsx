@@ -81,10 +81,59 @@ function BookingGapCard() {
         </div>
         <Button
           disabled={isPending || value === "" || Number(value) < 0}
-          onClick={() => mutate(Number(value))}
+          onClick={() => mutate({ bookingGapMinutes: Number(value) })}
         >
           {isPending ? "Saving…" : "Save"}
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TherapistSplitCard() {
+  const { data } = useGetClinicSettings();
+  const { mutate, isPending } = useUpdateClinicSettings();
+  const [value, setValue] = useState<string>("");
+  useEffect(() => {
+    if (data) setValue(String(data.therapistSplitPercent ?? 60));
+  }, [data]);
+
+  const split = Number(value);
+  const company = isNaN(split) ? "" : (100 - split).toFixed(0);
+
+  return (
+    <Card className="w-full lg:w-[400px] flex-shrink-0">
+      <CardHeader>
+        <CardTitle>Therapist earnings split</CardTitle>
+        <CardDescription>
+          Default percentage of collected revenue paid to the therapist.
+          Individual therapists can override this on their profile.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <label className="text-xs text-muted-foreground">Therapist %</label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </div>
+          <Button
+            disabled={isPending || value === "" || split < 0 || split > 100}
+            onClick={() => mutate({ therapistSplitPercent: split })}
+          >
+            {isPending ? "Saving…" : "Save"}
+          </Button>
+        </div>
+        {value !== "" && !isNaN(split) && (
+          <p className="text-xs text-muted-foreground">
+            Therapist keeps <strong>{split}%</strong> · Company keeps <strong>{company}%</strong>
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -296,6 +345,7 @@ const SettingsPageComponents = () => {
             </CardContent>
           </Card>
           <BookingGapCard />
+          <TherapistSplitCard />
           <Card className="flex-1">
             <CardHeader className="flex flex-row justify-start items-center gap-2">
               <div className="flex flex-col gap-2">

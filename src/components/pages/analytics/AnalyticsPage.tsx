@@ -27,9 +27,9 @@ import { deriveAnalytics, deriveMoM } from "./analytics-metrics";
 import { MoMGrowthChart } from "./MoMGrowthChart";
 import { DailyPacingChart } from "./DailyPacingChart";
 
-const PRIMARY = "#018bc4";
-const EMERALD = "#10b981";
-const AMBER = "#f59e0b";
+const PRIMARY = "#0284c7";
+const EMERALD = "#059669";
+const AMBER = "#d97706";
 const SLICE_COLORS = [PRIMARY, EMERALD, AMBER, "#8b5cf6", "#ec4899", "#64748b"];
 const AXIS = "#94a3b8";
 
@@ -295,6 +295,65 @@ const AnalyticsPage = () => {
                 formatAxis={num}
                 formatDelta={deltaUnit("repeat")}
               />
+            </section>
+
+            {/* ── Earnings Breakdown ── */}
+            <section className="space-y-4">
+              <ZoneTitle>Earnings & Payout Breakdown</ZoneTitle>
+              <MetricCardsRow className="w-full">
+                <MetricCard
+                  label="Therapist Payouts"
+                  value={formatINR(a.therapistPayoutTotal)}
+                  hint={`Paid: ${formatINR(a.therapistPayoutPaid)}`}
+                />
+                <MetricCard
+                  label="Company Earnings"
+                  value={formatINR(a.companyEarningsTotal)}
+                  hint="Margin after therapist split"
+                />
+                <MetricCard
+                  label="Payout Owed"
+                  value={formatINR(a.therapistPayoutOwed)}
+                  hint="Unpaid payouts to therapists"
+                />
+              </MetricCardsRow>
+
+              <Panel title="Earnings breakdown by therapist" hint="Collected revenue and therapist vs company split">
+                {a.therapistEarningsBreakdown.length === 0 ? (
+                  <Empty>No therapist earnings recorded yet.</Empty>
+                ) : (
+                  <div className="space-y-3.5">
+                    {a.therapistEarningsBreakdown.map((t) => (
+                      <div key={t.name} className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-3 text-xs gap-2">
+                        <div>
+                          <p className="font-bold text-sm text-foreground">{t.name}</p>
+                          <p className="text-muted-foreground font-medium">
+                            Revenue: <span className="font-bold text-foreground">{formatINR(t.revenue)}</span>
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                          <div className="text-right">
+                            <p className="text-muted-foreground font-medium">Therapist Cut</p>
+                            <p className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">{formatINR(t.therapistCut)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-muted-foreground font-medium">Company Cut</p>
+                            <p className="font-bold text-indigo-700 dark:text-indigo-300 text-sm">{formatINR(t.companyCut)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-muted-foreground font-medium">Paid / Owed</p>
+                            <p className="font-bold text-sm">
+                              <span className="text-emerald-700 dark:text-emerald-400">{formatINR(t.paidCut)}</span>
+                              {" / "}
+                              <span className="text-rose-700 dark:text-rose-400">{formatINR(t.owedCut)}</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Panel>
             </section>
 
             {/* ── Operational ── */}

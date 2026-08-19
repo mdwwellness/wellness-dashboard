@@ -54,6 +54,19 @@ export interface AnalyticsResult {
   pendingCount: number;
   needsFirstContact: number;
   therapistLoad: { name: string; bookings: number }[]; // desc, this week
+  // Zone C - earnings breakdown
+  therapistPayoutTotal: number;
+  therapistPayoutPaid: number;
+  therapistPayoutOwed: number;
+  companyEarningsTotal: number;
+  therapistEarningsBreakdown: {
+    name: string;
+    revenue: number;
+    therapistCut: number;
+    companyCut: number;
+    paidCut: number;
+    owedCut: number;
+  }[];
   hasData: boolean;
 }
 
@@ -142,6 +155,43 @@ export function deriveAnalytics(
     .map(([name, bookings]) => ({ name, bookings }))
     .sort((a, b) => b.bookings - a.bookings);
 
+  let therapistPayoutTotal = 0;
+  let therapistPayoutPaid = 0;
+  let therapistPayoutOwed = 0;
+  let companyEarningsTotal = 0;
+  const breakdownByName = new Map<string, { revenue: number; therapistCut: number; companyCut: number; paidCut: number; owedCut: number }>();
+
+  for (const r of live) {
+    if (!isPaid(r)) continue;
+    const amt = amountOf(r);
+    const split = 60;
+    const tCut = Math.round((amt * split) / 100);
+    const cCut = amt - tCut;
+    therapistPayoutTotal += tCut;
+    companyEarningsTotal += cCut;
+
+    const isTherapistPaid = !!(r as any).therapistPaid;
+    if (isTherapistPaid) {
+      therapistPayoutPaid += tCut;
+    } else {
+      therapistPayoutOwed += tCut;
+    }
+
+    const tName = r.doctor?.trim() || "Unassigned";
+    const existing = breakdownByName.get(tName) ?? { revenue: 0, therapistCut: 0, companyCut: 0, paidCut: 0, owedCut: 0 };
+    breakdownByName.set(tName, {
+      revenue: existing.revenue + amt,
+      therapistCut: existing.therapistCut + tCut,
+      companyCut: existing.companyCut + cCut,
+      paidCut: existing.paidCut + (isTherapistPaid ? tCut : 0),
+      owedCut: existing.owedCut + (!isTherapistPaid ? tCut : 0),
+    });
+  }
+
+  const therapistEarningsBreakdown = [...breakdownByName.entries()]
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.revenue - a.revenue);
+
   return {
     revenueThisMonth,
     collected,
@@ -155,6 +205,11 @@ export function deriveAnalytics(
     pendingCount: live.filter((r) => isBooked(r) && !isPaid(r)).length,
     needsFirstContact,
     therapistLoad,
+    therapistPayoutTotal,
+    therapistPayoutPaid,
+    therapistPayoutOwed,
+    companyEarningsTotal,
+    therapistEarningsBreakdown,
     hasData: records.length > 0,
   };
 }

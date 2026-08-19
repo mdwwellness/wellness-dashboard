@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import getClinicSettings, { type ClinicSettings } from "@/actions/clinic-settings/get-clinic-settings";
 import updateClinicSettings from "@/actions/clinic-settings/update-clinic-settings";
 
-const DEFAULT: ClinicSettings = { bookingGapMinutes: 60 };
+const DEFAULT: ClinicSettings = { bookingGapMinutes: 60, therapistSplitPercent: 60 };
 
 export function useGetClinicSettings() {
   return useQuery({
@@ -22,13 +22,13 @@ export function useGetClinicSettings() {
 export function useUpdateClinicSettings() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (bookingGapMinutes: number) => {
-      const result = await updateClinicSettings(bookingGapMinutes);
+    mutationFn: async (updates: Partial<ClinicSettings>) => {
+      const result = await updateClinicSettings(updates);
       if (!result.success) throw new Error(result.message);
       return result.data;
     },
     onSuccess: () => {
-      toast.success("Booking gap saved");
+      toast.success("Settings saved");
       queryClient.invalidateQueries({ queryKey: ["clinic-settings"] });
     },
     onError: (e: Error) => toast.error(e.message),

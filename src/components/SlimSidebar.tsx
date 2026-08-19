@@ -16,6 +16,7 @@ import {
   Settings,
   UserPlus,
   Users,
+  Wallet,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -91,6 +92,11 @@ const navLinks = [
     icon: <UserPlus className="h-5 w-5" />,
     href: "/dashboard/alltherapist",
   },
+  {
+    title: "Earnings",
+    icon: <Wallet className="h-5 w-5" />,
+    href: "/dashboard/earnings",
+  },
 ];
 
 const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
@@ -107,11 +113,12 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
   // Role scoping: therapists only see their own work.
   const router = useRouter();
   const role = user?.role;
-  const THERAPIST_NAV = new Set(["/dashboard", "/dashboard/appointments"]);
+  const THERAPIST_NAV = new Set(["/dashboard", "/dashboard/appointments", "/dashboard/earnings"]);
   const THERAPIST_ALLOWED = new Set([
     "/dashboard",
     "/dashboard/appointments",
     "/dashboard/settings",
+    "/dashboard/earnings",
   ]);
   const visibleLinks =
     role === "THERAPIST"

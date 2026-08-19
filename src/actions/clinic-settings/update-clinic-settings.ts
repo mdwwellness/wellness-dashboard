@@ -5,13 +5,13 @@ import { ApiResponse } from "@/type/api";
 import type { ClinicSettings } from "./get-clinic-settings";
 
 export default async function updateClinicSettings(
-  bookingGapMinutes: number,
+  updates: Partial<ClinicSettings>,
 ): Promise<ApiResponse<ClinicSettings>> {
   try {
     const response = await fetchWithAuth(`${base_url}/api/clinic-settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingGapMinutes }),
+      body: JSON.stringify(updates),
     });
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));

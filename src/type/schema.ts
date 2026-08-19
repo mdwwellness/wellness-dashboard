@@ -175,6 +175,8 @@ export const enquirySchema = z.object({
   paymentAmount: z.number().nonnegative().optional(),
   paymentMethod: z.enum(["cash", "upi", "card", "bank", "other"]).optional(),
   paymentReceivedAt: z.string().datetime().optional(),
+  therapistPaid: z.boolean().optional(),
+  therapistPaidAt: z.string().datetime().optional(),
   // Per-visit OTP verification state (server-managed; UI gates checkout on it).
   visitOtpVerified: z.boolean().optional(),
   // Ad-hoc multi-session tracking + per-session report log.
