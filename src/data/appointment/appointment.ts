@@ -202,8 +202,8 @@ export function useCompleteSession() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async (appointmentId: string) => {
-      const result = await completeSession(appointmentId);
+    mutationFn: async ({ appointmentId, note }: { appointmentId: string; note?: string }) => {
+      const result = await completeSession(appointmentId, note);
       if (!result.success) throw new Error(result.message);
       return { ...result, appointmentId };
     },

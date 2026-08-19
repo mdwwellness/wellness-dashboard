@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import { getCustomers } from "@/actions/customers/get-customers";
 import type { EnquiryType, UserType } from "@/type/schema";
-import type { PersistedCustomer } from "@/type/customer-record";
+import type { CustomerNote, PersistedCustomer } from "@/type/customer-record";
 import { isTodayISO, readCreatedISO } from "@/lib/metrics";
 
 /**
@@ -25,6 +25,7 @@ export interface Customer {
   firstBookingAt?: string;     // ISO from earliest createdAt
   lastBookingAt?: string;      // ISO from latest createdAt
   segment: CustomerSegment;
+  notes?: CustomerNote[];      // therapist notes about this customer
 }
 
 function readTimestamp(r: EnquiryType, key: "createdAt" | "updatedAt"): number {
@@ -97,6 +98,7 @@ export function deriveCustomers(
         ? new Date(readTimestamp(latest, "createdAt")).toISOString()
         : undefined,
       segment: segmentFor(totalBookings),
+      notes: persisted?.notes,
     });
   }
 
@@ -194,7 +196,7 @@ export function useGetCustomers(
       return deriveCustomers(records, persistedByKey);
     },
     refetchOnWindowFocus: false,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 5 * 1000, // 5 seconds - short so session notes written during a visit appear promptly
     // undefined leaves React Query's default (enabled) - existing callers keep
     // fetching; the intake modal passes `false` until it's actually open.
     enabled: options?.enabled,

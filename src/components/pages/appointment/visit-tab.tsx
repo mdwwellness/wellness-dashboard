@@ -75,7 +75,7 @@ export function VisitTab({
     useCompleteSession();
 
   const [draft, setDraft] = useState<slotBookingZodType>(appointment);
-  const [note, setNote] = useState(appointment.note ?? "");
+  const [note, setNote] = useState("");
   const [otp, setOtp] = useState("");
   const [verified, setVerified] = useState(!!appointment.visitOtpVerified);
   const [nextDate, setNextDate] = useState("");
@@ -83,7 +83,9 @@ export function VisitTab({
 
   useEffect(() => {
     setDraft(appointment);
-    setNote(appointment.note ?? "");
+    // Don't preload the executive's booking note - therapist writes fresh each session.
+    // The backend snapshots note into sessionNotes on completion and clears it.
+    setNote("");
     setVerified(!!appointment.visitOtpVerified);
     setOtp("");
   }, [appointment._id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -154,34 +156,25 @@ export function VisitTab({
       return;
     }
 
-    // A course counts through the atomic complete-session endpoint (server-side
-    // $inc); a single visit is a plain status change.
-    if (isMulti && appointment._id) {
-      markSessionComplete(appointment._id, {
-        onSuccess: (result) => {
-          if (result.data) setDraft(result.data as slotBookingZodType);
-          setVerified(false); // consumed - the next visit needs a fresh code
-        },
-      });
-      return;
-    }
-    const patch: slotBookingZodType = {
-      ...draft,
-      status: "completed",
-      completedAt: new Date().toISOString(),
-      workChecklist: [...done, "completed"],
-      activityLog: [
-        ...(draft.activityLog ?? []),
+    // Both single visits and courses count through the atomic complete-session
+    // endpoint, which snapshots the therapist's note into sessionNotes.
+    if (appointment._id) {
+      markSessionComplete(
+        { appointmentId: appointment._id, note: note.trim() || undefined },
         {
-          at: new Date().toISOString(),
-          userId: user?.id,
-          name: actor,
-          action: "Visit completed",
+          onSuccess: (result) => {
+            if (result.data) setDraft(result.data as slotBookingZodType);
+            setVerified(false); // consumed - the next visit needs a fresh code
+            setNote(""); // clear the textarea for next visit
+            toast.success(
+              isMulti
+                ? `Session ${progress?.currentSession ?? ""} of ${progress?.total ?? ""} completed!`
+                : "Visit completed successfully!",
+            );
+          },
         },
-      ],
-    };
-    setDraft(patch);
-    update(patch);
+      );
+    }
   }
 
   const label = progress
@@ -305,7 +298,8 @@ export function VisitTab({
           disabled={!verified}
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => {
-            if (note !== (appointment.note ?? "")) {
+            // Save whenever there's content to persist (prevents loss on tab switch)
+            if (note.trim()) {
               saveNote({ ...draft, note });
             }
           }}
@@ -314,22 +308,35 @@ export function VisitTab({
       </Step>
 
       <Step n={4} title="Finish">
-        <Button
-          type="button"
-          size="sm"
-          className="w-full"
-          disabled={isCompleting || packageDone || !verified}
-          onClick={complete}
-        >
-          {isCompleting ? (
-            <>
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            label
-          )}
-        </Button>
+        {draft.status === "completed" ? (
+          <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50/50 px-3 py-2.5 dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 dark:bg-emerald-900">
+              <Check className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" />
+            </div>
+            <span className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
+              {isMulti
+                ? `Session ${progress?.currentSession ?? ""} of ${progress?.total ?? ""} completed`
+                : "Visit completed"}
+            </span>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            className="w-full"
+            disabled={isCompleting || packageDone || !verified}
+            onClick={complete}
+          >
+            {isCompleting ? (
+              <>
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              label
+            )}
+          </Button>
+        )}
       </Step>
 
       {/* Rolling scheduling: the next visit is booked at the end of this one,

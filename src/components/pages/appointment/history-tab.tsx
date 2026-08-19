@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Check } from "lucide-react";
 
 import type { ServiceType, slotBookingZodType } from "@/type/schema";
+import type { CustomerNote } from "@/type/customer-record";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
 import { tidyActivityText } from "@/lib/utils";
+import { getCustomerByPhone } from "@/actions/customers/get-customer-by-phone";
 
 /**
  * The record of what has already happened: each completed session's clinical
@@ -30,6 +33,36 @@ export function HistoryTab({
   const activity = [...(appointment.activityLog ?? [])]
     .filter((e) => e.name && e.name !== "System")
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(true);
+
+  useEffect(() => {
+    async function fetchCustomerNotes() {
+      if (!appointment.phonenumber) {
+        setLoadingNotes(false);
+        return;
+      }
+      const result = await getCustomerByPhone(appointment.phonenumber);
+      if (result.success && result.data) {
+        // Find the customer matching this appointment's name
+        const customer = result.data.find(
+          (c) => c.name.toLowerCase() === (appointment.name ?? "").toLowerCase(),
+        );
+        if (customer?.notes) {
+          setCustomerNotes(customer.notes);
+        }
+      }
+      setLoadingNotes(false);
+    }
+    fetchCustomerNotes();
+  // Re-fetch whenever a session is completed (sessionNotes grows), so the
+  // mirrored customer note written by the backend appears without a page reload.
+  }, [appointment.phonenumber, appointment.name, appointment.sessionNotes?.length]);
+
+  const sortedCustomerNotes = [...customerNotes].sort(
+    (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
+  );
 
   return (
     <div className="space-y-4">
@@ -71,6 +104,34 @@ export function HistoryTab({
                   </p>
                 )}
               </details>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Customer Notes from Therapist */}
+      <section className="rounded-lg border p-3">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Therapist Notes (Customer History)
+        </p>
+        {loadingNotes ? (
+          <p className="text-sm text-muted-foreground">Loading notes...</p>
+        ) : sortedCustomerNotes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No therapist notes for this customer yet.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {sortedCustomerNotes.map((n, i) => (
+              <div
+                key={`${n.at}-${n.by}-${i}`}
+                className="border-l-2 border-blue-500 pl-2.5 text-xs"
+              >
+                <p className="whitespace-pre-wrap">{n.note}</p>
+                <p className="mt-1 text-muted-foreground">
+                  {n.by} · {format(new Date(n.at), "dd MMM yyyy, h:mm a")}
+                </p>
+              </div>
             ))}
           </div>
         )}

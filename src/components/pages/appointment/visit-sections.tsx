@@ -27,6 +27,7 @@ import { addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
 import { bookingLedger } from "@/lib/booking-money";
 import { whatsAppLink } from "@/lib/whatsapp";
 import { sendAddonOtp } from "@/actions/appointments/addon-otp";
+import { getPackageProgressForAppointment } from "@/lib/package-progress";
 
 function formatINR(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -82,6 +83,12 @@ export function AddonsVisitSection({
   const [applyDiscount, setApplyDiscount] = useState(true);
   // Consent code per add-on, keyed by serviceId|recommendedAt.
   const [codes, setCodes] = useState<Record<string, string>>({});
+
+  // No new add-ons once the package or single visit is fully complete.
+  const progress = getPackageProgressForAppointment(appointment, [appointment], services);
+  const allSessionsDone = progress
+    ? progress.completed >= progress.total
+    : appointment.status === "completed";
 
   const selected = services.find((s) => s.serviceId === serviceId);
   const pricing = recommendedAddonTotal(
@@ -211,6 +218,7 @@ export function AddonsVisitSection({
           type="button"
           variant="outline"
           size="sm"
+          disabled={allSessionsDone}
           onClick={() => setShowAddForm(true)}
         >
           <Plus className="h-3.5 w-3.5 mr-1" />
@@ -227,7 +235,7 @@ export function AddonsVisitSection({
           <Stethoscope className="h-4 w-4" />
           Recommended add-ons
         </h3>
-        {!showAddForm && (
+        {!showAddForm && !allSessionsDone && (
           <Button
             type="button"
             variant="ghost"
@@ -357,7 +365,7 @@ export function AddonsVisitSection({
         </ul>
       )}
 
-      {showAddForm && (
+      {showAddForm && !allSessionsDone && (
         <div className="space-y-2 border-t pt-3">
           <Select value={serviceId} onValueChange={handleSelect}>
             <SelectTrigger className="w-full">

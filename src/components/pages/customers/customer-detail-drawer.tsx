@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   ChevronDown,
@@ -9,6 +9,8 @@ import {
   MapPin,
   Phone,
   CalendarDays,
+  Pencil,
+  Plus,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -23,12 +25,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
 import { EnquiryIntakeModal } from "@/components/pages/enquiries/enquiry-intake-modal";
 import type { Customer } from "@/data/customer/customer";
 import type { ActivityEntry, EnquiryType } from "@/type/schema";
+import type { CustomerNote } from "@/type/customer-record";
 import { AppointmentStatusBadge } from "@/components/status-badge";
 import { tidyActivityText } from "@/lib/utils";
+import { useAuthStore } from "@/providers/permission-provider";
+import { addCustomerNote, editCustomerNote } from "@/actions/customers/update-customer-notes";
+import { toast } from "sonner";
 
 interface CustomerDetailDrawerProps {
   customer: Customer | null;
@@ -57,6 +64,185 @@ function formatTimeRange(r: { from?: string; to?: string } | undefined) {
     return `${h12}:${String(m).padStart(2, "0")} ${period}`;
   };
   return `${toAmPm(r.from)} - ${toAmPm(r.to)}`;
+}
+
+function TherapistNotes({
+  customerId,
+  notes,
+  onNotesUpdate,
+}: {
+  customerId: string;
+  notes: CustomerNote[];
+  onNotesUpdate: (notes: CustomerNote[]) => void;
+}) {
+  const user = useAuthStore((s) => s.user);
+  const isTherapist = user?.role === "THERAPIST";
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [newNote, setNewNote] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const sortedNotes = useMemo(
+    () => [...notes].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
+    [notes],
+  );
+
+  const handleAdd = async () => {
+    if (!newNote.trim() || !user) return;
+    setSaving(true);
+    const note: CustomerNote = {
+      at: new Date().toISOString(),
+      by: `${user.userfName} ${user.userlName}`.trim(),
+      userId: user.id,
+      note: newNote.trim(),
+    };
+    const result = await addCustomerNote(customerId, note);
+    setSaving(false);
+    if (result.success && result.data) {
+      onNotesUpdate(result.data.notes ?? []);
+      setNewNote("");
+      setIsAdding(false);
+      toast.success("Note added");
+    } else {
+      toast.error(result.message);
+    }
+  };
+
+  const handleEdit = async (original: CustomerNote) => {
+    if (!editNote.trim()) return;
+    setSaving(true);
+    const result = await editCustomerNote(customerId, {
+      at: original.at,
+      by: original.by,
+      note: editNote.trim(),
+    });
+    setSaving(false);
+    if (result.success && result.data) {
+      onNotesUpdate(result.data.notes ?? []);
+      setEditNote("");
+      setEditingIdx(null);
+      toast.success("Note updated");
+    } else {
+      toast.error(result.message);
+    }
+  };
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Therapist Notes ({notes.length})</h3>
+        {isTherapist && !isAdding && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            onClick={() => setIsAdding(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add note
+          </Button>
+        )}
+      </div>
+
+      {/* Add note form */}
+      {isAdding && (
+        <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+          <Textarea
+            placeholder="Type your note about this customer..."
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            className="min-h-[80px] text-sm"
+          />
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setIsAdding(false);
+                setNewNote("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleAdd}
+              disabled={saving || !newNote.trim()}
+            >
+              {saving ? "Saving..." : "Save note"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Notes list */}
+      {sortedNotes.length === 0 && !isAdding ? (
+        <p className="text-sm text-muted-foreground">No therapist notes yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {sortedNotes.map((n, i) => (
+            <div key={`${n.at}-${n.by}-${i}`} className="border rounded-md p-3 text-sm">
+              {editingIdx === i ? (
+                <div className="space-y-2">
+                  <Textarea
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    className="min-h-[60px] text-sm"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        setEditingIdx(null);
+                        setEditNote("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => handleEdit(n)}
+                      disabled={saving || !editNote.trim()}
+                    >
+                      {saving ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="whitespace-pre-wrap">{n.note}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-muted-foreground">
+                      {n.by} · {format(new Date(n.at), "dd MMM yyyy, h:mm a")}
+                    </span>
+                    {isTherapist && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => {
+                          setEditingIdx(i);
+                          setEditNote(n.note);
+                        }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 /**
@@ -271,6 +457,14 @@ export function CustomerDetailDrawer({
   onClose,
 }: CustomerDetailDrawerProps) {
   const open = customer !== null;
+  const [localNotes, setLocalNotes] = useState<CustomerNote[]>(customer?.notes ?? []);
+
+  // Re-sync notes whenever the parent refreshes the customer object (e.g. after
+  // a session completion mirrors the note into the customer record and the
+  // customers query refetches).
+  useEffect(() => {
+    setLocalNotes(customer?.notes ?? []);
+  }, [customer?.notes]);
 
   const fullHistory = useMemo(
     () => (customer ? buildCustomerActivity(customer.bookings) : []),
@@ -389,6 +583,17 @@ export function CustomerDetailDrawer({
               </div>
             )}
           </section>
+
+          <Separator />
+
+          {/* Therapist Notes */}
+          {customer.customer_id && (
+            <TherapistNotes
+              customerId={customer.customer_id}
+              notes={localNotes}
+              onNotesUpdate={setLocalNotes}
+            />
+          )}
 
           <Separator />
 

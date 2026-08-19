@@ -7,11 +7,16 @@ import type { slotBookingZodType } from "@/type/schema";
 
 export default async function completeSession(
   appointmentId: string,
+  note?: string,
 ): Promise<ApiResponse<slotBookingZodType>> {
   try {
     const response = await fetchWithAuth(
       `${base_url}/api/appointments/${appointmentId}/complete-session`,
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: note ? JSON.stringify({ note }) : undefined,
+      },
     );
 
     if (!response.ok) {
