@@ -68,7 +68,6 @@ export function VisitTab({
   allAppointments: slotBookingZodType[];
 }) {
   const { user } = useAuthStore();
-  const isTherapist = user?.role === "THERAPIST";
   const { data: services = [] } = useGetServices();
   const { mutate: update } = useUpdateAppointment({ silent: true });
   const { mutate: saveNote } = useUpdateAppointment({ silent: true });
@@ -219,10 +218,6 @@ export function VisitTab({
         {verified ? (
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
             Verified by the customer - the session is under way.
-          </p>
-        ) : isTherapist ? (
-          <p className="text-[11px] text-muted-foreground">
-            OTP verification is handled by the back-office team.
           </p>
         ) : (
           <div className="flex gap-1.5">
