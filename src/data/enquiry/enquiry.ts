@@ -21,8 +21,9 @@ export const enquiriesQueryOptions = (user: UserType) => ({
     if (!result.success) throw new Error(result.message);
     return (result.data ?? []) as EnquiryType[];
   },
-  refetchOnWindowFocus: false,
-  staleTime: 30 * 1000, // 30 seconds
+  refetchOnWindowFocus: true,
+  staleTime: 5 * 1000, // 5 seconds
+  refetchInterval: 8 * 1000, // Poll every 8s for new inbound web bookings
 });
 
 export function useGetAllEnquiries(user: UserType) {

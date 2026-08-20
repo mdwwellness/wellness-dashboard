@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useUpdateAppointment } from "@/data/appointment/appointment";
+import { useAuthStore } from "@/providers/permission-provider";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -42,6 +43,8 @@ export default function AppointmentDetailsPage({
   onClose,
   compact = false,
 }: AppointmentDetailsPageProps) {
+  const { user } = useAuthStore();
+  const isTherapist = user?.role === "THERAPIST";
   const { mutate: updateMutate, isPending: isUpdating } =
     useUpdateAppointment();
   // Cancelling is a soft status change (kept silent so we can show our own
@@ -96,8 +99,9 @@ export default function AppointmentDetailsPage({
             </div>
           )}
 
-          {/* Visit date/time only when there's no package block managing it. */}
-          {!compact && (
+          {/* Visit date/time only when there's no package block managing it.
+              Therapists cannot reschedule - only admins/staff can. */}
+          {!compact && !isTherapist && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}

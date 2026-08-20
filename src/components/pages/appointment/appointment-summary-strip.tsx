@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, Phone } from "lucide-react";
+import { MapPin, MessageCircle, Phone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import type { ServiceType, slotBookingZodType } from "@/type/schema";
@@ -36,6 +36,11 @@ export function AppointmentSummaryStrip({
     ? Math.round((progress.completed / progress.total) * 100)
     : 0;
 
+  const mapsQuery = appointment.location || appointment.name;
+  const mapsUrl = mapsQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
+    : null;
+
   return (
     <div className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-2">
       <div className="flex items-start justify-between gap-3">
@@ -48,6 +53,18 @@ export function AppointmentSummaryStrip({
           </p>
         </div>
         <div className="flex shrink-0 gap-1.5">
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={appointment.location ? `Open location in Google Maps: ${appointment.location}` : "Search location on Google Maps"}
+              aria-label="Open location in Google Maps"
+              className="grid h-8 w-8 place-items-center rounded-md border text-muted-foreground hover:text-foreground"
+            >
+              <MapPin className="h-4 w-4" />
+            </a>
+          )}
           {wa && (
             <a
               href={wa}

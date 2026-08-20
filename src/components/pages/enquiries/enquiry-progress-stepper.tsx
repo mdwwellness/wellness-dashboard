@@ -51,13 +51,23 @@ export function EnquiryProgressStepper({ record }: { record: EnquiryType }) {
   const cancelled = record.status === "cancelled";
   const steps = STEPS;
 
-  const doneFlags = steps.map((s) => s.done(record));
-  // Fill the bar up to the furthest completed step (monotonic, like the funnel).
-  let lastDone = -1;
-  doneFlags.forEach((d, i) => {
-    if (d) lastDone = i;
-  });
-  const currentIndex = lastDone + 1; // the step in progress (or === length when complete)
+  const rawDone = steps.map((s) => s.done(record));
+
+  // In a sequential funnel, step i is completed only if it is satisfied AND all preceding steps are also completed.
+  const doneFlags: boolean[] = [];
+  let chainBroken = false;
+  for (let i = 0; i < steps.length; i++) {
+    if (!chainBroken && rawDone[i]) {
+      doneFlags[i] = true;
+    } else {
+      doneFlags[i] = false;
+      chainBroken = true;
+    }
+  }
+
+  // Active current step is the first step in the sequence that is not yet completed
+  const firstUnfinished = doneFlags.findIndex((d) => !d);
+  const currentIndex = cancelled ? -1 : firstUnfinished === -1 ? steps.length : firstUnfinished;
 
   // Cancellation context, pulled from the activity log + reason note.
   const cancelEntry = record.activityLog
@@ -74,7 +84,7 @@ export function EnquiryProgressStepper({ record }: { record: EnquiryType }) {
     <div className="space-y-2">
       <div className={cn("flex items-start", cancelled && "opacity-40")}>
         {steps.map((step, i) => {
-          const isDone = i <= lastDone;
+          const isDone = doneFlags[i];
           const isCurrent = !cancelled && i === currentIndex;
           return (
             <div key={step.key} className="flex items-start flex-1 last:flex-none">
@@ -95,9 +105,9 @@ export function EnquiryProgressStepper({ record }: { record: EnquiryType }) {
                   className={cn(
                     "text-[10px] leading-tight text-center group-hover:text-foreground transition-colors",
                     isDone
-                      ? "text-muted-foreground"
+                      ? "text-muted-foreground font-medium"
                       : isCurrent
-                        ? "text-foreground font-medium"
+                        ? "text-foreground font-semibold"
                         : "text-muted-foreground/60",
                   )}
                 >
@@ -108,7 +118,7 @@ export function EnquiryProgressStepper({ record }: { record: EnquiryType }) {
                 <div
                   className={cn(
                     "h-0.5 flex-1 mt-2.5",
-                    isDone ? "bg-emerald-600" : "bg-border",
+                    isDone && doneFlags[i + 1] ? "bg-emerald-600" : "bg-border",
                   )}
                 />
               )}

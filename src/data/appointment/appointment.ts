@@ -29,8 +29,11 @@ export const appointmentsQueryOptions = (user: UserType) => ({
     const filtered = records.filter(
       (r) =>
         (r.status !== "enquiry" ||
+          Boolean(r.typeOfappointment) ||
+          Boolean(r.service) ||
           Boolean(r.physioSlot?.date && r.physioSlot?.time) ||
-          Boolean(r.slot?.date && r.slot?.time)) &&
+          Boolean(r.slot?.date && r.slot?.time) ||
+          Boolean(r.consultationSlot?.date && r.consultationSlot?.time)) &&
         r.appointmentKind !== "recommended",
     );
     return dedupePackageAppointments(filtered);

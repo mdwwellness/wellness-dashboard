@@ -45,6 +45,7 @@ import { ModeToggle } from "./theme-mode/mode-toggle";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoutButton } from './auth/logout-button';
 import { useAuthStore } from '@/providers/permission-provider';
+import InboundBookingNotifier from './InboundBookingNotifier';
 
 const navLinks = [
   {
@@ -134,6 +135,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <>
+      <InboundBookingNotifier />
       <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 h-screen flex-col border-r bg-background sm:flex">
         <nav className="flex flex-col items-center gap-4 px-2 sm:py-4 mt-10 ">
           <TooltipProvider>

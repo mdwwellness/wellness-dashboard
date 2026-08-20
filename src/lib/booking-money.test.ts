@@ -7,7 +7,7 @@ describe("bookingLedger", () => {
     const { due, lines } = bookingLedger({
       quotedPrice: 500,
       paymentReceived: true,
-    });
+    } as any);
     expect(due).toBe(0);
     expect(lines[0].state).toBe("paid");
   });
@@ -27,7 +27,7 @@ describe("bookingLedger", () => {
           paymentCollected: false,
         },
       ],
-    });
+    } as any);
     expect(due).toBe(1500);
     expect(lines.find((l) => l.label === "Accupuncture")?.state).toBe("due");
     expect(lines.find((l) => l.key === "booking")?.state).toBe("paid");
@@ -46,7 +46,7 @@ describe("bookingLedger", () => {
           recommendedAt: "2026-08-05T10:00:00.000Z",
         },
       ],
-    });
+    } as any);
     expect(due).toBe(500);
   });
 
@@ -64,7 +64,7 @@ describe("bookingLedger", () => {
           paymentCollected: true,
         },
       ],
-    });
+    } as any);
     expect(due).toBe(0);
   });
 
@@ -83,7 +83,7 @@ describe("bookingLedger", () => {
           paymentCollected: false,
         },
       ],
-    });
+    } as any);
     expect(due).toBe(3000);
     expect(lines.find((l) => l.label === "Home Visit Consultation")?.amount).toBe(
       3000,
