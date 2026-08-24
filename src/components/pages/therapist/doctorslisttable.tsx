@@ -1,8 +1,10 @@
 "use client"
+import { useState } from "react";
 import { TherapistformType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
-import { User } from "lucide-react";
+import { useUpdateTherapist } from "@/data/therapist/therapist";
+import { Loader2, User } from "lucide-react";
 
 function TherapistAvatar({ url, name }: { url?: string; name: string }) {
   const initials = name
@@ -24,6 +26,45 @@ function TherapistAvatar({ url, name }: { url?: string; name: string }) {
         <User className="h-4 w-4 text-muted-foreground" />
       )}
     </div>
+  );
+}
+
+function ActiveToggle({ therapist }: { therapist: TherapistformType }) {
+  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const { mutate: updateTherapist, isPending } = useUpdateTherapist();
+
+  const active = optimistic ?? therapist.isActive;
+
+  function toggle() {
+    if (isPending) return;
+    const next = !active;
+    setOptimistic(next);
+    updateTherapist(
+      { ...therapist, isActive: next },
+      {
+        onError: () => setOptimistic(null), // rollback on failure
+        onSettled: () => setOptimistic(null), // re-sync with server
+      },
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        toggle();
+      }}
+      disabled={isPending}
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-sm text-xs font-semibold transition-colors cursor-pointer disabled:opacity-60 ${
+        active
+          ? "bg-emerald-600 text-white hover:bg-emerald-700"
+          : "bg-red-600 text-white hover:bg-red-700"
+      }`}
+    >
+      {isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+      {active ? "Active" : "Not Active"}
+    </button>
   );
 }
 
@@ -93,12 +134,9 @@ export const DoctorsListColumn: ColumnDef<TherapistformType>[] = [
   },
   {
     accessorKey: "isActive",
-    header:"Is Active",
+    header:"Status",
     cell: ({ row }) => {
-      const state = row.getValue("isActive");
-      return (
-        state ? <span className="bg-green-600 px-2 py-1 rounded-sm text-white font-semibold" >Active</span> : <span className="bg-red-600 px-2 py-1 rounded-sm text-white font-semibold" >Not Active</span>
-      )
+      return <ActiveToggle therapist={row.original} />;
     },
   },
 ];
