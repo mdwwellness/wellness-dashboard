@@ -10,7 +10,7 @@ import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { useAuthStore } from "@/providers/permission-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, CalendarDays, Search, Clock, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Search, Clock, User, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TherapistformType } from "@/type/schema";
 
@@ -115,6 +115,47 @@ export function TherapistCalendarView({ onBack }: TherapistCalendarViewProps) {
     return result;
   }, [appointments, gapMinutes, therapistColorMap]);
 
+  // Generate "off-day" events from therapists' weekOffDays.
+  // These fill the visible calendar range so staff know when a therapist is
+  // unavailable.
+  const offDayEvents = useMemo<CalendarEvent[]>(() => {
+    const result: CalendarEvent[] = [];
+    // Generate events for 3 months around the current date to cover any view
+    const rangeStart = subMonths(date, 1);
+    const rangeEnd = addMonths(date, 1);
+
+    for (const t of therapists) {
+      if (!t.weekOffDays?.length || !t.doctorId) continue;
+      const color = therapistColorMap.get(t.name) ?? "#6b7280";
+      let cursor = new Date(rangeStart);
+      while (cursor <= rangeEnd) {
+        if (t.weekOffDays.includes(getDay(cursor))) {
+          const dayStart = new Date(cursor);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(cursor);
+          dayEnd.setHours(23, 59, 59, 999);
+          result.push({
+            id: `off-${t.doctorId}-${format(cursor, "yyyy-MM-dd")}`,
+            title: `${t.name} - Off`,
+            start: dayStart,
+            end: dayEnd,
+            therapistId: t.doctorId,
+            therapistName: t.name,
+            color,
+          });
+        }
+        cursor = addDays(cursor, 1);
+      }
+    }
+    return result;
+  }, [therapists, date, therapistColorMap]);
+
+  // Merge appointment events with off-day events
+  const allEvents = useMemo<CalendarEvent[]>(
+    () => [...events, ...offDayEvents],
+    [events, offDayEvents],
+  );
+
   // Stats per therapist for the visible range — keyed by name since
   // appointments use `a.doctor` (name string) not `t._id` (ObjectId)
   const therapistStats = useMemo(() => {
@@ -175,9 +216,9 @@ export function TherapistCalendarView({ onBack }: TherapistCalendarViewProps) {
 
   // Events visible on calendar: all when no search, filtered by name when searching
   const visibleEvents = useMemo(() => {
-    if (searchFilteredNames === null) return events;
-    return events.filter((e) => searchFilteredNames.includes(e.therapistName));
-  }, [events, searchFilteredNames]);
+    if (searchFilteredNames === null) return allEvents;
+    return allEvents.filter((e) => searchFilteredNames.includes(e.therapistName));
+  }, [allEvents, searchFilteredNames]);
 
   // Stats computed from visible events (filters with search)
   const visibleStats = useMemo(() => {
@@ -237,19 +278,22 @@ export function TherapistCalendarView({ onBack }: TherapistCalendarViewProps) {
     }
   }, [view]);
 
-  const eventStyleGetter = useCallback((event: CalendarEvent) => ({
-    style: {
-      backgroundColor: event.color,
-      border: "none",
-      borderRadius: "6px",
-      color: "white",
-      fontSize: "13px",
-      padding: "3px 8px",
-      cursor: "pointer",
-      opacity: 0.9,
-      textShadow: "0 1px 2px rgba(0,0,0,0.3)",
-    },
-  }), []);
+  const eventStyleGetter = useCallback((event: CalendarEvent) => {
+    const isOffDay = event.id.startsWith("off-");
+    return {
+      style: {
+        backgroundColor: isOffDay ? `${event.color}33` : event.color,
+        border: isOffDay ? `1px dashed ${event.color}88` : "none",
+        borderRadius: "6px",
+        color: isOffDay ? event.color : "white",
+        fontSize: "13px",
+        padding: "3px 8px",
+        cursor: "pointer",
+        opacity: isOffDay ? 0.7 : 0.9,
+        textShadow: isOffDay ? "none" : "0 1px 2px rgba(0,0,0,0.3)",
+      },
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-4">

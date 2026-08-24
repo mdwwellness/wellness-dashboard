@@ -46,6 +46,7 @@ import { ProfilePicUploader } from "./profile-pic-uploader";
 import { CertificatesSection } from "./certificates-section";
 import { TherapistEarningsTab } from "./therapist-earnings-tab";
 import { TherapistReferralsTab } from "./therapist-referrals-tab";
+import { TherapistAvailabilityTab } from "./therapist-availability-tab";
 
 interface TherapistDetailsPageProps {
   data: TherapistformType;
@@ -92,6 +93,7 @@ export default function TherapistDetailsPage({
       bio: data.bio,
       profileImage: data.profileImage ?? "",
       certificates: data.certificates ?? [],
+      weekOffDays: data.weekOffDays ?? [],
     },
   });
 
@@ -206,6 +208,9 @@ export default function TherapistDetailsPage({
             </TabsTrigger>
             <TabsTrigger value="referrals" className="flex-1">
               Referrals
+            </TabsTrigger>
+            <TabsTrigger value="availability" className="flex-1">
+              Availability
             </TabsTrigger>
           </TabsList>
         </div>
@@ -498,6 +503,18 @@ export default function TherapistDetailsPage({
           <div className="px-5 sm:px-6 py-5">
             {data.doctorId && (
               <TherapistReferralsTab doctorId={data.doctorId} />
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── Availability tab ─────────────────────────────────── */}
+        <TabsContent value="availability" className="flex-1 overflow-y-auto m-0">
+          <div className="px-5 sm:px-6 py-5">
+            {data.doctorId && (
+              <TherapistAvailabilityTab
+                doctorId={data.doctorId}
+                weekOffDays={data.weekOffDays ?? []}
+              />
             )}
           </div>
         </TabsContent>

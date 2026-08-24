@@ -300,6 +300,8 @@ export const TherapistformSchema = z.object({
   isActive: z.boolean().default(true).optional(),
   profileImage: z.string().optional().or(z.literal("")),
   certificates: z.array(certificateSchema).optional(),
+  // Weekly off-days (0=Sun, 6=Sat). Empty = available every day.
+  weekOffDays: z.array(z.number().min(0).max(6)).default([]).optional(),
 });
 export type TherapistformType = z.infer<typeof TherapistformSchema>
 
