@@ -128,6 +128,16 @@ export function TherapistAvailabilityGrid({
     );
   }, [all, query]);
 
+  // Check which therapists are off on the selected date
+  const offDayDoctorIds = useMemo(() => {
+    const dayOfWeek = new Date(date + "T00:00:00").getDay();
+    return new Set(
+      all
+        .filter((t) => t.weekOffDays?.includes(dayOfWeek))
+        .map((t) => t.doctorId as string),
+    );
+  }, [all, date]);
+
   if (all.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
@@ -205,6 +215,7 @@ export function TherapistAvailabilityGrid({
               )}
               {rows.map((therapist) => {
                 const doctorId = therapist.doctorId as string;
+                const isOffDay = offDayDoctorIds.has(doctorId);
                 return (
                   <tr key={doctorId}>
                     <td className="sticky left-0 z-10 bg-background border-r px-2 py-1">
@@ -229,20 +240,24 @@ export function TherapistAvailabilityGrid({
                         <td key={cell} className="p-0.5 text-center">
                           <button
                             type="button"
-                            disabled={isBusy}
+                            disabled={isBusy || isOffDay}
                             title={
-                              isBusy
-                                ? `Booked - ${probe?.with?.name ?? "existing visit"}`
-                                : isTooClose
-                                  ? `${therapist.name} · ${cell} - within the ${gap}-min booking gap`
-                                  : `${therapist.name} · ${cell}`
+                              isOffDay
+                                ? `${therapist.name} is off on this day`
+                                : isBusy
+                                  ? `Booked - ${probe?.with?.name ?? "existing visit"}`
+                                  : isTooClose
+                                    ? `${therapist.name} · ${cell} - within the ${gap}-min booking gap`
+                                    : `${therapist.name} · ${cell}`
                             }
                             aria-label={`${therapist.name} at ${cell}${
-                              isBusy
-                                ? " (booked)"
-                                : isTooClose
-                                  ? " (within booking gap)"
-                                  : ""
+                              isOffDay
+                                ? " (day off)"
+                                : isBusy
+                                  ? " (booked)"
+                                  : isTooClose
+                                    ? " (within booking gap)"
+                                    : ""
                             }`}
                             aria-pressed={isSelected}
                             onClick={() =>
@@ -255,11 +270,13 @@ export function TherapistAvailabilityGrid({
                             }
                             className={cn(
                               "h-6 w-full min-w-[2.25rem] rounded-sm border transition-colors",
-                              isBusy
-                                ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/40"
-                                : isTooClose
-                                  ? "border-amber-500/40 bg-amber-500/15 text-amber-700 hover:bg-amber-500/30 dark:text-amber-400"
-                                  : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
+                              isOffDay
+                                ? "cursor-not-allowed border-transparent bg-red-500/10 text-red-400/50"
+                                : isBusy
+                                  ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/40"
+                                  : isTooClose
+                                    ? "border-amber-500/40 bg-amber-500/15 text-amber-700 hover:bg-amber-500/30 dark:text-amber-400"
+                                    : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
                               isCovered &&
                                 !isSelected &&
                                 "border-primary/40 bg-primary/20",
@@ -269,11 +286,13 @@ export function TherapistAvailabilityGrid({
                           >
                             {isSelected
                               ? "✓"
-                              : isBusy
-                                ? "×"
-                                : isTooClose
-                                  ? "!"
-                                  : ""}
+                              : isOffDay
+                                ? "-"
+                                : isBusy
+                                  ? "×"
+                                  : isTooClose
+                                    ? "!"
+                                    : ""}
                           </button>
                         </td>
                       );
@@ -286,7 +305,7 @@ export function TherapistAvailabilityGrid({
         </div>
         <p className="border-t px-2 py-1.5 text-[10px] text-muted-foreground">
           Click a free slot to set the therapist and start time. × = booked, ! =
-          within the {gap}-min booking gap. Click a name for their
+          within the {gap}-min booking gap, - = day off. Click a name for their
           specializations.
         </p>
       </div>
