@@ -141,6 +141,7 @@ function TherapistSplitCard() {
 
 const SettingsPageComponents = () => {
   const{user} = useAuthStore()
+  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
   const [open, setOpen] = useState(false);
   const { data, isLoading,isError,error,refetch } = useGetAllUsers();
   const { mutate, isPending } = useUpdateUserProfile();
@@ -344,26 +345,30 @@ const SettingsPageComponents = () => {
               </Dialog>
             </CardContent>
           </Card>
-          <BookingGapCard />
-          <TherapistSplitCard />
-          <Card className="flex-1">
-            <CardHeader className="flex flex-row justify-start items-center gap-2">
-              <div className="flex flex-col gap-2">
-                <CardTitle>Admin Members</CardTitle>
-                <CardDescription>
-                  View or manage users with dashboard access.
-                </CardDescription>
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <UserDialog/>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <QueryWrapper isError={isError} isLoading={isLoading} error={error} onRetry={refetch}>
-              <UserDataTable columns={columns} data={data?.users??[]} />
-              </QueryWrapper>
-            </CardContent>
-          </Card>
+          {isAdmin && (
+            <>
+              <BookingGapCard />
+              <TherapistSplitCard />
+              <Card className="flex-1">
+                <CardHeader className="flex flex-row justify-start items-center gap-2">
+                  <div className="flex flex-col gap-2">
+                    <CardTitle>Admin Members</CardTitle>
+                    <CardDescription>
+                      View or manage users with dashboard access.
+                    </CardDescription>
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                    <UserDialog/>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <QueryWrapper isError={isError} isLoading={isLoading} error={error} onRetry={refetch}>
+                  <UserDataTable columns={columns} data={data?.users??[]} />
+                  </QueryWrapper>
+                </CardContent>
+              </Card>
+            </>
+          )}
       </div>
     </div>
   );
