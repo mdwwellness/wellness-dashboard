@@ -16,10 +16,14 @@ export function useGetTherapistLeaves(doctorId: string) {
     queryKey: ["therapist-leaves", doctorId],
     queryFn: async () => {
       const result = await getTherapistLeaves(doctorId);
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) {
+        toast.error(result.message ?? "Failed to load leaves");
+        return [] as TherapistLeave[];
+      }
       return result.data;
     },
     enabled: !!doctorId,
+    retry: false,
   });
 }
 
@@ -28,9 +32,13 @@ export function useGetAllTherapistLeaves(date?: string) {
     queryKey: ["all-therapist-leaves", date],
     queryFn: async () => {
       const result = await getAllTherapistLeaves(date);
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) {
+        toast.error(result.message ?? "Failed to load leaves");
+        return [] as TherapistLeave[];
+      }
       return result.data;
     },
+    retry: false,
   });
 }
 

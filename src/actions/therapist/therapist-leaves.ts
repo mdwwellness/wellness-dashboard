@@ -21,12 +21,20 @@ export async function getTherapistLeaves(
     );
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
-      return { success: false, data: [], message: result.message ?? "Failed" };
+      return {
+        success: false,
+        data: [],
+        message: result.message ?? `Failed to load leaves (HTTP ${response.status})`,
+      };
     }
     const result = await response.json();
     return { success: true, data: result.data ?? [] };
-  } catch {
-    return { success: false, data: [], message: "Network error" };
+  } catch (e) {
+    return {
+      success: false,
+      data: [],
+      message: `Network error loading leaves: ${e instanceof Error ? e.message : "Unknown error"}`,
+    };
   }
 }
 
@@ -44,12 +52,20 @@ export async function getAllTherapistLeaves(
     });
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
-      return { success: false, data: [], message: result.message ?? "Failed" };
+      return {
+        success: false,
+        data: [],
+        message: result.message ?? `Failed to load leaves (HTTP ${response.status})`,
+      };
     }
     const result = await response.json();
     return { success: true, data: result.data ?? [] };
-  } catch {
-    return { success: false, data: [], message: "Network error" };
+  } catch (e) {
+    return {
+      success: false,
+      data: [],
+      message: `Network error loading leaves: ${e instanceof Error ? e.message : "Unknown error"}`,
+    };
   }
 }
 
@@ -70,12 +86,18 @@ export async function createTherapistLeave(data: {
     );
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
-      return { success: false, message: result.message ?? "Failed" };
+      return {
+        success: false,
+        message: result.message ?? `Failed to create leave (HTTP ${response.status})`,
+      };
     }
     const result = await response.json();
     return { success: true, data: result.data };
-  } catch {
-    return { success: false, message: "Network error" };
+  } catch (e) {
+    return {
+      success: false,
+      message: `Network error creating leave: ${e instanceof Error ? e.message : "Unknown error"}`,
+    };
   }
 }
 
@@ -89,11 +111,17 @@ export async function deleteTherapistLeave(
     );
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
-      return { success: false, message: result.message ?? "Failed" };
+      return {
+        success: false,
+        message: result.message ?? `Failed to delete leave (HTTP ${response.status})`,
+      };
     }
     return { success: true };
-  } catch {
-    return { success: false, message: "Network error" };
+  } catch (e) {
+    return {
+      success: false,
+      message: `Network error deleting leave: ${e instanceof Error ? e.message : "Unknown error"}`,
+    };
   }
 }
 
@@ -112,10 +140,16 @@ export async function updateWeekOffDays(
     );
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
-      return { success: false, message: result.message ?? "Failed" };
+      return {
+        success: false,
+        message: result.message ?? `Failed to update schedule (HTTP ${response.status})`,
+      };
     }
     return { success: true };
-  } catch {
-    return { success: false, message: "Network error" };
+  } catch (e) {
+    return {
+      success: false,
+      message: `Network error updating schedule: ${e instanceof Error ? e.message : "Unknown error"}`,
+    };
   }
 }
