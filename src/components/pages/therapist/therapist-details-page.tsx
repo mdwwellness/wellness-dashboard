@@ -53,6 +53,8 @@ interface TherapistDetailsPageProps {
   onClose: () => void;
   onRequestDelete: () => void;
   isDeleting: boolean;
+  hideDelete?: boolean;
+  hideStatus?: boolean;
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -68,6 +70,8 @@ export default function TherapistDetailsPage({
   onClose,
   onRequestDelete,
   isDeleting,
+  hideDelete = false,
+  hideStatus = false,
 }: TherapistDetailsPageProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
@@ -306,32 +310,34 @@ export default function TherapistDetailsPage({
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select
-                          onValueChange={(val) =>
-                            field.onChange(val === "true")
-                          }
-                          defaultValue={field.value ? "true" : "false"}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="true">Active</SelectItem>
-                            <SelectItem value="false">Not Active</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {!hideStatus && (
+                    <FormField
+                      control={form.control}
+                      name="isActive"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select
+                            onValueChange={(val) =>
+                              field.onChange(val === "true")
+                            }
+                            defaultValue={field.value ? "true" : "false"}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="true">Active</SelectItem>
+                              <SelectItem value="false">Not Active</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
               </section>
 
@@ -522,33 +528,37 @@ export default function TherapistDetailsPage({
 
       {/* ── Sticky footer ──────────────────────────────────────── */}
       <div className="px-5 sm:px-6 py-3.5 border-t bg-background flex items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-11 sm:h-10"
-          disabled={isDeleting || isUpdating}
-          onClick={onRequestDelete}
-        >
-          {isDeleting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Deleting…
-            </>
-          ) : (
-            "Delete"
-          )}
-        </Button>
-
-        <div className="flex items-center gap-2">
+        {!hideDelete && (
           <Button
             type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isUpdating || isDeleting}
-            className="h-11 sm:h-10"
+            variant="ghost"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-11 sm:h-10"
+            disabled={isDeleting || isUpdating}
+            onClick={onRequestDelete}
           >
-            Cancel
+            {isDeleting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Deleting…
+              </>
+            ) : (
+              "Delete"
+            )}
           </Button>
+        )}
+
+        <div className="flex items-center gap-2 ml-auto">
+          {!hideDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isUpdating || isDeleting}
+              className="h-11 sm:h-10"
+            >
+              Cancel
+            </Button>
+          )}
           {activeTab === "profile" && (
             <Button
               type="submit"
@@ -556,7 +566,6 @@ export default function TherapistDetailsPage({
               disabled={isUpdating || isDeleting}
               className="h-11 sm:h-10"
               onClick={() => {
-                // Trigger the profile form's submit
                 const formEl = document.querySelector(
                   "[data-therapist-form]",
                 ) as HTMLFormElement | null;

@@ -3,6 +3,7 @@
 import addTherapist from "@/actions/therapist/add-therapist";
 import deleteTherapist from "@/actions/therapist/delete-therapist";
 import { getAllTherapist } from "@/actions/therapist/get-all-therapist";
+import { getTherapistByUserId } from "@/actions/therapist/get-therapist-by-user";
 import getPersonalAppointments from "@/actions/therapist/get-personal-appointments";
 import updateTherapist from "@/actions/therapist/update-therapist";
 import { TherapistformType } from "@/type/schema";
@@ -85,5 +86,17 @@ export function useGetPersonalAppointments(id: string) {
       return result.data;
     },
     enabled: !!id,
+  });
+}
+
+export function useGetTherapistByUserId(userId: string) {
+  return useQuery({
+    queryKey: ["therapistByUserId", userId],
+    queryFn: async () => {
+      const result = await getTherapistByUserId(userId);
+      if (!result.success) throw new Error(result.message);
+      return result.data;
+    },
+    enabled: !!userId,
   });
 }
