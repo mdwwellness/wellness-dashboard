@@ -271,9 +271,9 @@ export default function EarningsPage() {
 
   // ── Raw rows with local override ─────────────────────────────────────────
   const allRows = useMemo(() => {
-    const appts = isAdmin
-      ? (appointments as any[])
-      : (appointments as any[]).filter((a) => a.doctorId === user?.id || a.doctor === user?.userfName + " " + user?.userlName);
+    // Backend already filters to only this therapist's appointments when
+    // role=THERAPIST, so no client-side filter needed.
+    const appts = appointments as any[];
     
     const rows = buildEarningRows(appts, globalSplit, therapistSplitMap);
     return rows.map((r) => {
