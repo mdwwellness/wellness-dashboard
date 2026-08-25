@@ -13,6 +13,7 @@ import {
 import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { useGetAllAppointments } from "@/data/appointment/appointment";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
+import { useGetAllTherapistLeaves } from "@/data/therapist/therapist-leaves";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { TherapistformType } from "@/type/schema";
 import {
@@ -85,6 +86,7 @@ export function TherapistAvailabilityGrid({
     userEmail: authUser?.userEmail,
   });
   const { data: settings } = useGetClinicSettings();
+  const { data: allLeaves = [] } = useGetAllTherapistLeaves(date);
   const gap = settings?.bookingGapMinutes ?? 60;
   const [query, setQuery] = useState("");
 
@@ -128,15 +130,27 @@ export function TherapistAvailabilityGrid({
     );
   }, [all, query]);
 
-  // Check which therapists are off on the selected date
+  // Check which therapists are off on the selected date (weekly off-days + leave blocks)
   const offDayDoctorIds = useMemo(() => {
     const dayOfWeek = new Date(date + "T00:00:00").getDay();
-    return new Set(
-      all
-        .filter((t) => t.weekOffDays?.includes(dayOfWeek))
-        .map((t) => t.doctorId as string),
-    );
-  }, [all, date]);
+    const ids = new Set<string>();
+
+    // Weekly off-days
+    for (const t of all) {
+      if (t.weekOffDays?.includes(dayOfWeek)) {
+        ids.add(t.doctorId as string);
+      }
+    }
+
+    // One-off leave blocks covering this date
+    for (const leave of allLeaves) {
+      if (leave.startDate <= date && leave.endDate >= date) {
+        ids.add(leave.doctorId);
+      }
+    }
+
+    return ids;
+  }, [all, allLeaves, date]);
 
   if (all.length === 0) {
     return (

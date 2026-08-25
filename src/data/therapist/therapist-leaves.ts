@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   getTherapistLeaves,
+  getAllTherapistLeaves,
   createTherapistLeave,
   deleteTherapistLeave,
   updateWeekOffDays,
@@ -19,6 +20,17 @@ export function useGetTherapistLeaves(doctorId: string) {
       return result.data;
     },
     enabled: !!doctorId,
+  });
+}
+
+export function useGetAllTherapistLeaves(date?: string) {
+  return useQuery({
+    queryKey: ["all-therapist-leaves", date],
+    queryFn: async () => {
+      const result = await getAllTherapistLeaves(date);
+      if (!result.success) throw new Error(result.message);
+      return result.data;
+    },
   });
 }
 
