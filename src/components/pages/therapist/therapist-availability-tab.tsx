@@ -11,22 +11,33 @@ import {
   useDeleteTherapistLeave,
   useUpdateWeekOffDays,
 } from "@/data/therapist/therapist-leaves";
+import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { CalendarGrid } from "./therapist-calendar-grid";
+import type { TherapistformType } from "@/type/schema";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface TherapistAvailabilityTabProps {
   doctorId: string;
+  /** Initial value from parent, but overridden by fresh query data. */
   weekOffDays: number[];
 }
 
 export function TherapistAvailabilityTab({
   doctorId,
-  weekOffDays,
+  weekOffDays: initialWeekOffDays,
 }: TherapistAvailabilityTabProps) {
   const [newStart, setNewStart] = useState("");
   const [newEnd, setNewEnd] = useState("");
   const [reason, setReason] = useState("");
+
+  // Fetch fresh therapist data to get current weekOffDays
+  const { data: therapists = [] } = useGetAllTherapist();
+  const therapist = (therapists as TherapistformType[]).find(
+    (t) => t.doctorId === doctorId,
+  );
+  // Use fresh data if available, fall back to prop
+  const weekOffDays = therapist?.weekOffDays ?? initialWeekOffDays;
 
   const { data: leaves = [], isLoading } = useGetTherapistLeaves(doctorId);
   const createLeave = useCreateTherapistLeave();
