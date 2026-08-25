@@ -11,6 +11,7 @@ import {
   useDeleteTherapistLeave,
   useUpdateWeekOffDays,
 } from "@/data/therapist/therapist-leaves";
+import { CalendarGrid } from "./therapist-calendar-grid";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -58,8 +59,20 @@ export function TherapistAvailabilityTab({
     );
   }
 
+  function handleCalendarDayClick(dateStr: string) {
+    setNewStart(dateStr);
+    setNewEnd("");
+  }
+
   return (
     <div className="space-y-6">
+      {/* ── Calendar ──────────────────────────────────────────── */}
+      <CalendarGrid
+        weekOffDays={weekOffDays}
+        leaves={leaves}
+        onDayClick={handleCalendarDayClick}
+      />
+
       {/* ── Weekly off-days ──────────────────────────────────── */}
       <section className="space-y-3">
         <div>
@@ -104,7 +117,8 @@ export function TherapistAvailabilityTab({
         <div>
           <h4 className="text-sm font-semibold">Date blocks</h4>
           <p className="text-xs text-muted-foreground mt-0.5">
-            One-off leave periods (vacation, sick days, etc.).
+            One-off leave periods (vacation, sick days, etc.). Click a date on
+            the calendar to pre-fill the start date.
           </p>
         </div>
 
