@@ -25,11 +25,15 @@ import TherapistDetailsPage from "./therapist-details-page";
 interface TherapistDetailDrawerProps {
   therapist: TherapistformType | null;
   onClose: () => void;
+  hideDelete?: boolean;
+  hideStatus?: boolean;
 }
 
 export function TherapistDetailDrawer({
   therapist,
   onClose,
+  hideDelete = false,
+  hideStatus = false,
 }: TherapistDetailDrawerProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteTherapist();
@@ -62,27 +66,31 @@ export function TherapistDetailDrawer({
               onClose={onClose}
               onRequestDelete={() => setConfirmDelete(true)}
               isDeleting={isDeleting}
+              hideDelete={hideDelete}
+              hideStatus={hideStatus}
             />
           )}
         </SheetContent>
       </Sheet>
 
       {/* AlertDialog OUTSIDE the Sheet to avoid the nested-overlay double-tap bug */}
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete therapist?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. {therapist?.name} will be permanently
-              removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {!hideDelete && (
+        <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete therapist?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. {therapist?.name} will be permanently
+                removed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }

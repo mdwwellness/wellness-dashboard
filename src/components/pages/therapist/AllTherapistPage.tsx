@@ -17,6 +17,7 @@ import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { TherapistformType } from "@/type/schema";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Table2 } from "lucide-react";
+import { useAuthStore } from "@/providers/permission-provider";
 
 interface ColumnDataType<TData extends TherapistformType> {
   columns: ColumnDef<TData>[];
@@ -28,14 +29,29 @@ export default function AllTherapistPage({
   const { data: DoctorsDetail, isLoading, isError, error } = useGetAllTherapist();
   const [selected, setSelected] = useState<TherapistformType | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const { user } = useAuthStore();
+  const isTherapist = user?.role === "THERAPIST";
+
+  // For THERAPIST role, filter to only their own record
+  const displayData = isTherapist
+    ? (DoctorsDetail ?? []).filter(
+        (d: TherapistformType) =>
+          d.userId === user?.id || d.email === user?.userEmail,
+      )
+    : (DoctorsDetail ?? []);
+
+  const pageTitle = isTherapist ? "My Profile" : "Therapist List";
+  const pageDescription = isTherapist
+    ? "View and manage your profile."
+    : "Manage all your Therapist.";
 
   return (
     <QueryWrapper isLoading={isLoading} isError={isError} error={error}>
       <Card>
         <CardHeader className="flex flex-row flex-wrap justify-start items-center gap-2">
           <div className="flex flex-col gap-2">
-            <CardTitle>Therapist List</CardTitle>
-            <CardDescription>Manage all your Therapist.</CardDescription>
+            <CardTitle>{pageTitle}</CardTitle>
+            <CardDescription>{pageDescription}</CardDescription>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Button
@@ -56,14 +72,14 @@ export default function AllTherapistPage({
                 </>
               )}
             </Button>
-            <AddDoctorForm />
+            {!isTherapist && <AddDoctorForm />}
           </div>
         </CardHeader>
         <CardContent>
           {viewMode === "table" ? (
             <DoctorsDataTable
               columns={columns}
-              data={DoctorsDetail ?? []}
+              data={displayData}
               onRowClick={(row) => setSelected(row)}
             />
           ) : (
@@ -75,6 +91,8 @@ export default function AllTherapistPage({
       <TherapistDetailDrawer
         therapist={selected}
         onClose={() => setSelected(null)}
+        hideDelete={isTherapist}
+        hideStatus={isTherapist}
       />
     </QueryWrapper>
   );

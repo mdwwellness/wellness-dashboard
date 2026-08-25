@@ -14,7 +14,6 @@ import {
   Package,
   PhoneMissed,
   Settings,
-  User,
   UserPlus,
   Users,
   Wallet,
@@ -99,11 +98,6 @@ const navLinks = [
     icon: <Wallet className="h-5 w-5" />,
     href: "/dashboard/earnings",
   },
-  {
-    title: "My Profile",
-    icon: <User className="h-5 w-5" />,
-    href: "/dashboard/my-profile",
-  },
 ];
 
 const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
@@ -120,13 +114,13 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
   // Role scoping: therapists only see their own work.
   const router = useRouter();
   const role = user?.role;
-  const THERAPIST_NAV = new Set(["/dashboard", "/dashboard/appointments", "/dashboard/earnings", "/dashboard/my-profile"]);
+  const THERAPIST_NAV = new Set(["/dashboard", "/dashboard/appointments", "/dashboard/earnings", "/dashboard/alltherapist"]);
   const THERAPIST_ALLOWED = new Set([
     "/dashboard",
     "/dashboard/appointments",
     "/dashboard/settings",
     "/dashboard/earnings",
-    "/dashboard/my-profile",
+    "/dashboard/alltherapist",
   ]);
   const visibleLinks =
     role === "THERAPIST"
