@@ -83,7 +83,10 @@ export default function AllTherapistPage({
               onRowClick={(row) => setSelected(row)}
             />
           ) : (
-            <TherapistCalendarView onBack={() => setViewMode("table")} />
+            <TherapistCalendarView
+              onBack={() => setViewMode("table")}
+              filterDoctorId={isTherapist ? displayData[0]?.doctorId : undefined}
+            />
           )}
         </CardContent>
       </Card>

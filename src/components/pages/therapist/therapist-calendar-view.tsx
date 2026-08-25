@@ -6,6 +6,7 @@ import { format, parse, startOfWeek, getDay, addDays, subDays, addWeeks, subWeek
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useGetAllAppointments } from "@/data/appointment/appointment";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
+import { useGetAllTherapistLeaves } from "@/data/therapist/therapist-leaves";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { useAuthStore } from "@/providers/permission-provider";
 import { Button } from "@/components/ui/button";
@@ -47,15 +48,18 @@ interface CalendarEvent {
 
 interface TherapistCalendarViewProps {
   onBack: () => void;
+  /** When set, only this therapist's sessions are shown (My Profile mode). */
+  filterDoctorId?: string;
 }
 
 type TherapistWithId = TherapistformType & { _id: string };
 
-export function TherapistCalendarView({ onBack }: TherapistCalendarViewProps) {
+export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalendarViewProps) {
   const { user } = useAuthStore();
   const { data: appointments = [] } = useGetAllAppointments({ id: user?.id, role: user?.role, userEmail: user?.userEmail });
   const { data: therapists = [] } = useGetAllTherapist() as { data: TherapistWithId[] };
   const { data: clinicSettings } = useGetClinicSettings();
+  const { data: allLeaves = [] } = useGetAllTherapistLeaves();
 
   const [view, setView] = useState<View>("week");
   const [date, setDate] = useState<Date>(startOfToday());
@@ -80,6 +84,8 @@ export function TherapistCalendarView({ onBack }: TherapistCalendarViewProps) {
     const result: CalendarEvent[] = [];
     for (const a of appointments) {
       if (!a.doctorId) continue;
+      // When filterDoctorId is set, only show that therapist's sessions
+      if (filterDoctorId && a.doctorId !== filterDoctorId) continue;
       // Use physioSlot if available, fall back to legacy slot
       const slotDateStr = a.physioSlot?.date || (a.slot?.date as string);
       const slotTime = a.physioSlot?.time || a.slot?.time;
@@ -113,20 +119,22 @@ export function TherapistCalendarView({ onBack }: TherapistCalendarViewProps) {
       });
     }
     return result;
-  }, [appointments, gapMinutes, therapistColorMap]);
+  }, [appointments, gapMinutes, therapistColorMap, filterDoctorId]);
 
   // Generate "off-day" events from therapists' weekOffDays.
   // These fill the visible calendar range so staff know when a therapist is
-  // unavailable.
+  // unavailable. Uses a muted gray color to visually distinguish from sessions.
   const offDayEvents = useMemo<CalendarEvent[]>(() => {
     const result: CalendarEvent[] = [];
     // Generate events for 3 months around the current date to cover any view
     const rangeStart = subMonths(date, 1);
     const rangeEnd = addMonths(date, 1);
+    const OFF_DAY_COLOR = "hsl(0, 0%, 45%)"; // muted gray
 
     for (const t of therapists) {
       if (!t.weekOffDays?.length || !t.doctorId) continue;
-      const color = therapistColorMap.get(t.name) ?? "#6b7280";
+      // When filterDoctorId is set, only show that therapist's off-days
+      if (filterDoctorId && t.doctorId !== filterDoctorId) continue;
       let cursor = new Date(rangeStart);
       while (cursor <= rangeEnd) {
         if (t.weekOffDays.includes(getDay(cursor))) {
@@ -141,19 +149,62 @@ export function TherapistCalendarView({ onBack }: TherapistCalendarViewProps) {
             end: dayEnd,
             therapistId: t.doctorId,
             therapistName: t.name,
-            color,
+            color: OFF_DAY_COLOR,
           });
         }
         cursor = addDays(cursor, 1);
       }
     }
     return result;
-  }, [therapists, date, therapistColorMap]);
+  }, [therapists, date, filterDoctorId]);
+
+  // Generate leave block events from TherapistLeave records.
+  // Amber-colored blocks that show when a therapist has taken time off.
+  const leaveEvents = useMemo<CalendarEvent[]>(() => {
+    const result: CalendarEvent[] = [];
+    const LEAVE_COLOR = "hsl(38, 90%, 50%)"; // amber
+    const rangeStart = subMonths(date, 1);
+    const rangeEnd = addMonths(date, 1);
+
+    for (const leave of allLeaves) {
+      // When filterDoctorId is set, only show that therapist's leaves
+      if (filterDoctorId && leave.doctorId !== filterDoctorId) continue;
+
+      const therapist = therapists.find((t) => t.doctorId === leave.doctorId);
+      const therapistName = therapist?.name ?? leave.doctorId;
+
+      const leaveStart = new Date(leave.startDate + "T00:00:00");
+      const leaveEnd = new Date(leave.endDate + "T00:00:00");
+
+      // Clamp to visible range
+      const effectiveStart = leaveStart < rangeStart ? rangeStart : leaveStart;
+      const effectiveEnd = leaveEnd > rangeEnd ? rangeEnd : leaveEnd;
+
+      let cursor = new Date(effectiveStart);
+      while (cursor <= effectiveEnd) {
+        const dayStart = new Date(cursor);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(cursor);
+        dayEnd.setHours(23, 59, 59, 999);
+        result.push({
+          id: `leave-${leave._id}-${format(cursor, "yyyy-MM-dd")}`,
+          title: `${therapistName} - Leave${leave.reason ? ` (${leave.reason})` : ""}`,
+          start: dayStart,
+          end: dayEnd,
+          therapistId: leave.doctorId,
+          therapistName,
+          color: LEAVE_COLOR,
+        });
+        cursor = addDays(cursor, 1);
+      }
+    }
+    return result;
+  }, [allLeaves, therapists, date, filterDoctorId]);
 
   // Merge appointment events with off-day events
   const allEvents = useMemo<CalendarEvent[]>(
-    () => [...events, ...offDayEvents],
-    [events, offDayEvents],
+    () => [...events, ...offDayEvents, ...leaveEvents],
+    [events, offDayEvents, leaveEvents],
   );
 
   // Stats per therapist for the visible range — keyed by name since
@@ -280,17 +331,30 @@ export function TherapistCalendarView({ onBack }: TherapistCalendarViewProps) {
 
   const eventStyleGetter = useCallback((event: CalendarEvent) => {
     const isOffDay = event.id.startsWith("off-");
+    const isLeave = event.id.startsWith("leave-");
     return {
       style: {
-        backgroundColor: isOffDay ? `${event.color}33` : event.color,
-        border: isOffDay ? `1px dashed ${event.color}88` : "none",
+        backgroundColor: isOffDay
+          ? "hsl(0, 0%, 30%)"
+          : isLeave
+            ? `${event.color}33`
+            : event.color,
+        border: isOffDay
+          ? "1px dashed hsl(0, 0%, 55%)"
+          : isLeave
+            ? `1px dashed ${event.color}88`
+            : "none",
         borderRadius: "6px",
-        color: isOffDay ? event.color : "white",
+        color: isOffDay
+          ? "hsl(0, 0%, 65%)"
+          : isLeave
+            ? event.color
+            : "white",
         fontSize: "13px",
         padding: "3px 8px",
         cursor: "pointer",
-        opacity: isOffDay ? 0.7 : 0.9,
-        textShadow: isOffDay ? "none" : "0 1px 2px rgba(0,0,0,0.3)",
+        opacity: isOffDay ? 0.6 : isLeave ? 0.7 : 0.9,
+        textShadow: isOffDay || isLeave ? "none" : "0 1px 2px rgba(0,0,0,0.3)",
       },
     };
   }, []);

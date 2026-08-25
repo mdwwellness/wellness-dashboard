@@ -49,6 +49,7 @@ export function useCreateTherapistLeave() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["therapist-leaves", vars.doctorId] });
+      qc.invalidateQueries({ queryKey: ["all-therapist-leaves"] });
       toast.success("Leave added");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -65,6 +66,7 @@ export function useDeleteTherapistLeave() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["therapist-leaves", vars.doctorId] });
+      qc.invalidateQueries({ queryKey: ["all-therapist-leaves"] });
       toast.success("Leave removed");
     },
     onError: (e: Error) => toast.error(e.message),
