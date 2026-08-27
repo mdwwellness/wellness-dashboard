@@ -22,6 +22,14 @@ export default async function addAppointments(values: slotBookingZodType): Promi
     }
 
     const result = await response.json();
+    // Backend may return HTTP 200 but with success=false (e.g. validation or
+    // conflict caught after the status code was already sent). Honour that.
+    if (result.success === false) {
+      return {
+        success: false,
+        message: result.message ?? "Booking failed",
+      };
+    }
     return {
       success: true,
       message: result.message || "Appointment added successfully",
