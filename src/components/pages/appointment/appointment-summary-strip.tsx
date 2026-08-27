@@ -38,7 +38,7 @@ export function AppointmentSummaryStrip({
 
   const mapsQuery = appointment.location || appointment.name;
   const mapsUrl = mapsQuery
-    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapsQuery)}&dir_action=navigate`
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapsQuery)}&travelmode=two_wheeler&dir_action=navigate`
     : null;
 
   return (
