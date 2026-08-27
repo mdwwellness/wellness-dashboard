@@ -250,7 +250,7 @@ export default function TherapistDetailsPage({
                       <FormItem>
                         <FormLabel>Therapist ID</FormLabel>
                         <FormControl>
-                          <Input placeholder="Therapist ID" {...field} />
+                          <Input placeholder="Therapist ID" {...field} readOnly tabIndex={-1} className="bg-muted/50 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

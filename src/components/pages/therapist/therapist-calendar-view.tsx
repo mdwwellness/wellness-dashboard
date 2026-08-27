@@ -108,7 +108,9 @@ export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalen
 
       result.push({
         id: a._id ?? `${slotDateStr}-${slotTime}`,
-        title: `${a.name} - ${a.service ?? "Session"}`,
+        title: a.sessionNumber && a.totalSessions
+          ? `${a.name} - ${a.service ?? "Session"} (${a.sessionNumber} of ${a.totalSessions})`
+          : `${a.name} - ${a.service ?? "Session"}`,
         start,
         end,
         therapistId,

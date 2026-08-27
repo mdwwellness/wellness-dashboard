@@ -91,7 +91,10 @@ export function TherapistAvailabilityGrid({
   const [query, setQuery] = useState("");
 
   const all = useMemo(
-    () => ((therapists ?? []) as TherapistformType[]).filter((t) => t.doctorId),
+    () =>
+      ((therapists ?? []) as TherapistformType[]).filter(
+        (t) => t.doctorId && t.isActive !== false,
+      ),
     [therapists],
   );
 
