@@ -9,17 +9,25 @@ export type EarningRow = {
   therapistId: string;
   service: string;
   sessionsCompleted: number;
+  originalPrice: number;
+  discountAmount: number;
+  discountType: "fixed" | "percent" | null;
+  discountCode: string | null;
   revenue: number;
   paymentReceived: boolean;
   therapistCut: number;
   companyCut: number;
   splitPercent: number;
   therapistPaid: boolean;
+  /** Booking status for display: completed, ongoing, scheduled, etc. */
+  status: string;
   rawAppointment: slotBookingZodType;
 };
 
 export type EarningsSummary = {
   totalRevenue: number;
+  totalOriginalRevenue: number;
+  totalDiscountGiven: number;
   totalTherapistPayout: number;
   totalCompanyEarnings: number;
   totalPending: number;
@@ -44,7 +52,6 @@ export function buildEarningRows(
     if (a.status === "cancelled") continue;
 
     const revenue = a.paymentAmount ?? a.quotedPrice ?? 0;
-    if (revenue <= 0 && a.status !== "completed" && !a.paymentReceived) continue;
 
     const overrideSplit = a.doctorId
       ? (therapistSplitMap.get(a.doctorId) ?? null)
@@ -53,6 +60,13 @@ export function buildEarningRows(
 
     const therapistCut = Math.round((revenue * split) / 100);
     const companyCut = revenue - therapistCut;
+
+    // Discount tracking: originalPrice is the list price before discount.
+    // If not set, fall back to quotedPrice (which is the final price).
+    const originalPrice = a.originalPrice ?? a.quotedPrice ?? revenue;
+    const discountAmount = a.discountAmount ?? 0;
+    const discountType = a.discountType ?? null;
+    const discountCode = a.discountCode ?? null;
 
     const date =
       a.completedAt ??
@@ -69,12 +83,17 @@ export function buildEarningRows(
       therapistId: a.doctorId ?? "",
       service: a.service ?? a.typeOfappointment ?? "-",
       sessionsCompleted: a.sessionsCompleted ?? (a.status === "completed" ? 1 : 0),
+      originalPrice,
+      discountAmount,
+      discountType,
+      discountCode,
       revenue,
       paymentReceived: !!a.paymentReceived,
       therapistCut,
       companyCut,
       splitPercent: split,
       therapistPaid: !!a.therapistPaid,
+      status: a.status ?? "scheduled",
       rawAppointment: a,
     });
   }
@@ -87,18 +106,27 @@ export function computeEarningsSummary(rows: EarningRow[]): EarningsSummary {
   const pending = rows.filter((r) => !r.paymentReceived);
 
   const totalRevenue = paid.reduce((s, r) => s + r.revenue, 0);
+  const totalOriginalRevenue = paid.reduce((s, r) => s + r.originalPrice, 0);
+  const totalDiscountGiven = paid.reduce((s, r) => s + r.discountAmount, 0);
   const totalTherapistPayout = paid.reduce((s, r) => s + r.therapistCut, 0);
   const totalCompanyEarnings = paid.reduce((s, r) => s + r.companyCut, 0);
   const totalPending = pending.reduce((s, r) => s + r.revenue, 0);
-  const completedSessions = rows.reduce((s, r) => s + r.sessionsCompleted, 0);
+  // Count sessions by rows, not by sessionsCompleted field (which defaults to 0
+  // and doesn't reliably reflect completion for legacy/ad-hoc records).
+  // Each row in the earnings table IS one session. Use all rows (not just paid)
+  // so the KPI matches the session list table.
+  const completedSessions = rows.length;
+  const paidCount = paid.length;
   const avgPerSession =
-    completedSessions > 0 ? Math.round(totalRevenue / completedSessions) : 0;
+    paidCount > 0 ? Math.round(totalRevenue / paidCount) : 0;
 
   const therapistPaidPayout = paid.filter(r => r.therapistPaid).reduce((s, r) => s + r.therapistCut, 0);
   const therapistUnpaidPayout = paid.filter(r => !r.therapistPaid).reduce((s, r) => s + r.therapistCut, 0);
 
   return {
     totalRevenue,
+    totalOriginalRevenue,
+    totalDiscountGiven,
     totalTherapistPayout,
     totalCompanyEarnings,
     totalPending,

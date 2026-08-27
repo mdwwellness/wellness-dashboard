@@ -115,6 +115,11 @@ export const enquirySchema = z.object({
   // "new" = normal booking; "recommended" = legacy separate row (deprecated).
   appointmentKind: z.enum(["new", "recommended"]).optional(),
   quotedPrice: z.number().optional(),
+  // ── Discount / offer tracking ──
+  originalPrice: z.number().optional(),
+  discountAmount: z.number().nonnegative().optional(),
+  discountType: z.enum(["fixed", "percent"]).optional(),
+  discountCode: z.string().optional(),
   recommendedFrom: z.string().optional(),
 
   // Stacked add-ons on this visit (preferred over creating a new appointment row).
@@ -181,6 +186,7 @@ export const enquirySchema = z.object({
   visitOtpVerified: z.boolean().optional(),
   // Ad-hoc multi-session tracking + per-session report log.
   totalSessions: z.number().optional(),
+  sessionIntervalDays: z.number().optional(),
   sessionNotes: z
     .array(
       z.object({

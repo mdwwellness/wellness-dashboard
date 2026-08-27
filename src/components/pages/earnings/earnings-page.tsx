@@ -125,6 +125,20 @@ function EarningsTableRow({
           {fmt(row.revenue)}
         </span>
       </td>
+      <td className="px-3 py-3 text-right tabular-nums text-xs">
+        {row.discountAmount > 0 ? (
+          <span className="text-emerald-600 dark:text-emerald-400">
+            {row.discountType === "percent"
+              ? `${row.discountAmount}%`
+              : fmt(row.discountAmount)}
+            {row.discountCode ? (
+              <span className="text-muted-foreground ml-1">({row.discountCode})</span>
+            ) : null}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )}
+      </td>
       <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-bold">
         {fmt(row.therapistCut)}
       </td>
@@ -200,7 +214,7 @@ function sortRows(rows: EarningRow[], key: SortKey, asc: boolean): EarningRow[] 
 function exportCsv(rows: EarningRow[], isAdmin: boolean) {
   const headers = [
     "Date", "Booking ID", "Customer", isAdmin ? "Therapist" : null, "Service",
-    "Sessions", "Revenue", "Therapist Cut", isAdmin ? "Company Cut" : null, "Customer Payment", "Therapist Payout Status",
+    "Sessions", "Original Price", "Discount", "Revenue", "Therapist Cut", isAdmin ? "Company Cut" : null, "Customer Payment", "Therapist Payout Status",
   ].filter(Boolean) as string[];
 
   const csvRows = rows.map((r) =>
@@ -211,6 +225,10 @@ function exportCsv(rows: EarningRow[], isAdmin: boolean) {
       isAdmin ? r.therapistName : null,
       r.service,
       r.sessionsCompleted,
+      r.originalPrice,
+      r.discountAmount > 0
+        ? `${r.discountType === "percent" ? `${r.discountAmount}%` : `₹${r.discountAmount}`}${r.discountCode ? ` (${r.discountCode})` : ""}`
+        : "",
       r.revenue,
       r.therapistCut,
       isAdmin ? r.companyCut : null,
@@ -393,6 +411,15 @@ export default function EarningsPage() {
           accent="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800"
           sub="Collected payments"
         />
+        {summary.totalDiscountGiven > 0 && (
+          <KpiCard
+            title="Discount Given"
+            value={fmt(summary.totalDiscountGiven)}
+            icon={<Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400 stroke-[2.5]" />}
+            accent="bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800"
+            sub={`Original: ${fmt(summary.totalOriginalRevenue)}`}
+          />
+        )}
         <KpiCard
           title="Therapist Payout"
           value={fmt(summary.totalTherapistPayout)}
@@ -572,6 +599,7 @@ export default function EarningsPage() {
                   >
                     Revenue <SortIcon k="revenue" />
                   </th>
+                  <th className="px-3 py-3 text-right">Discount</th>
                   <th
                     className="px-3 py-3 text-right cursor-pointer select-none whitespace-nowrap hover:text-foreground"
                     onClick={() => toggleSort("therapistCut")}
@@ -594,7 +622,7 @@ export default function EarningsPage() {
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={isAdmin ? 11 : 9}
+                      colSpan={isAdmin ? 12 : 10}
                       className="px-3 py-12 text-center text-muted-foreground font-medium"
                     >
                       No earnings data matching the selected filters.

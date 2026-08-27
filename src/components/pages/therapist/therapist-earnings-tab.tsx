@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGetPersonalAppointments } from "@/data/therapist/therapist";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { buildEarningRows, computeEarningsSummary } from "@/lib/earnings";
@@ -48,11 +49,24 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
     <div className="space-y-4">
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total sessions" value={summary.completedSessions} />
+        <StatCard label="Total sessions" value={String(summary.completedSessions)} />
         <StatCard
           label="Total revenue"
           value={`₹${summary.totalRevenue.toLocaleString()}`}
         />
+        {summary.totalDiscountGiven > 0 && (
+          <>
+            <StatCard
+              label="Original price"
+              value={`₹${summary.totalOriginalRevenue.toLocaleString()}`}
+            />
+            <StatCard
+              label="Discount given"
+              value={`₹${summary.totalDiscountGiven.toLocaleString()}`}
+              accent="amber"
+            />
+          </>
+        )}
         <StatCard
           label="Therapist earned"
           value={`₹${summary.totalTherapistPayout.toLocaleString()}`}
@@ -75,32 +89,64 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
 
       {/* Session list */}
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Session history
         </h4>
         <div className="divide-y rounded-md border">
-          {rows.map((row) => (
-            <div
-              key={row.appointmentId}
-              className="flex items-center justify-between px-3 py-2.5 text-sm"
-            >
-              <div className="min-w-0">
-                <p className="font-medium truncate">{row.customerName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {row.service}
-                  {row.date
-                    ? ` · ${new Date(row.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
-                    : ""}
-                </p>
+          {rows.map((row) => {
+            const isCompleted = row.status === "completed";
+            const isOngoing = row.status === "ongoing";
+            const statusLabel = isCompleted
+              ? "Completed"
+              : isOngoing
+                ? "Ongoing"
+                : "Scheduled";
+            const statusColor = isCompleted
+              ? "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800"
+              : isOngoing
+                ? "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                : "text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800";
+
+            return (
+              <div
+                key={row.appointmentId}
+                className="flex items-center justify-between px-3 py-2.5 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{row.customerName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {row.service}
+                    {row.date
+                      ? ` · ${new Date(row.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                      : ""}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${statusColor}`}>
+                      {statusLabel}
+                    </span>
+                    {row.discountAmount > 0 && (
+                      <span className="text-[10px] text-emerald-600">
+                        {row.discountType === "percent"
+                          ? `${row.discountAmount}% off`
+                          : `₹${row.discountAmount} off`}
+                        {row.discountCode ? ` (${row.discountCode})` : ""}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0 ml-3">
+                  <p className={`text-sm font-semibold ${row.revenue > 0 ? "" : "text-muted-foreground"}`}>
+                    {row.revenue > 0 ? `₹${row.revenue.toLocaleString()}` : "—"}
+                  </p>
+                  {row.revenue > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {row.splitPercent}% split
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="text-right shrink-0 ml-3">
-                <p className="font-medium">₹{row.therapistCut.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">
-                  {row.splitPercent}% split
-                </p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -113,7 +159,7 @@ function StatCard({
   accent,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: string;
   accent?: "emerald" | "amber";
 }) {
   const color =
@@ -124,9 +170,17 @@ function StatCard({
         : "text-foreground";
 
   return (
-    <div className="rounded-md border px-3 py-2.5">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-lg font-semibold mt-0.5 ${color}`}>{value}</p>
-    </div>
+    <Card className="relative overflow-hidden transition-all hover:shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0">
+        <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {label}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-1">
+        <p className={`text-2xl font-bold tabular-nums tracking-tight ${color}`}>
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

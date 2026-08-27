@@ -124,6 +124,10 @@ export default function AppointmentBookingForm() {
       customer_id: "",
       sessionNumber: undefined,
       quotedPrice: undefined,
+      originalPrice: undefined,
+      discountAmount: undefined,
+      discountType: undefined,
+      discountCode: undefined,
       // Intake is the front door: a first-time customer starts here.
       bookingKind: "intake",
       typeOfappointment: "appointment",
@@ -237,6 +241,16 @@ export default function AppointmentBookingForm() {
       return isCourse
         ? "No price yet - set a rate tier for this session count, or type the price"
         : "No price yet - add this service to the Services page, or type the price";
+    }
+    // Discount validation: discount cannot exceed original price
+    if (v.discountAmount && v.discountAmount > 0) {
+      const effectiveOriginal = v.originalPrice ?? v.quotedPrice ?? 0;
+      if (v.discountType === "percent" && v.discountAmount > 100) {
+        return "Discount percentage cannot exceed 100%";
+      }
+      if (v.discountType === "fixed" && v.discountAmount > effectiveOriginal) {
+        return "Discount amount cannot exceed the original price";
+      }
     }
     if (needsSkipReason && !skipReason.trim()) {
       return "Give a reason for skipping the consultation";
@@ -743,6 +757,66 @@ export default function AppointmentBookingForm() {
                 />
               )}
 
+              {/* Session frequency: how often follow-up sessions occur */}
+              {isCourse && sessions && sessions > 1 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Session interval</label>
+                  <Select
+                    value={String(form.watch("sessionIntervalDays") ?? "")}
+                    onValueChange={(v) => {
+                      if (v === "custom") {
+                        form.setValue("sessionIntervalDays", undefined);
+                      } else {
+                        form.setValue("sessionIntervalDays", Number(v));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="How often?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">Weekly (every 7 days)</SelectItem>
+                      <SelectItem value="14">Biweekly (every 14 days)</SelectItem>
+                      <SelectItem value="3">Every 3 days</SelectItem>
+                      <SelectItem value="30">Monthly (every 30 days)</SelectItem>
+                      <SelectItem value="custom">Custom interval</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {form.watch("sessionIntervalDays") === undefined && (
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="Custom interval in days"
+                      value=""
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? undefined : Number(e.target.value);
+                        if (val && val > 0) form.setValue("sessionIntervalDays", val);
+                      }}
+                    />
+                  )}
+                  {/* Date preview */}
+                  {form.watch("sessionIntervalDays") && selectedDate && (() => {
+                    const interval = form.watch("sessionIntervalDays")!;
+                    const dates = Array.from({ length: sessions }, (_, i) => {
+                      const d = new Date(selectedDate);
+                      d.setDate(d.getDate() + i * interval);
+                      return d;
+                    });
+                    return (
+                      <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+                        <p className="font-medium text-muted-foreground mb-2">Scheduled dates:</p>
+                        {dates.map((d, i) => (
+                          <div key={i} className="flex justify-between">
+                            <span className="text-muted-foreground">Session {i + 1} of {sessions}</span>
+                            <span className="font-mono">{d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {/* Fast-track: a course with no consultation on record. Allowed,
                   but the reason goes on the record's audit trail. */}
               {needsSkipReason && (
@@ -845,9 +919,79 @@ export default function AppointmentBookingForm() {
                         <SelectItem value="bank">Bank</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
-                    </Select>
+                      </Select>
+                    </div>
                   </div>
-                </div>
+                  {/* Discount section */}
+                  <div className="border-t pt-3 space-y-3">
+                    <p className="text-xs text-muted-foreground font-medium">Discount (optional)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Original Price (₹)</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="Price before discount"
+                          value={form.watch("originalPrice") ?? ""}
+                          onChange={(e) =>
+                            form.setValue(
+                              "originalPrice",
+                              e.target.value === "" ? undefined : Number(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Discount</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="Amount"
+                          value={form.watch("discountAmount") ?? ""}
+                          onChange={(e) =>
+                            form.setValue(
+                              "discountAmount",
+                              e.target.value === "" ? undefined : Number(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Type</label>
+                        <Select
+                          value={form.watch("discountType") ?? ""}
+                          onValueChange={(v) =>
+                            form.setValue(
+                              "discountType",
+                              v as "fixed" | "percent",
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fixed">Fixed (₹)</SelectItem>
+                            <SelectItem value="percent">Percentage (%)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Promo Code</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g. FIRST10, WELCOME20"
+                        value={form.watch("discountCode") ?? ""}
+                        onChange={(e) =>
+                          form.setValue(
+                            "discountCode",
+                            e.target.value === "" ? undefined : e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
