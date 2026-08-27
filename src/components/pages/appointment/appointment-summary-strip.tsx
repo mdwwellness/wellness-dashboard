@@ -38,7 +38,7 @@ export function AppointmentSummaryStrip({
 
   const mapsQuery = appointment.location || appointment.name;
   const mapsUrl = mapsQuery
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapsQuery)}&dir_action=navigate`
     : null;
 
   return (
@@ -58,8 +58,8 @@ export function AppointmentSummaryStrip({
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              title={appointment.location ? `Open location in Google Maps: ${appointment.location}` : "Search location on Google Maps"}
-              aria-label="Open location in Google Maps"
+              title={appointment.location ? `Get directions to: ${appointment.location}` : "Get directions on Google Maps"}
+              aria-label="Get directions on Google Maps"
               className="grid h-8 w-8 place-items-center rounded-md border text-muted-foreground hover:text-foreground"
             >
               <MapPin className="h-4 w-4" />
