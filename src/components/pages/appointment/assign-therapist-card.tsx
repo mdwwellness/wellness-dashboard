@@ -29,11 +29,14 @@ import { toDayKey } from "@/components/pages/enquiries/booking";
 export function AssignTherapistCard({
   appointment,
   allAppointments,
+  isCompleted,
 }: {
   appointment: slotBookingZodType;
   allAppointments: slotBookingZodType[];
+  isCompleted?: boolean;
 }) {
   const { user } = useAuthStore();
+  const isTherapist = user?.role === "THERAPIST";
   const { mutate: update, isPending } = useUpdateAppointment();
   const { data: clinicSettings } = useGetClinicSettings();
   const gapMinutes = clinicSettings?.bookingGapMinutes ?? 60;
@@ -62,7 +65,7 @@ export function AssignTherapistCard({
   // Assigned and not being changed: show who and when, with a way out.
   if (assigned && !changing) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border p-3">
+      <div className={`flex items-center gap-3 rounded-lg border p-3 ${isCompleted ? "opacity-50 pointer-events-none" : ""}`}>
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold">{appointment.doctor}</p>
           <p className="text-[11px] text-muted-foreground">
@@ -72,15 +75,17 @@ export function AssignTherapistCard({
             {appointment.slot?.time ? ` at ${appointment.slot.time}` : ""}
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-8 shrink-0"
-          onClick={() => setChanging(true)}
-        >
-          Change
-        </Button>
+        {!isTherapist && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 shrink-0"
+            onClick={() => setChanging(true)}
+          >
+            Change
+          </Button>
+        )}
       </div>
     );
   }
@@ -138,7 +143,7 @@ export function AssignTherapistCard({
   }
 
   return (
-    <div className="space-y-2 rounded-lg border p-3">
+    <div className={`space-y-2 rounded-lg border p-3 ${isCompleted ? "opacity-50 pointer-events-none" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[13px] font-semibold">
@@ -167,6 +172,7 @@ export function AssignTherapistCard({
         className="h-8 w-full sm:w-44"
         value={date}
         onChange={(e) => setDate(e.target.value)}
+        min={new Date().toISOString().split("T")[0]}
         aria-label="Visit date"
       />
       <TherapistAvailabilityGrid

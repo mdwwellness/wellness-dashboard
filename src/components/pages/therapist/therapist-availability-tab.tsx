@@ -141,6 +141,7 @@ export function TherapistAvailabilityTab({
               type="date"
               value={newStart}
               onChange={(e) => setNewStart(e.target.value)}
+              min={new Date().toISOString().split("T")[0]}
               className="h-8 w-36"
             />
           </div>

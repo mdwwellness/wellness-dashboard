@@ -188,11 +188,12 @@ export function VisitTab({
       <AssignTherapistCard
         appointment={appointment}
         allAppointments={allAppointments}
+        isCompleted={draft.status === "completed"}
       />
 
       {/* There is no visit to run until someone is assigned to it. */}
       {!appointment.doctorId ? null : (
-    <div className="space-y-4 rounded-lg border p-3">
+    <div className={`space-y-4 rounded-lg border p-3 ${draft.status === "completed" ? "opacity-50 pointer-events-none" : ""}`}>
       {packageDone && (
         <p className="rounded-md border border-emerald-200 bg-emerald-50/50 px-2.5 py-2 text-xs font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
           All {progress?.total} sessions are done. Nothing left to record.
@@ -351,6 +352,7 @@ export function VisitTab({
               className="h-8"
               value={nextDate}
               onChange={(e) => setNextDate(e.target.value)}
+              min={new Date().toISOString().split("T")[0]}
               aria-label="Next visit date"
             />
             <Input
