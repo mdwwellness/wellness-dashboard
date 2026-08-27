@@ -269,3 +269,22 @@ export function useUpdateAppointment(opts?: { silent?: boolean }) {
     },
   });
 }
+
+// ── Therapist session counts ──────────────────────────────────────────────────
+import getTherapistSessionCounts, {
+  type TherapistSessionCount,
+} from "@/actions/appointments/get-therapist-session-counts";
+
+export function useGetTherapistSessionCounts() {
+  return useQuery({
+    queryKey: ["therapist-session-counts"],
+    queryFn: async () => {
+      const result = await getTherapistSessionCounts();
+      if (!result.success) throw new Error(result.message);
+      return (result.data ?? []) as TherapistSessionCount[];
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000, // 1 minute
+    retry: 3,
+  });
+}

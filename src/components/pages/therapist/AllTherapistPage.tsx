@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   Card,
@@ -14,23 +14,32 @@ import { TherapistDetailDrawer } from "./therapist-detail-drawer";
 import { TherapistCalendarView } from "./therapist-calendar-view";
 import { QueryWrapper } from "@/components/query-wrapper";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
+import { useGetTherapistSessionCounts } from "@/data/appointment/appointment";
 import { TherapistformType } from "@/type/schema";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Table2 } from "lucide-react";
 import { useAuthStore } from "@/providers/permission-provider";
+import { getDoctorsListColumns } from "./doctorslisttable";
 
 interface ColumnDataType<TData extends TherapistformType> {
-  columns: ColumnDef<TData>[];
+  columns?: ColumnDef<TData>[];
 }
 
 export default function AllTherapistPage({
   columns,
 }: ColumnDataType<TherapistformType>) {
   const { data: DoctorsDetail, isLoading, isError, error } = useGetAllTherapist();
+  const { data: sessionCounts = [] } = useGetTherapistSessionCounts();
   const [selected, setSelected] = useState<TherapistformType | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   const { user } = useAuthStore();
   const isTherapist = user?.role === "THERAPIST";
+
+  // Generate columns with session counts
+  const tableColumns = useMemo(
+    () => getDoctorsListColumns(sessionCounts),
+    [sessionCounts]
+  );
 
   // For THERAPIST role, filter to only their own record
   const displayData = isTherapist
@@ -78,7 +87,7 @@ export default function AllTherapistPage({
         <CardContent>
           {viewMode === "table" ? (
             <DoctorsDataTable
-              columns={columns}
+              columns={tableColumns}
               data={displayData}
               onRowClick={(row) => setSelected(row)}
             />
