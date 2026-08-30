@@ -61,7 +61,7 @@ function BookingGapCard() {
   }, [data]);
 
   return (
-    <Card className="w-full lg:w-[400px] flex-shrink-0">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Booking gap</CardTitle>
         <CardDescription>
@@ -102,7 +102,7 @@ function TherapistSplitCard() {
   const company = isNaN(split) ? "" : (100 - split).toFixed(0);
 
   return (
-    <Card className="w-full lg:w-[400px] flex-shrink-0">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Therapist earnings split</CardTitle>
         <CardDescription>
@@ -182,8 +182,8 @@ const SettingsPageComponents = () => {
 
   return (
     <div className="w-full min-h-screen px-4 sm:px-6 py-8">
-      <div className="flex w-full  mx-auto gap-6 items-start justify-center flex-col lg:flex-row">
-          <Card className="w-full lg:w-[400px] flex-shrink-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <Card className="w-full lg:col-span-3">
             <CardHeader className="flex flex-col items-center text-center gap-4">
               <Image
                 src={Avatar}
@@ -347,9 +347,11 @@ const SettingsPageComponents = () => {
           </Card>
           {isAdmin && (
             <>
-              <BookingGapCard />
-              <TherapistSplitCard />
-              <Card className="flex-1">
+              <div className="lg:col-span-3 flex flex-col gap-6">
+                <BookingGapCard />
+                <TherapistSplitCard />
+              </div>
+              <Card className="lg:col-span-6">
                 <CardHeader className="flex flex-row justify-start items-center gap-2">
                   <div className="flex flex-col gap-2">
                     <CardTitle>Admin Members</CardTitle>
