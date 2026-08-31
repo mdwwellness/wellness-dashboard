@@ -147,6 +147,8 @@ interface SectionTableProps {
    *  empty for untouched leads. User can still toggle them on via the
    *  Columns menu if we ever add one. */
   hiddenColumnIds?: string[];
+  /** Hide the built-in search input (use when search is rendered externally). */
+  hideSearch?: boolean;
 }
 
 /**
@@ -165,6 +167,7 @@ export function SectionTable({
   rowClassName,
   onRowClick,
   hiddenColumnIds,
+  hideSearch = false,
 }: SectionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const initialVisibility = useMemo<VisibilityState>(() => {
@@ -204,19 +207,21 @@ export function SectionTable({
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-3">
-        <Input
-          placeholder={searchPlaceholder}
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="max-w-sm"
-        />
-        {search && (
-          <Button variant="ghost" onClick={() => onSearchChange("")}>
-            Clear
-          </Button>
-        )}
-      </div>
+      {!hideSearch && (
+        <div className="flex items-center gap-2 mb-3">
+          <Input
+            placeholder={searchPlaceholder}
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="max-w-sm"
+          />
+          {search && (
+            <Button variant="ghost" onClick={() => onSearchChange("")}>
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -592,18 +597,66 @@ export default function EnquiriesPage() {
 
             {/* ── BOTTOM SECTION: Attended ── */}
             <section className="mt-8 border-t pt-6">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-baseline gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <h2 className="text-lg font-semibold flex items-baseline gap-2 whitespace-nowrap">
                     Attended
                     <span className="text-sm font-normal text-muted-foreground">
                       ({attendedRecords.length})
                     </span>
                   </h2>
-                  <p className="text-xs text-muted-foreground">
-                    Leads you&rsquo;ve contacted and are working through the
-                    funnel.
-                  </p>
+                  <Input
+                    placeholder="Search attended leads..."
+                    value={bottomSearch}
+                    onChange={(e) => setBottomSearch(e.target.value)}
+                    className="max-w-[200px] h-8 text-xs"
+                  />
+                  {bottomSearch && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setBottomSearch("")}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  <Select
+                    value={attendedStageFilter}
+                    onValueChange={(v) =>
+                      setAttendedStageFilter(v as FunnelStage | "all")
+                    }
+                  >
+                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                      <SelectValue placeholder="All stages" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        All stages ({attendedRecords.length})
+                      </SelectItem>
+                      {STAGE_ORDER.filter(
+                        (s) => s !== "enquiry" && s !== "follow_up",
+                      ).map((stage) => (
+                        <SelectItem
+                          key={stage}
+                          value={stage}
+                          disabled={attendedStageCounts[stage] === 0}
+                        >
+                          {STAGE_LABELS[stage]} ({attendedStageCounts[stage]})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {attendedStageFilter !== "all" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setAttendedStageFilter("all")}
+                    >
+                      Clear filter
+                    </Button>
+                  )}
                 </div>
                 {attendedRecords.length > COLLAPSED_ATTENDED_ROWS && (
                   <Button
@@ -614,44 +667,6 @@ export default function EnquiriesPage() {
                     {bottomExpanded
                       ? `Collapse to ${COLLAPSED_ATTENDED_ROWS}`
                       : `Show all (${attendedRecords.length})`}
-                  </Button>
-                )}
-              </div>
-              {/* Stage filter dropdown - narrows the attended pile by funnel stage */}
-              <div className="mb-3 flex items-center gap-2">
-                <Select
-                  value={attendedStageFilter}
-                  onValueChange={(v) =>
-                    setAttendedStageFilter(v as FunnelStage | "all")
-                  }
-                >
-                  <SelectTrigger className="w-full sm:w-[220px]">
-                    <SelectValue placeholder="All stages" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      All stages ({attendedRecords.length})
-                    </SelectItem>
-                    {STAGE_ORDER.filter(
-                      (s) => s !== "enquiry" && s !== "follow_up",
-                    ).map((stage) => (
-                      <SelectItem
-                        key={stage}
-                        value={stage}
-                        disabled={attendedStageCounts[stage] === 0}
-                      >
-                        {STAGE_LABELS[stage]} ({attendedStageCounts[stage]})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {attendedStageFilter !== "all" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setAttendedStageFilter("all")}
-                  >
-                    Clear filter
                   </Button>
                 )}
               </div>
@@ -672,6 +687,7 @@ export default function EnquiriesPage() {
                 rowClassName={(r) =>
                   isStaleAttended(r) ? STALE_ROW_CLASS : ""
                 }
+                hideSearch
               />
               {!bottomExpanded &&
                 filteredAttended.length > COLLAPSED_ATTENDED_ROWS && (
