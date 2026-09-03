@@ -51,6 +51,7 @@ import { SettingsSchema } from "@/type/schema";
 import { userColumns as columns } from "./user-column";
 import { DOBPicker } from "@/components/DOB-picker";
 import { useGetClinicSettings, useUpdateClinicSettings } from "@/data/clinic-settings/clinic-settings";
+import ChangePasswordCard from "./change-password-card";
 
 function BookingGapCard() {
   const { data } = useGetClinicSettings();
@@ -345,6 +346,7 @@ const SettingsPageComponents = () => {
               </Dialog>
             </CardContent>
           </Card>
+          <ChangePasswordCard />
           {isAdmin && (
             <>
               <div className="lg:col-span-3 flex flex-col gap-6">
