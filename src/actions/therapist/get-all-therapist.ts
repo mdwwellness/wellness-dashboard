@@ -11,9 +11,11 @@ export async function getAllTherapist() {
     });
 
     if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      console.error("[getAllTherapist] API error:", response.status, result.message ?? "No message");
       return {
         success: false,
-        message: "Failed to fetch therapist",
+        message: result.message ?? `Request failed with status ${response.status}`,
       };
     }
 

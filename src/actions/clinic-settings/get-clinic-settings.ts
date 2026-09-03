@@ -13,6 +13,7 @@ export default async function getClinicSettings(): Promise<ApiResponse<ClinicSet
     });
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
+      console.error("[getClinicSettings] API error:", response.status, result.message ?? "No message");
       return { success: false, message: result.message ?? `Request failed with status ${response.status}` };
     }
     const result = await response.json();

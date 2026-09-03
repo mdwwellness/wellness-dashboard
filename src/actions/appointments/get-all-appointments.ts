@@ -17,6 +17,7 @@ export default async function getAllAppointments(user: UserType): Promise<ApiRes
     );
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
+      console.error("[getAllAppointments] API error:", response.status, result.message ?? "No message");
       return {
         success: false,
         message: result.message ?? `Request failed with status ${response.status}`,
