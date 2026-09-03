@@ -8,7 +8,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         queryCache: new QueryCache({
-          onError: (error: Error) => {
+          onError: (error: Error, query) => {
+            // Log query key for debugging which endpoint failed
+            const queryKey = query.queryKey?.[0] ?? "unknown";
+            console.error(`[Query Error] ${queryKey}:`, error.message);
             toast.error(error.message);
           },
         }),

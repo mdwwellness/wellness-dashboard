@@ -97,5 +97,11 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     }
   }
 
+  // Log non-success responses for debugging (server actions swallow these)
+  if (!res.ok) {
+    const body = await res.clone().json().catch(() => ({}));
+    console.error(`[fetchWithAuth] ${res.status} ${url}`, body.message ?? "");
+  }
+
   return res;
 }
