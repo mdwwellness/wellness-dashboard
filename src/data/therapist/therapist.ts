@@ -49,11 +49,31 @@ export function useDeleteTherapist() {
       if (!result.success) throw new Error(result.message);
       return result;
     },
-    onSuccess: () => {
-      toast.success("Therapist deleted successfully");
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["therapists"] });
+
+      const previousTherapists = queryClient.getQueryData(["therapists"]);
+
+      // Optimistically remove from cache
+      queryClient.setQueryData(["therapists"], (old: any[]) => {
+        if (!old) return old;
+        return old.filter((t) => t._id !== id);
+      });
+
+      return { previousTherapists };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousTherapists) {
+        queryClient.setQueryData(["therapists"], context.previousTherapists);
+      }
+      toast.error(_err.message);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["therapists"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => {
+      toast.success("Therapist deleted successfully");
+    },
   });
 }
 
@@ -66,11 +86,33 @@ export function useUpdateTherapist() {
       if (!result.success) throw new Error(result.message);
       return result;
     },
-    onSuccess: () => {
-      toast.success("Therapist updated successfully");
+    onMutate: async (newValues) => {
+      await queryClient.cancelQueries({ queryKey: ["therapists"] });
+
+      const previousTherapists = queryClient.getQueryData(["therapists"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["therapists"], (old: any[]) => {
+        if (!old) return old;
+        return old.map((t) =>
+          t.doctorId === newValues.doctorId ? { ...t, ...newValues } : t,
+        );
+      });
+
+      return { previousTherapists };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousTherapists) {
+        queryClient.setQueryData(["therapists"], context.previousTherapists);
+      }
+      toast.error(_err.message);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["therapists"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => {
+      toast.success("Therapist updated successfully");
+    },
   });
 }
 

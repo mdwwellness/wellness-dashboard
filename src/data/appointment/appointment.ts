@@ -57,6 +57,9 @@ function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<typeof u
   queryClient.invalidateQueries({ queryKey: ["appointments"] });
   queryClient.invalidateQueries({ queryKey: ["enquiries"] });
   queryClient.invalidateQueries({ queryKey: ["invoices"] });
+  // Therapist detail drawer shows earnings via useGetPersonalAppointments;
+  // keep that in sync whenever an appointment is mutated from any view.
+  queryClient.invalidateQueries({ queryKey: ["getPersonalAppointments"] });
 }
 
 export function useBookAppointment() {
@@ -210,16 +213,55 @@ export function useCompleteSession() {
       if (!result.success) throw new Error(result.message);
       return { ...result, appointmentId };
     },
+    onMutate: async ({ appointmentId }) => {
+      await queryClient.cancelQueries({ queryKey: ["appointments"] });
+      await queryClient.cancelQueries({ queryKey: ["enquiries"] });
+
+      const previousAppointments = queryClient.getQueryData(["appointments"]);
+      const previousEnquiries = queryClient.getQueryData(["enquiries"]);
+
+      // Optimistically mark session as complete
+      queryClient.setQueriesData<slotBookingZodType[]>(
+        { queryKey: ["appointments"] },
+        (old) => {
+          if (!old) return old;
+          return old.map((a) => {
+            if (a._id !== appointmentId) return a;
+            return { ...a, sessionCompleted: true };
+          });
+        },
+      );
+      queryClient.setQueriesData<slotBookingZodType[]>(
+        { queryKey: ["enquiries"] },
+        (old) => {
+          if (!old) return old;
+          return old.map((a) => {
+            if (a._id !== appointmentId) return a;
+            return { ...a, sessionCompleted: true };
+          });
+        },
+      );
+
+      return { previousAppointments, previousEnquiries };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousAppointments) {
+        queryClient.setQueryData(["appointments"], context.previousAppointments);
+      }
+      if (context?.previousEnquiries) {
+        queryClient.setQueryData(["enquiries"], context.previousEnquiries);
+      }
+      if (handleAuthError(_err, router)) return;
+      toast.error(_err.message);
+    },
+    onSettled: () => {
+      invalidateAppointmentAndEnquiryQueries(queryClient);
+    },
     onSuccess: (result) => {
       if (result.data && result.appointmentId) {
         patchAppointmentInCache(queryClient, result.appointmentId, result.data);
       }
       toast.success(result.message);
-      invalidateAppointmentAndEnquiryQueries(queryClient);
-    },
-    onError: (err: Error) => {
-      if (handleAuthError(err, router)) return;
-      toast.error(err.message);
     },
   });
 }
@@ -234,13 +276,40 @@ export function useDeleteAppointment() {
       if (!result.success) throw new Error(result.message);
       return result;
     },
-    onSuccess: (result) => {
-      toast.success("Appointment cancelled", { description: result.message });
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["appointments"] });
+      await queryClient.cancelQueries({ queryKey: ["enquiries"] });
+
+      const previousAppointments = queryClient.getQueryData(["appointments"]);
+      const previousEnquiries = queryClient.getQueryData(["enquiries"]);
+
+      // Optimistically remove from cache
+      queryClient.setQueriesData<slotBookingZodType[]>(
+        { queryKey: ["appointments"] },
+        (old) => old?.filter((a) => a._id !== id) ?? old,
+      );
+      queryClient.setQueriesData<slotBookingZodType[]>(
+        { queryKey: ["enquiries"] },
+        (old) => old?.filter((a) => a._id !== id) ?? old,
+      );
+
+      return { previousAppointments, previousEnquiries };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousAppointments) {
+        queryClient.setQueryData(["appointments"], context.previousAppointments);
+      }
+      if (context?.previousEnquiries) {
+        queryClient.setQueryData(["enquiries"], context.previousEnquiries);
+      }
+      if (handleAuthError(_err, router)) return;
+      toast.error(_err.message);
+    },
+    onSettled: () => {
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
-    onError: (err: Error) => {
-      if (handleAuthError(err, router)) return;
-      toast.error(err.message);
+    onSuccess: (result) => {
+      toast.success("Appointment cancelled", { description: result.message });
     },
   });
 }
@@ -255,17 +324,55 @@ export function useUpdateAppointment(opts?: { silent?: boolean }) {
       if (!result.success) throw new Error(result.message);
       return result;
     },
+    onMutate: async (newValues) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["appointments"] });
+      await queryClient.cancelQueries({ queryKey: ["enquiries"] });
+
+      // Snapshot current data for rollback
+      const previousAppointments = queryClient.getQueryData(["appointments"]);
+      const previousEnquiries = queryClient.getQueryData(["enquiries"]);
+
+      // Optimistically update the cache immediately
+      queryClient.setQueriesData<slotBookingZodType[]>(
+        { queryKey: ["appointments"] },
+        (old) => {
+          if (!old) return old;
+          return old.map((a) => (a._id === newValues._id ? { ...a, ...newValues } : a));
+        },
+      );
+      queryClient.setQueriesData<slotBookingZodType[]>(
+        { queryKey: ["enquiries"] },
+        (old) => {
+          if (!old) return old;
+          return old.map((a) => (a._id === newValues._id ? { ...a, ...newValues } : a));
+        },
+      );
+
+      // Return snapshot for rollback on error
+      return { previousAppointments, previousEnquiries };
+    },
+    onError: (err: Error, _variables, context) => {
+      // Rollback to snapshot on error
+      if (context?.previousAppointments) {
+        queryClient.setQueryData(["appointments"], context.previousAppointments);
+      }
+      if (context?.previousEnquiries) {
+        queryClient.setQueryData(["enquiries"], context.previousEnquiries);
+      }
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message || "Update failed");
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure server state
+      invalidateAppointmentAndEnquiryQueries(queryClient);
+    },
     onSuccess: (result) => {
       // Auto-save callers (e.g. the enquiry drawer) pass silent:true and show
       // an inline "Saved" indicator instead of a toast on every blur/toggle.
       if (!opts?.silent) {
         toast.success("Appointment updated", { description: result.message });
       }
-      invalidateAppointmentAndEnquiryQueries(queryClient);
-    },
-    onError: (err: Error) => {
-      if (handleAuthError(err, router)) return;
-      toast.error(err.message || "Update failed");
     },
   });
 }
