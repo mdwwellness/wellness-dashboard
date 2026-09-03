@@ -402,45 +402,46 @@ export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalen
 
       {/* Summary stats */}
       <div className="flex gap-4 text-sm">
-        <div className="bg-muted/50 px-3 py-2 rounded-lg">
-          <span className="text-muted-foreground">Confirmed: </span>
-          <span className="font-semibold">{visibleStats.totalSessions}</span>
-          <span className="text-muted-foreground"> sessions</span>
+        <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="font-medium">{visibleStats.totalSessions}</span>
+          <span className="text-muted-foreground">sessions</span>
         </div>
-        <div className="bg-muted/50 px-3 py-2 rounded-lg">
-          <span className="text-muted-foreground">Total: </span>
-          <span className="font-semibold">{visibleStats.totalHours.toFixed(1)}</span>
-          <span className="text-muted-foreground"> hours</span>
+        <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
+          <span className="h-2 w-2 rounded-full bg-blue-500" />
+          <span className="font-medium">{visibleStats.totalHours.toFixed(1)}</span>
+          <span className="text-muted-foreground">hours</span>
         </div>
-        <div className="bg-muted/50 px-3 py-2 rounded-lg">
-          <span className="text-muted-foreground">Therapists: </span>
-          <span className="font-semibold">{visibleStats.therapistCount}</span>
-          <span className="text-muted-foreground"> active</span>
+        <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
+          <span className="h-2 w-2 rounded-full bg-violet-500" />
+          <span className="font-medium">{visibleStats.therapistCount}</span>
+          <span className="text-muted-foreground">active</span>
         </div>
       </div>
 
       {/* Main content: Calendar + Sidebar */}
       <div className="flex gap-4">
         {/* Calendar */}
-        <div className="flex-1 border rounded-xl overflow-hidden bg-background" style={{ height: "calc(100vh - 320px)", minHeight: "500px" }}>
+        <div className="flex-1 border rounded-xl overflow-hidden bg-background" style={{ height: "620px" }}>
           <style>{`
             .rbc-calendar { font-family: inherit; }
             .rbc-header { border-bottom: 1px solid hsl(var(--border)); padding: 8px 0; }
             .rbc-header > a { color: hsl(var(--foreground)); font-weight: 500; font-size: 14px; }
             .rbc-day-bg { background: hsl(var(--background)); cursor: pointer; transition: background 0.15s; }
-            .rbc-day-bg:hover { background: hsl(var(--accent) / 0.2); }
-            .rbc-today { background: hsl(var(--accent) / 0.3); }
-            .rbc-off-range-bg { background: hsl(var(--muted) / 0.3); }
-            .rbc-off-range-bg:hover { background: hsl(var(--muted) / 0.4); }
+            .rbc-day-bg:hover { background: hsl(var(--accent) / 0.15); }
+            .rbc-today { background: hsl(var(--primary) / 0.08); }
+            .rbc-off-range-bg { background: hsl(var(--muted) / 0.2); }
+            .rbc-off-range-bg:hover { background: hsl(var(--muted) / 0.3); }
             .rbc-time-header { border-bottom: 1px solid hsl(var(--border)); }
-            .rbc-time-content { border-top: 1px solid hsl(var(--border)); }
-            .rbc-day-slot .rbc-time-slot { border-top: 1px solid hsl(var(--border) / 0.5); }
-            .rbc-time-gutter > div { color: hsl(var(--muted-foreground)); font-size: 14px; font-weight: 500; }
+            .rbc-time-content { border-top: none; }
+            .rbc-day-slot .rbc-time-slot { border-top: 1px solid hsl(var(--border) / 0.3); }
+            .rbc-time-gutter > div { color: hsl(var(--muted-foreground)); font-size: 12px; font-weight: 500; }
             .rbc-row-content { z-index: 1; }
             .rbc-show-all { display: none; }
             .rbc-allday-cell { display: none; }
             .rbc-allday-header { display: none; }
             .rbc-month-view .rbc-row-content { cursor: pointer; }
+            .rbc-event { border-radius: 4px !important; font-size: 12px !important; }
           `}</style>
           <Calendar
             localizer={localizer}
@@ -459,16 +460,16 @@ export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalen
             eventPropGetter={eventStyleGetter}
             toolbar={false}
             views={["day", "week", "month"]}
-            step={15}
-            timeslots={4}
+            step={30}
+            timeslots={2}
             defaultView="week"
             min={new Date(2024, 0, 1, 8, 0)}
-            max={new Date(2024, 0, 1, 20, 0)}
+            max={new Date(2024, 0, 1, 18, 0)}
             longPressThreshold={10}
           />
         </div>
 
-        {/* Sidebar: Search + Therapist List + Sessions */}
+        {/* Sidebar */}
         <div className="w-72 flex flex-col gap-3">
           {/* Search */}
           <div className="relative">
@@ -485,12 +486,12 @@ export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalen
           </div>
 
           {/* Therapist list */}
-          <div className="border rounded-xl flex-1 min-h-0 flex flex-col">
-            <div className="p-2 border-b bg-muted/30 flex items-center text-xs font-medium text-muted-foreground shrink-0">
+          <div className="border rounded-xl bg-card">
+            <div className="p-2.5 border-b bg-muted/30 flex items-center text-xs font-medium text-muted-foreground">
               <span className="flex-1">Therapist</span>
-              <span className="w-12 text-right shrink-0">Cust</span>
+              <span className="w-12 text-right">Cust</span>
             </div>
-            <div className="overflow-y-auto max-h-48 scrollbar-thin pr-1">
+            <div className="max-h-44 overflow-y-auto">
               {filteredTherapists.map((t) => {
                 const color = therapistColorMap.get(t.name) ?? "#6b7280";
                 const stats = therapistStats.get(t.name);
@@ -500,13 +501,13 @@ export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalen
                     key={t._id}
                     onClick={() => setSelectedTherapistId(isSelected ? null : t._id)}
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors",
+                      "w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0",
                       isSelected && "bg-muted"
                     )}
                   >
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                     <span className="flex-1 truncate font-medium">{t.name}</span>
-                    <span className="w-12 text-right text-xs text-muted-foreground shrink-0">{stats?.customers ?? 0}</span>
+                    <span className="w-12 text-right text-xs text-muted-foreground">{stats?.customers ?? 0}</span>
                   </button>
                 );
               })}
@@ -519,8 +520,8 @@ export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalen
           </div>
 
           {/* Sessions list */}
-          <div className="border rounded-xl overflow-hidden flex-1 min-h-0">
-            <div className="p-2 border-b bg-muted/30">
+          <div className="border rounded-xl bg-card flex-1 min-h-0 flex flex-col">
+            <div className="p-2.5 border-b bg-muted/30">
               <span className="text-xs font-medium text-muted-foreground">
                 {selectedTherapistId
                   ? `Sessions (${selectedTherapistSessions.length})`
@@ -529,13 +530,12 @@ export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalen
                     : "Select a therapist or click a day"}
               </span>
             </div>
-            <div className="overflow-y-auto max-h-64 scrollbar-thin">
-              {/* Show therapist sessions if selected */}
+            <div className="overflow-y-auto flex-1">
               {selectedTherapistId && selectedTherapistSessions.map((event) => (
                 <button
                   key={event.id}
                   onClick={() => jumpToSession(event)}
-                  className="w-full flex items-start gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors border-b last:border-b-0"
+                  className="w-full flex items-start gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0"
                 >
                   <Clock className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -550,12 +550,11 @@ export function TherapistCalendarView({ onBack, filterDoctorId }: TherapistCalen
                 </button>
               ))}
 
-              {/* Show date sessions if no therapist selected but date is selected */}
               {!selectedTherapistId && selectedDate && selectedDateSessions.map((event) => (
                 <button
                   key={event.id}
                   onClick={() => jumpToSession(event)}
-                  className="w-full flex items-start gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors border-b last:border-b-0"
+                  className="w-full flex items-start gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0"
                 >
                   <span className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: event.color }} />
                   <div className="flex-1 min-w-0">
