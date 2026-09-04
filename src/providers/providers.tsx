@@ -2,6 +2,16 @@
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AUTH_REFRESH_FAILED_CODE } from "@/lib/auth-errors";
+import { signalSessionExpired } from "@/components/session-expired-dialog";
+
+function isAuthError(error: Error): boolean {
+  return (
+    error.name === "AuthRefreshFailedError" ||
+    error.message?.includes(AUTH_REFRESH_FAILED_CODE) ||
+    error.message?.includes("Session expired")
+  );
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -12,11 +22,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
             // Log query key for debugging which endpoint failed
             const queryKey = query.queryKey?.[0] ?? "unknown";
             console.error(`[Query Error] ${queryKey}:`, error.message);
+
+            if (isAuthError(error)) {
+              signalSessionExpired();
+              return;
+            }
             toast.error(error.message);
           },
         }),
         mutationCache: new MutationCache({
           onError: (error: Error, _variables, _context, mutation) => {
+            if (isAuthError(error)) {
+              signalSessionExpired();
+              return;
+            }
             // Only toast here when the mutation has no onError of its own -
             // otherwise both fire and the user sees a duplicate toast.
             if (mutation.options.onError) return;

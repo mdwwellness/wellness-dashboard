@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { Providers } from "@/providers/providers";
+import { SessionExpiredDialog } from "@/components/session-expired-dialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <Toaster position="top-right" richColors={true} />
+            <SessionExpiredDialog />
             {children}
           </ThemeProvider>
             </Providers>
