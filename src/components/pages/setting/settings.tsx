@@ -346,14 +346,16 @@ const SettingsPageComponents = () => {
               </Dialog>
             </CardContent>
           </Card>
-          <ChangePasswordCard />
+          <div className="lg:col-span-4">
+            <ChangePasswordCard />
+          </div>
           {isAdmin && (
             <>
-              <div className="lg:col-span-3 flex flex-col gap-6">
+              <div className="lg:col-span-5 flex flex-col gap-6">
                 <BookingGapCard />
                 <TherapistSplitCard />
               </div>
-              <Card className="lg:col-span-6">
+              <Card className="lg:col-span-12">
                 <CardHeader className="flex flex-row justify-start items-center gap-2">
                   <div className="flex flex-col gap-2">
                     <CardTitle>Admin Members</CardTitle>
