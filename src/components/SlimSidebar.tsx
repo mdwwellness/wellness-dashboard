@@ -3,7 +3,7 @@
 import Avatar from '@/assests/avatars/avatar2.svg'
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   CalendarClock,
@@ -103,6 +103,7 @@ const navLinks = [
 const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const {user} = useAuthStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   /**
    * Array of all pathname variables, example: if pathname is "/dashboard/orders" then PATH_NAME will be ["dashboard", "orders"]
    * it is to help show the user location with breadcrums
@@ -186,7 +187,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
       </aside>
       <div className="h-screen flex flex-col sm:gap-4 sm:py-4 sm:pl-14 overflow-hidden">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-          <Sheet>
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button size="icon" variant="outline" className="sm:hidden">
                 <PanelLeft className="h-5 w-5" />
@@ -199,6 +200,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
                   <Link
                     key={index}
                     href={navItems.href}
+                    onClick={() => setMobileMenuOpen(false)}
                     className={`${
                       pathname === navItems.href ? "bg-accent" : " "
                     } flex items-center gap-4 py-1 px-2.5 text-muted-foreground  hover:text-foreground rounded-lg`}
