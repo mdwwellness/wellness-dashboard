@@ -34,6 +34,17 @@ interface AppointmentDataType<TData, TValue> {
   data: TData[];
 }
 
+// Columns to hide on mobile (less critical for quick scanning)
+const MOBILE_HIDDEN_IDS = [
+  "createdAt",
+  "bookingId",
+  "age",
+  "email",
+  "note",
+  "addOns",
+  "location",
+];
+
 export function AppointmentDataTable<TData, TValue>({
   columns,
   data,
@@ -50,6 +61,24 @@ export function AppointmentDataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const [selected, setSelected] = React.useState<TData | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
+
+  // Auto-hide columns on mobile
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const apply = (matches: boolean) => {
+      setColumnVisibility((prev) => {
+        const next = { ...prev };
+        MOBILE_HIDDEN_IDS.forEach((id) => {
+          if (matches) next[id] = false;
+          else delete next[id];
+        });
+        return next;
+      });
+    };
+    apply(mq.matches);
+    mq.addEventListener("change", (e) => apply(e.matches));
+    return () => mq.removeEventListener("change", (e) => apply(e.matches));
+  }, []);
 
   const table = useReactTable({
     data,
@@ -100,8 +129,8 @@ export function AppointmentDataTable<TData, TValue>({
             )}
             <DataTableViewOptions table={table} />
           </div>
-          <div className="rounded-md border p-3">
-            <Table>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>

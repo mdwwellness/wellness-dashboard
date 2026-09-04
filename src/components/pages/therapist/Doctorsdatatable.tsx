@@ -121,8 +121,8 @@ export function DoctorsDataTable<TData, TValue>(
                         )}
                         <DataTableViewOptions table={table} />
                     </div>
-                    <div className="rounded-md border p-3">
-                        <Table>
+                    <div className="rounded-md border p-3 overflow-x-auto">
+                        <Table className="min-w-[700px]">
                             <TableHeader>
                                 {table.getHeaderGroups().map((headerGroup) => (
                                     <TableRow key={headerGroup.id}>
