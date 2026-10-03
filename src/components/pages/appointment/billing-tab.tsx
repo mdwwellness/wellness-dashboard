@@ -121,16 +121,16 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
       return;
     }
     // One memo for the whole balance: the booking and every confirmed add-on.
-    const items = lines
-      .filter((l) => l.state === "due")
-      .map((l) => `${l.label} - ${formatINR(l.amount)}`)
-      .join("\n");
+    // The template prices each line itself, so pass labels, not priced text
+    // (that printed "Home visit - ₹1,600 - ₹1,600").
+    const dueLines = lines.filter((l) => l.state === "due");
     const wa = whatsAppLink(
       appointment.phonenumber,
       paymentRequestMessage({
         name: appointment.name,
         bookingId: appointment.enquiryId,
-        item: items || bookingLabel(appointment),
+        item: dueLines[0]?.label ?? bookingLabel(appointment),
+        lines: dueLines,
         amount: due,
         payUrl: `${publicOrigin()}/pay/${link.data.payToken}`,
       }),

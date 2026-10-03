@@ -30,7 +30,7 @@ export function AppointmentSummaryStrip({
     [appointment],
     services,
   );
-  const { due } = bookingLedger(appointment);
+  const { due, lines } = bookingLedger(appointment);
   const wa = whatsAppLink(appointment.phonenumber, "");
   const dialable = toWhatsAppNumber(appointment.phonenumber);
   const pct = progress
@@ -96,7 +96,12 @@ export function AppointmentSummaryStrip({
         <Badge variant="secondary" className="text-[11px]">
           {bookingLabel(appointment)}
         </Badge>
-        {due > 0 ? (
+        {/* Nothing priced owes nothing, but isn't "Settled": that read as paid. */}
+        {lines.length === 0 ? (
+          <Badge variant="outline" className="text-[11px] text-muted-foreground">
+            Not priced
+          </Badge>
+        ) : due > 0 ? (
           <Badge
             variant="outline"
             className="border-amber-500 text-[11px] text-amber-700 dark:text-amber-400"
