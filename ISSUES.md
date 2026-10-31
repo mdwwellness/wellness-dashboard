@@ -1320,6 +1320,24 @@ Not fixed. Price each attached add-on with `addonCataloguePrice` in `createBooki
 
 ---
 
+### 60. Changing the Time on the Appointment Details Page Doesn't Move an Assigned Visit
+
+**Severity:** Medium (scheduling)
+**Status:** Open (found 2026-10-31 while building the video call link)
+**Category:** Frontend + backend / scheduling
+**Affected Pages:** Appointments (details drawer, Date / Time fields)
+
+#### Description
+A visit assigned from the Enquiries drawer has `therapyStartTime` (and `physioSlot.time`) set as well as `slot.time`. The details page's Time box edits only `slot.time`. Every server reader takes `therapyStartTime || physioSlot.time || slot.time` (clash check, invoice "Session date", the video call time), so the new time is saved but ignored: the visit stays at the old time and the clash check never sees the move.
+
+#### Cause
+`appointments-details-page.tsx` sends `therapyStartTime` / `therapyEndTime` unchanged from the stored values (`buildDefaults`) while `slot.time` changes.
+
+#### Fix and guard
+Not fixed (parked: page-focus rule). When the Time box changes, move `therapyStartTime` (and the end, keeping the length) and `physioSlot.time` with it, or have the server do it in `updateAppointment` when only `slot.time` moves. Add a test that a details-page time change moves the visit.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -1383,3 +1401,4 @@ Not fixed. Price each attached add-on with `addonCataloguePrice` in `createBooki
 | 57 | A one-row package earns nothing until its last session | Medium | Fixed (not shipped) |
 | 58 | Split % shown to other roles; add-on price from the browser; decimal-split rounding | Low-Medium | Fixed (not shipped) |
 | 59 | Add-ons attached while booking keep the browser's price | Medium | Open |
+| 60 | Details-page time change doesn't move an assigned visit | Medium | Open |

@@ -31,6 +31,7 @@ import { useAuthStore } from "@/providers/permission-provider";
 import { toast } from "sonner";
 import z from "zod";
 import { firstBookableDay } from "@/lib/booking-conflicts";
+import { VideoCallLink } from "./video-call-link";
 
 interface AppointmentDetailsPageProps {
   data: slotBookingZodType;
@@ -135,6 +136,7 @@ export default function AppointmentDetailsPage({
 
           {/* The note is edited on the Visit tab, beside the work it describes.
               Deliberately not repeated here: two editors on one field diverge. */}
+          <VideoCallLink link={data.meet?.link} />
 
           {/* Customer details - collapsed by default. */}
           <div className="border-t pt-4">

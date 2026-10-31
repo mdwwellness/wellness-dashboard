@@ -237,6 +237,9 @@ export const enquirySchema = z.object({
   // Unguessable token for the customer-facing /pay/<token> page. Minted by the
   // backend on demand (POST /api/appointments/:id/pay-link) - never set here.
   payToken: z.string().optional(),
+  // Online consultation video call (Google Meet), server-written once the time
+  // is confirmed (backend lib/bookingMeet.ts). Display only.
+  meet: z.object({ link: z.string().optional() }).optional(),
 
   // A visit for a later session of a recommended add-on on another booking.
   addonOf: z

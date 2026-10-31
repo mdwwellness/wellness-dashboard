@@ -78,6 +78,7 @@ import {
   paymentConfirmedMessage,
 } from "@/lib/payment-messages";
 import type { ActivityEntry, EnquiryType } from "@/type/schema";
+import { VideoCallLink } from "@/components/pages/appointment/video-call-link";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { EnquiryProgressStepper } from "./enquiry-progress-stepper";
 import {
@@ -837,6 +838,7 @@ export function EnquiryDetailDrawer({
                 onBlur={() => save()}
               />
             </div>
+            <VideoCallLink link={record.meet?.link} />
           </section>
 
           {/* ── Section: Reach out ── */}
