@@ -13,6 +13,7 @@ import {
   Loader2,
   Plus,
   Trash2,
+  Video,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ import { applicableOffers, computeOfferOff } from "@/lib/offers";
 import createPaymentLink from "@/actions/appointments/create-payment-link";
 import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
 import { publicOrigin } from "@/lib/brand";
+import { copyVideoLink } from "./video-call-link";
 import {
   paymentRequestMessage,
   paymentConfirmedMessage,
@@ -479,6 +481,15 @@ export default function AppointmentBookingForm() {
     mutation.mutate(payload, {
       onSuccess: async (result) => {
         const newId = result?.data?._id as string | undefined;
+        // The server made the online consultation's Meet link with the booking.
+        const meetLink = result?.data?.meet?.link as string | undefined;
+        if (meetLink) {
+          toast.success("Video call link ready", {
+            description: meetLink,
+            action: { label: "Copy", onClick: () => copyVideoLink(meetLink) },
+            duration: 20_000,
+          });
+        }
         if (pickedOfferId && newId) {
           // Server does the money math + re-checks every rule. The hook toasts
           // the outcome; a rejection (e.g. once-per-phone) leaves the booking
@@ -749,6 +760,14 @@ export default function AppointmentBookingForm() {
                   </FormItem>
                 )}
               />
+              {/* The link needs the saved booking (its slot is the meeting time). */}
+              {!isCourse && deliveryType === "consultation" && (
+                <p className="rounded-md border bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground">
+                  <Video className="mr-1 inline h-3.5 w-3.5 align-text-bottom" />
+                  A Google Meet video call link is made when you confirm the booking. You&apos;ll
+                  see it straight after, and at the top of the booking.
+                </p>
+              )}
             </div>
 
             <div className="w-full space-y-4">

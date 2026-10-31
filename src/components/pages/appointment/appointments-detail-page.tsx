@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "./appointments-details-page";
 import { AppointmentSummaryStrip } from "./appointment-summary-strip";
+import { VideoCallLink } from "./video-call-link";
 import { BillingTab } from "./billing-tab";
 import { HistoryTab } from "./history-tab";
 import { VisitsTab } from "./visits-tab";
@@ -78,6 +79,8 @@ const AppointmentDetailDrawer = ({
         {live ? (
           <div className="space-y-3 px-4 pb-6">
             <AppointmentSummaryStrip appointment={live} all={allAppointments} services={services} />
+            {/* Above the tabs: whoever opens the booking needs the call link first. */}
+            <VideoCallLink link={live.meet?.link} />
 
             <Tabs key={live._id} defaultValue="visit">
               <TabsList className="w-full">

@@ -1338,6 +1338,24 @@ Not fixed (parked: page-focus rule). When the Time box changes, move `therapySta
 
 ---
 
+### 61. Video Call Link Hidden at the Bottom of the History Tab
+
+**Severity:** Low (display)
+**Status:** Fixed 2026-10-31 (found the same day, before the dashboard went live)
+**Category:** Frontend / appointments
+**Affected Pages:** Appointments (booking drawer)
+
+#### Description
+The "Video call link" box was added to the booking details form, which sits at the bottom of the drawer's History tab. The drawer opens on the Visit tab, so nobody saw the link.
+
+#### Cause
+The box was placed in `appointments-details-page.tsx` (the form) instead of the drawer itself.
+
+#### Fix and guard
+Moved to `appointments-detail-page.tsx`, under the summary strip and above the tabs, so it shows on every tab. Checked in the browser: one box, visible on Visit and History.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -1402,3 +1420,4 @@ Not fixed (parked: page-focus rule). When the Time box changes, move `therapySta
 | 58 | Split % shown to other roles; add-on price from the browser; decimal-split rounding | Low-Medium | Fixed (not shipped) |
 | 59 | Add-ons attached while booking keep the browser's price | Medium | Open |
 | 60 | Details-page time change doesn't move an assigned visit | Medium | Open |
+| 61 | Video call link hidden at the bottom of the History tab | Low | Fixed (not shipped) |
