@@ -7,6 +7,7 @@ import addAppointmentRecommendation, {
 import confirmAppointmentRecommendation from "@/actions/appointments/confirm-appointment-recommendation";
 import completeSession from "@/actions/appointments/complete-session";
 import recordPayment from "@/actions/appointments/record-payment";
+import recordPayout from "@/actions/appointments/record-payout";
 import deleteAppointment from "@/actions/appointments/delete-appointments";
 import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import updateAppointment from "@/actions/appointments/update-appointment";
@@ -275,6 +276,26 @@ export function useRecordPayment() {
       if (result.data?._id) patchAppointmentInCache(queryClient, result.data._id, result.data);
       toast.success(result.message);
     },
+    onSettled: () => invalidateAppointmentAndEnquiryQueries(queryClient),
+  });
+}
+
+/** Mark a therapist's payout paid, or undo it. The server works out the amount. */
+export function useRecordPayout() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async (v: { appointmentId: string; doctorId: string; paid: boolean }) => {
+      const result = await recordPayout(v.appointmentId, v.doctorId, v.paid);
+      if (!result.success) throw new Error(result.message);
+      return result;
+    },
+    onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message);
+    },
+    onSuccess: (result) => toast.success(result.message),
     onSettled: () => invalidateAppointmentAndEnquiryQueries(queryClient),
   });
 }

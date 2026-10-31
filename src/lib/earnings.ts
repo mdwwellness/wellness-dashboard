@@ -1,5 +1,11 @@
-import type { slotBookingZodType } from "@/type/schema";
+import type { PayoutPart, slotBookingZodType } from "@/type/schema";
 
+/**
+ * One therapist's share of one booking row. Every figure comes from the
+ * server's `payout` parts (backend lib/payouts.ts); the dashboard never works
+ * out a cut. appointmentId + therapistId identify a row: a package that
+ * changed therapist mid-way gives one row per therapist.
+ */
 export type EarningRow = {
   appointmentId: string;
   enquiryId: string;
@@ -11,20 +17,26 @@ export type EarningRow = {
   therapistName: string;
   therapistId: string;
   service: string;
+  /** Sessions this therapist has done on the row. */
   sessionsCompleted: number;
+  /** List price of this part (revenue + discount). */
   originalPrice: number;
+  /** Rupees taken off this part's sessions (the server's buckets). */
   discountAmount: number;
-  discountType: "fixed" | "percent" | null;
   discountCode: string | null;
+  /** Earned + pending + upcoming: all this part is worth, for display. */
   revenue: number;
   paymentReceived: boolean;
   therapistCut: number;
   companyCut: number;
-  /** null: no therapist, or their split isn't set yet (cut shows as "-"). */
+  /** null: no split set, or not shown to this viewer (non-admins). */
   splitPercent: number | null;
+  /** Something was paid out and nothing is owed now. */
   therapistPaid: boolean;
   /** Booking status for display: completed, ongoing, scheduled, etc. */
   status: string;
+  /** The server's figures for this part; the summary reads its buckets. */
+  payout: PayoutPart;
   rawAppointment: slotBookingZodType;
 };
 
@@ -34,151 +46,97 @@ export type EarningsSummary = {
   totalDiscountGiven: number;
   totalTherapistPayout: number;
   totalCompanyEarnings: number;
+  /** What customers still owe for sessions already done. */
   totalPending: number;
   completedSessions: number;
   avgPerSession: number;
   therapistPaidPayout: number;
   therapistUnpaidPayout: number;
-  /** Visits not done yet: listed, but kept out of every total above. */
+  /** Rows with sessions still to come, and what those are worth: kept out of every total above. */
   upcomingSessions: number;
   upcomingRevenue: number;
   upcomingTherapistCut: number;
 };
 
-/**
- * A session counts as earned once it's completed. Anything else still listed
- * (scheduled, ongoing) is "upcoming": shown, but never summed into earnings,
- * payouts or the session count.
- */
-export const isEarned = (r: { status: string }): boolean => r.status === "completed";
+/** Nothing on this row is done yet: listed, but it adds nothing to the earned totals. */
+export const isUpcoming = (r: EarningRow): boolean =>
+  r.payout.sessions === 0 && r.payout.earned.revenue + r.payout.pending.revenue === 0;
 
-/** Only Admin / Super Admin see or set split percentages. */
+/** Only Admin / Super Admin see or set split percentages, and record payouts. */
 export function canManageSplit(role: string | undefined): boolean {
   return role === "SUPER_ADMIN" || role === "ADMIN";
 }
 
-/** doctorId -> that therapist's split %. */
-export type TherapistSplits = Map<string, number | null | undefined>;
-
-export function therapistSplits(
-  therapists: { doctorId?: string; splitPercent?: number | null }[],
-): TherapistSplits {
-  return new Map(
-    therapists.filter((t) => t.doctorId).map((t) => [t.doctorId!, t.splitPercent]),
-  );
-}
-
-/**
- * The split % a booking pays its therapist: the one locked in when it
- * completed (so changing a therapist's % never rewrites past earnings), else
- * the therapist's current %. null when there's no therapist or no split.
- */
-export function splitFor(
-  booking: { therapistSplitPercent?: number | null; doctorId?: string | null },
-  splits: TherapistSplits,
-): number | null {
-  if (booking.therapistSplitPercent != null) return booking.therapistSplitPercent;
-  if (!booking.doctorId) return null;
-  return splits.get(booking.doctorId) ?? null;
-}
-
-/** Therapist and company share of `revenue` at `split`%. */
-export function splitRevenue(revenue: number, split: number | null) {
-  const therapistCut = split == null ? 0 : Math.round((revenue * split) / 100);
-  return { therapistCut, companyCut: revenue - therapistCut };
-}
-
-/** Derive earnings rows from every non-cancelled appointment. */
-export function buildEarningRows(
-  appointments: slotBookingZodType[],
-  splits: TherapistSplits,
-): EarningRow[] {
+/** One row per payout part; rows the server sends no parts for (a bare lead, a booking cancelled before anything was done) are skipped. */
+export function buildEarningRows(appointments: slotBookingZodType[]): EarningRow[] {
   const rows: EarningRow[] = [];
 
   for (const a of appointments) {
-    if (a.status === "cancelled") continue;
-
-    const revenue = a.paymentAmount ?? a.quotedPrice ?? 0;
-    const split = splitFor(a, splits);
-    const { therapistCut, companyCut } = splitRevenue(revenue, split);
-
-    // Discount tracking: originalPrice is the list price before discount.
-    // If not set, fall back to quotedPrice (which is the final price).
-    const originalPrice = a.originalPrice ?? a.quotedPrice ?? revenue;
-    const discountAmount = a.discountAmount ?? 0;
-    const discountType = a.discountType ?? null;
-    const discountCode = a.discountCode ?? null;
-
     const date =
       a.completedAt ??
       a.slot?.date ??
       (a as any).createdAt ??
       "";
 
-    rows.push({
-      appointmentId: a._id ?? "",
-      enquiryId: a.enquiryId ?? "",
-      source: a.source,
-      referredByName: a.referredByName,
-      date,
-      customerName: a.name ?? "Unknown",
-      therapistName: a.doctor ?? "Unassigned",
-      therapistId: a.doctorId ?? "",
-      service: a.service ?? a.typeOfappointment ?? "-",
-      sessionsCompleted: a.sessionsCompleted ?? (a.status === "completed" ? 1 : 0),
-      originalPrice,
-      discountAmount,
-      discountType,
-      discountCode,
-      revenue,
-      paymentReceived: !!a.paymentReceived,
-      therapistCut,
-      companyCut,
-      splitPercent: split,
-      therapistPaid: !!a.therapistPaid,
-      status: a.status ?? "scheduled",
-      rawAppointment: a,
-    });
+    for (const p of a.payout ?? []) {
+      const total = (k: "revenue" | "therapistCut" | "companyCut" | "discount" | "due") =>
+        p.earned[k] + p.pending[k] + p.upcoming[k];
+
+      rows.push({
+        appointmentId: a._id ?? "",
+        enquiryId: a.enquiryId ?? "",
+        source: a.source,
+        referredByName: a.referredByName,
+        date,
+        customerName: a.name ?? "Unknown",
+        therapistName: p.doctorId ? p.doctor : "Unassigned",
+        therapistId: p.doctorId,
+        service: a.service ?? a.typeOfappointment ?? "-",
+        sessionsCompleted: p.sessions,
+        originalPrice: total("revenue") + total("discount"),
+        discountAmount: total("discount"),
+        discountCode: a.discountCode ?? null,
+        revenue: total("revenue"),
+        // Nothing still owed by the customer for this part's sessions, done or to come.
+        paymentReceived: total("due") === 0,
+        therapistCut: total("therapistCut"),
+        companyCut: total("companyCut"),
+        splitPercent: p.splitPercent ?? null,
+        therapistPaid: p.paidOut > 0 && p.owed <= 0,
+        status: a.status ?? "scheduled",
+        payout: p,
+        rawAppointment: a,
+      });
+    }
   }
 
   return rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export function computeEarningsSummary(rows: EarningRow[]): EarningsSummary {
-  const earned = rows.filter(isEarned);
-  const upcoming = rows.filter((r) => !isEarned(r));
-  const paid = earned.filter((r) => r.paymentReceived);
-  const pending = earned.filter((r) => !r.paymentReceived);
-
-  const totalRevenue = paid.reduce((s, r) => s + r.revenue, 0);
-  const totalOriginalRevenue = paid.reduce((s, r) => s + r.originalPrice, 0);
-  const totalDiscountGiven = paid.reduce((s, r) => s + r.discountAmount, 0);
-  const totalTherapistPayout = paid.reduce((s, r) => s + r.therapistCut, 0);
-  const totalCompanyEarnings = paid.reduce((s, r) => s + r.companyCut, 0);
-  const totalPending = pending.reduce((s, r) => s + r.revenue, 0);
-  // Count sessions by rows, not by the sessionsCompleted field (which defaults
-  // to 0 and isn't reliable on legacy/ad-hoc records). Each row is one session.
-  const completedSessions = earned.length;
-  const paidCount = paid.length;
-  const avgPerSession =
-    paidCount > 0 ? Math.round(totalRevenue / paidCount) : 0;
-
-  const therapistPaidPayout = paid.filter(r => r.therapistPaid).reduce((s, r) => s + r.therapistCut, 0);
-  const therapistUnpaidPayout = paid.filter(r => !r.therapistPaid).reduce((s, r) => s + r.therapistCut, 0);
+  const sum = (pick: (p: PayoutPart) => number) => rows.reduce((s, r) => s + pick(r.payout), 0);
+  const completedSessions = sum((p) => p.sessions);
+  const totalRevenue = sum((p) => p.earned.revenue);
+  const totalDiscountGiven = sum((p) => p.earned.discount);
 
   return {
     totalRevenue,
-    totalOriginalRevenue,
+    totalOriginalRevenue: totalRevenue + totalDiscountGiven,
     totalDiscountGiven,
-    totalTherapistPayout,
-    totalCompanyEarnings,
-    totalPending,
+    totalTherapistPayout: sum((p) => p.earned.therapistCut),
+    totalCompanyEarnings: sum((p) => p.earned.companyCut),
+    totalPending: sum((p) => p.pending.due),
     completedSessions,
-    avgPerSession,
-    therapistPaidPayout,
-    therapistUnpaidPayout,
-    upcomingSessions: upcoming.length,
-    upcomingRevenue: upcoming.reduce((s, r) => s + r.revenue, 0),
-    upcomingTherapistCut: upcoming.reduce((s, r) => s + r.therapistCut, 0),
+    // Average worth of a done session, paid for or not: the server counts done
+    // sessions but not which of them are paid, so it's done revenue / done sessions.
+    avgPerSession:
+      completedSessions > 0
+        ? Math.round(sum((p) => p.earned.revenue + p.pending.revenue) / completedSessions)
+        : 0,
+    therapistPaidPayout: sum((p) => p.paidOut),
+    therapistUnpaidPayout: sum((p) => Math.max(0, p.owed)),
+    upcomingSessions: rows.filter((r) => r.payout.upcoming.revenue > 0).length,
+    upcomingRevenue: sum((p) => p.upcoming.revenue),
+    upcomingTherapistCut: sum((p) => p.upcoming.therapistCut),
   };
 }

@@ -60,6 +60,7 @@ describe("addonPrice", () => {
   });
 });
 
+// KEEP IN SYNC with the backend's lockedFields.test.ts (addonCataloguePrice).
 describe("recommendedAddonTotal", () => {
   const svc = { originalPrice: 649, discountedPrice: 549 };
 

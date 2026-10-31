@@ -65,6 +65,8 @@ export type RecommendedAddonPricing = {
 /**
  * Price a recommended add-on for the Money tab / booking form.
  * Single-session uses catalogue add-on price; multi-session uses session-rate tiers.
+ * KEEP IN SYNC with the backend's addonCataloguePrice (lib/lockedFields.ts), which
+ * sets the price actually charged; this one is the preview.
  */
 export function recommendedAddonTotal(
   tiers: RateTier[],

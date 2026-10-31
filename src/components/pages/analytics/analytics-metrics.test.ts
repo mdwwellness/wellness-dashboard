@@ -5,7 +5,7 @@ import {
   deriveMoM,
   deriveDailyPacing,
 } from "./analytics-metrics";
-import type { EnquiryType } from "@/type/schema";
+import type { EnquiryType, PayoutPart } from "@/type/schema";
 
 const rec = (over: Partial<EnquiryType>): EnquiryType =>
   ({ name: "x", phonenumber: 1, ...over }) as EnquiryType;
@@ -15,17 +15,15 @@ const at = (iso: string) => ({ createdAt: iso }) as Partial<EnquiryType>;
 
 const NOW = new Date("2026-07-28T10:00:00.000Z");
 
-// No therapists needed for the revenue / funnel checks below.
-const analytics = (records: EnquiryType[], now: Date) =>
-  deriveAnalytics(records, new Map(), now);
+const analytics = (records: EnquiryType[], now: Date) => deriveAnalytics(records, now);
 
 describe("deriveAnalytics", () => {
   it("splits collected vs pending, and prices pending from quotedPrice", () => {
     const a = analytics(
       [
-        rec({ typeOfappointment: "appointment", paymentReceived: true, paymentAmount: 700 }),
+        rec({ typeOfappointment: "appointment", paymentReceived: true, quotedPrice: 700, paymentAmount: 700 }),
         rec({ typeOfappointment: "consultation", paymentReceived: false, quotedPrice: 500 }),
-        rec({ status: "cancelled", paymentReceived: true, paymentAmount: 999 }), // ignored
+        rec({ status: "cancelled", paymentReceived: true, quotedPrice: 999, paymentAmount: 999 }), // ignored
       ],
       NOW,
     );
@@ -33,6 +31,29 @@ describe("deriveAnalytics", () => {
     expect(a.pending).toBe(500);
     expect(a.pendingCount).toBe(1);
     expect(Math.round(a.collectedPct)).toBe(58); // 700 / 1200
+  });
+
+  it("counts a part-paid booking's payment as collected and only the rest as pending", () => {
+    const a = analytics(
+      [rec({ typeOfappointment: "appointment", quotedPrice: 9000, paymentAmount: 1000, paymentReceived: false })],
+      NOW,
+    );
+    expect(a.collected).toBe(1000);
+    expect(a.pending).toBe(8000);
+    expect(a.pendingCount).toBe(1);
+  });
+
+  it("adds nothing to pending for a course follow-up's tracking price", () => {
+    const a = analytics(
+      [
+        rec({ _id: "s1", typeOfappointment: "appointment", quotedPrice: 3000, paymentAmount: 1000 }),
+        rec({ _id: "s2", packageOriginId: "s1", typeOfappointment: "appointment", status: "scheduled", quotedPrice: 1000 }),
+        rec({ _id: "s3", packageOriginId: "s1", typeOfappointment: "appointment", status: "scheduled", quotedPrice: 1000 }),
+      ],
+      NOW,
+    );
+    expect(a.pending).toBe(2000); // the course's own balance only
+    expect(a.pendingCount).toBe(1);
   });
 
   it("builds the enquiry→booking→paid funnel", () => {
@@ -117,18 +138,65 @@ describe("deriveDailyPacing", () => {
 });
 
 describe("deriveAnalytics - therapist payouts", () => {
-  it("uses each booking's locked-in split, else its therapist's split", () => {
-    const a = deriveAnalytics(
+  const bucket = (revenue = 0, therapistCut = 0) => ({ revenue, therapistCut, companyCut: revenue - therapistCut, discount: 0, due: 0 });
+  const part = (over: Partial<PayoutPart>): PayoutPart => ({
+    doctorId: "THR-1",
+    doctor: "Asha",
+    sessions: 0,
+    earned: bucket(),
+    pending: { ...bucket(), due: 0 },
+    upcoming: bucket(),
+    paidOut: 0,
+    owed: 0,
+    ...over,
+  });
+
+  it("owes nothing on a course paid upfront with no session done", () => {
+    const a = analytics(
       [
-        // Locked in at 60% when it completed; the therapist is now at 70%.
-        rec({ doctor: "Asha", doctorId: "THR-1", paymentReceived: true, paymentAmount: 1000, therapistSplitPercent: 60 }),
-        // Not completed yet: follows the therapist's current 70%.
-        rec({ doctor: "Asha", doctorId: "THR-1", paymentReceived: true, paymentAmount: 1000 }),
+        rec({
+          status: "scheduled",
+          quotedPrice: 4000,
+          paymentAmount: 4000,
+          paymentReceived: true,
+          payout: [part({ upcoming: bucket(4000, 2400) })],
+        }),
       ],
-      new Map([["THR-1", 70]]),
       NOW,
     );
-    expect(a.therapistPayoutTotal).toBe(600 + 700);
-    expect(a.companyEarningsTotal).toBe(400 + 300);
+    expect(a.therapistPayoutOwed).toBe(0);
+    expect(a.therapistPayoutTotal).toBe(0);
+    expect(a.companyEarningsTotal).toBe(0);
+    expect(a.therapistEarningsBreakdown).toEqual([]);
+  });
+
+  it("totals the server's payout parts, per therapist", () => {
+    const a = analytics(
+      [
+        // A package that changed hands: Asha did one session, Ravi two.
+        rec({
+          payout: [
+            part({ sessions: 1, earned: bucket(1000, 600), paidOut: 600, owed: 0 }),
+            part({ doctorId: "THR-2", doctor: "Ravi", sessions: 2, earned: bucket(2000, 1000), owed: 1000 }),
+          ],
+        }),
+        // Asha was overpaid here: shows as nothing owed, not a credit.
+        rec({ payout: [part({ sessions: 1, earned: bucket(500, 300), paidOut: 400, owed: -100 })] }),
+        // No therapist: everything stays with the company.
+        rec({ payout: [part({ doctorId: "", doctor: "", earned: bucket(700, 0) })] }),
+        // Cancelled rows never count.
+        rec({ status: "cancelled", payout: [part({ earned: bucket(9000, 9000), owed: 9000 })] }),
+      ],
+      NOW,
+    );
+    expect(a.therapistPayoutTotal).toBe(600 + 1000 + 300);
+    expect(a.companyEarningsTotal).toBe(400 + 1000 + 200 + 700);
+    expect(a.therapistPayoutPaid).toBe(600 + 400);
+    expect(a.therapistPayoutOwed).toBe(1000);
+    expect(a.therapistEarningsBreakdown).toEqual([
+      { name: "Ravi", revenue: 2000, therapistCut: 1000, companyCut: 1000, paidCut: 0, owedCut: 1000 },
+      { name: "Asha", revenue: 1500, therapistCut: 900, companyCut: 600, paidCut: 1000, owedCut: 0 },
+      { name: "Unassigned", revenue: 700, therapistCut: 0, companyCut: 700, paidCut: 0, owedCut: 0 },
+    ]);
   });
 });

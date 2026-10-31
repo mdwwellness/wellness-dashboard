@@ -15,7 +15,6 @@ import {
   buildEarningRows,
   canManageSplit,
   computeEarningsSummary,
-  therapistSplits,
 } from "@/lib/earnings";
 import type { slotBookingZodType, TherapistformType } from "@/type/schema";
 
@@ -36,12 +35,14 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
     (t) => t.doctorId === doctorId,
   );
 
+  // Only this therapist's share: a package that changed hands has another
+  // therapist's part on the same booking.
   const rows = useMemo(() => {
     const list: slotBookingZodType[] = Array.isArray(appointments)
       ? appointments
       : [];
-    return buildEarningRows(list, therapistSplits(therapists as TherapistformType[]));
-  }, [appointments, therapists]);
+    return buildEarningRows(list).filter((r) => r.therapistId === doctorId);
+  }, [appointments, doctorId]);
 
   const summary = useMemo(() => computeEarningsSummary(rows), [rows]);
 
@@ -54,7 +55,9 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
     );
   }
 
-  const splitEditor = showSplit && therapist && <SplitEditor therapist={therapist} />;
+  const splitEditor = showSplit && therapist && (
+    <SplitEditor therapist={therapist} />
+  );
 
   if (rows.length === 0) {
     return (
@@ -136,7 +139,7 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
 
             return (
               <div
-                key={row.appointmentId}
+                key={`${row.appointmentId}-${row.therapistId}`}
                 className="flex items-center justify-between px-3 py-2.5 text-sm"
               >
                 <div className="min-w-0">
@@ -153,9 +156,7 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
                     </span>
                     {row.discountAmount > 0 && (
                       <span className="text-[10px] text-emerald-600">
-                        {row.discountType === "percent"
-                          ? `${row.discountAmount}% off`
-                          : `₹${row.discountAmount} off`}
+                        {`₹${row.discountAmount} off`}
                         {row.discountCode ? ` (${row.discountCode})` : ""}
                       </span>
                     )}
@@ -163,7 +164,7 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
                 </div>
                 <div className="text-right shrink-0 ml-3">
                   <p className={`text-sm font-semibold ${row.revenue > 0 ? "" : "text-muted-foreground"}`}>
-                    {row.revenue > 0 ? `₹${row.revenue.toLocaleString()}` : "—"}
+                    {row.revenue > 0 ? `₹${row.revenue.toLocaleString()}` : "-"}
                   </p>
                   {showSplit && row.revenue > 0 && row.splitPercent != null && (
                     <p className="text-xs text-muted-foreground">
@@ -183,7 +184,8 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
 /**
  * Admin / Super Admin only: this therapist's share of collected revenue.
  * Applies to sessions completed from now on; each completed booking keeps the
- * split it was completed at.
+ * split it was completed at. The server works out the earnings; saving
+ * refreshes them (useUpdateTherapist).
  */
 function SplitEditor({ therapist }: { therapist: TherapistformType }) {
   const { mutate, isPending } = useUpdateTherapist();

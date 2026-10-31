@@ -133,6 +133,10 @@ export function useUpdateTherapist() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["therapists"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      // Unlocked payouts follow the therapist's current split (backend lib/payouts.ts).
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["enquiries"] });
+      queryClient.invalidateQueries({ queryKey: ["getPersonalAppointments"] });
     },
     onSuccess: () => {
       toast.success("Therapist updated successfully");

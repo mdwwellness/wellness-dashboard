@@ -136,8 +136,8 @@ export function AddonsVisitSection({
       toast.error("Pick the date and time it will be done");
       return;
     }
-    const quotedPrice = pricing.total;
-    if (!Number.isFinite(quotedPrice) || quotedPrice <= 0) {
+    // The server prices it the same way (KEEP IN SYNC: backend addonCataloguePrice).
+    if (!Number.isFinite(pricing.total) || pricing.total <= 0) {
       toast.error("Enter a valid amount");
       return;
     }
@@ -146,8 +146,7 @@ export function AddonsVisitSection({
         appointmentId: appointment._id,
         values: {
           serviceId: selected.serviceId,
-          serviceName: selected.name,
-          quotedPrice,
+          applyDiscount,
           sessions: sessions && sessions > 1 ? sessions : undefined,
           slot: { date, time },
           durationMin,

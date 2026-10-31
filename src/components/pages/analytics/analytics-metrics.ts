@@ -1,6 +1,7 @@
 import { readCreatedISO } from "@/lib/metrics";
 import type { EnquiryType } from "@/type/schema";
-import { splitFor, splitRevenue, type TherapistSplits } from "@/lib/earnings";
+import { bookingLedger } from "@/lib/booking-money";
+import { parentIdOf } from "@/lib/visit-groups";
 
 /**
  * Analytics for a SERVICE business, derived client-side from the appointments
@@ -26,6 +27,15 @@ const isBooked = (r: EnquiryType) =>
   (!!r.typeOfappointment || BOOKING_STATUSES.includes(statusOf(r)));
 
 const isPaid = (r: EnquiryType) => !!r.paymentReceived && !isCancelled(r);
+
+/**
+ * What was received and what is still owed on a row, part-payments and add-ons
+ * included. A visit of another booking (a course follow-up) carries its price
+ * for tracking only, since the whole course is billed on session 1, so only its
+ * own add-ons count. Same rule as the backend's payableLedger (lib/bookingMoney.ts).
+ */
+const rowLedger = (r: EnquiryType) =>
+  bookingLedger(parentIdOf(r) ? { ...r, quotedPrice: 0 } : r);
 
 /** "YYYY-MM" for the timestamp that best represents when revenue landed. */
 function monthKey(iso?: string | null): string | null {
@@ -80,7 +90,6 @@ function startOfWeek(now: Date): Date {
 
 export function deriveAnalytics(
   records: EnquiryType[],
-  splits: TherapistSplits,
   now: Date = new Date(),
 ): AnalyticsResult {
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -92,22 +101,26 @@ export function deriveAnalytics(
 
   let collected = 0;
   let pending = 0;
+  let pendingCount = 0;
   let revenueThisMonth = 0;
   let bookingsThisMonth = 0;
   const mixByLabel = new Map<string, number>();
   const trendByMonth = new Map<string, number>();
 
   for (const r of live) {
-    const amt = amountOf(r);
+    const ledger = rowLedger(r);
+    collected += ledger.paid;
+    if (isBooked(r) && ledger.due > 0) {
+      pending += ledger.due;
+      pendingCount++;
+    }
     if (isPaid(r)) {
-      collected += amt;
+      const amt = amountOf(r);
       const m = revenueMonth(r);
       if (m) trendByMonth.set(m, (trendByMonth.get(m) ?? 0) + amt);
       if (m === thisMonth) revenueThisMonth += amt;
       const label = TYPE_LABELS[r.typeOfappointment ?? ""] ?? "Other";
       mixByLabel.set(label, (mixByLabel.get(label) ?? 0) + amt);
-    } else if (isBooked(r)) {
-      pending += r.quotedPrice ?? 0;
     }
     if (isBooked(r) && monthKey(readCreatedISO(r)) === thisMonth) {
       bookingsThisMonth++;
@@ -157,39 +170,37 @@ export function deriveAnalytics(
     .map(([name, bookings]) => ({ name, bookings }))
     .sort((a, b) => b.bookings - a.bookings);
 
+  // Payouts come from the server's payout parts (backend lib/payouts.ts): only
+  // sessions done AND paid for are earned, the same figures as the Earnings
+  // page. Never split money here.
   let therapistPayoutTotal = 0;
   let therapistPayoutPaid = 0;
   let therapistPayoutOwed = 0;
   let companyEarningsTotal = 0;
   const breakdownByName = new Map<string, { revenue: number; therapistCut: number; companyCut: number; paidCut: number; owedCut: number }>();
 
-  for (const r of live) {
-    if (!isPaid(r)) continue;
-    const amt = amountOf(r);
-    const { therapistCut: tCut, companyCut: cCut } = splitRevenue(amt, splitFor(r, splits));
-    therapistPayoutTotal += tCut;
-    companyEarningsTotal += cCut;
+  for (const p of live.flatMap((r) => r.payout ?? [])) {
+    const owed = Math.max(0, p.owed); // overpaid shows as nothing owed, not a credit
+    therapistPayoutTotal += p.earned.therapistCut;
+    companyEarningsTotal += p.earned.companyCut;
+    therapistPayoutPaid += p.paidOut;
+    therapistPayoutOwed += owed;
 
-    const isTherapistPaid = !!(r as any).therapistPaid;
-    if (isTherapistPaid) {
-      therapistPayoutPaid += tCut;
-    } else {
-      therapistPayoutOwed += tCut;
-    }
-
-    const tName = r.doctor?.trim() || "Unassigned";
+    const tName = p.doctorId ? p.doctor.trim() || p.doctorId : "Unassigned";
     const existing = breakdownByName.get(tName) ?? { revenue: 0, therapistCut: 0, companyCut: 0, paidCut: 0, owedCut: 0 };
     breakdownByName.set(tName, {
-      revenue: existing.revenue + amt,
-      therapistCut: existing.therapistCut + tCut,
-      companyCut: existing.companyCut + cCut,
-      paidCut: existing.paidCut + (isTherapistPaid ? tCut : 0),
-      owedCut: existing.owedCut + (!isTherapistPaid ? tCut : 0),
+      revenue: existing.revenue + p.earned.revenue,
+      therapistCut: existing.therapistCut + p.earned.therapistCut,
+      companyCut: existing.companyCut + p.earned.companyCut,
+      paidCut: existing.paidCut + p.paidOut,
+      owedCut: existing.owedCut + owed,
     });
   }
 
   const therapistEarningsBreakdown = [...breakdownByName.entries()]
     .map(([name, data]) => ({ name, ...data }))
+    // A therapist with only upcoming or pending sessions has nothing to show yet.
+    .filter((t) => t.revenue || t.paidCut || t.owedCut)
     .sort((a, b) => b.revenue - a.revenue);
 
   return {
@@ -202,7 +213,7 @@ export function deriveAnalytics(
     pipeline: { enquiries, bookings, paid },
     serviceMix,
     revenueTrend,
-    pendingCount: live.filter((r) => isBooked(r) && !isPaid(r)).length,
+    pendingCount,
     needsFirstContact,
     therapistLoad,
     therapistPayoutTotal,

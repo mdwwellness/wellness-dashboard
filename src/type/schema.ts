@@ -63,6 +63,36 @@ export const ResetSchema = z.object({
   email: z.string().email({ message: "Email is required!" }),
 });
 
+/**
+ * Rupees split between a therapist and the company. discount: taken off the
+ * list price; due: still unpaid by the customer.
+ */
+const payoutBucket = z.object({
+  revenue: z.number(),
+  therapistCut: z.number(),
+  companyCut: z.number(),
+  discount: z.number(),
+  due: z.number(),
+});
+
+/**
+ * One therapist's earnings on a booking row (backend lib/payouts.ts PayoutPart).
+ * earned: done and paid for; pending: done, not fully paid; upcoming: not done
+ * yet. splitPercent is only sent to Admin / Super Admin.
+ */
+export const payoutPartSchema = z.object({
+  doctorId: z.string(),
+  doctor: z.string(),
+  splitPercent: z.number().nullable().optional(),
+  sessions: z.number(),
+  earned: payoutBucket,
+  pending: payoutBucket,
+  upcoming: payoutBucket,
+  paidOut: z.number(),
+  owed: z.number(),
+});
+export type PayoutPart = z.infer<typeof payoutPartSchema>;
+
 // Superset schema for the executive enquiry funnel.
 // Existing appointment records validate against this because every legacy
 // field stays optional or unchanged. Stage transitions are driven by the
@@ -242,6 +272,9 @@ export const enquirySchema = z.object({
   // The list status the server works out from all of the booking's visits
   // (backend lib/visitStatus.ts), the same for every viewer. Display only.
   visitStatus: z.enum(["otp_pending", "visit_pending", "session_live", "completed"]).nullable().optional(),
+  // What this row earns, per therapist, worked out by the server (backend
+  // lib/payouts.ts). Display only: the dashboard never recomputes a cut.
+  payout: z.array(payoutPartSchema).optional(),
   // Ad-hoc multi-session tracking + per-session report log.
   totalSessions: z.number().optional(),
   sessionIntervalDays: z.number().optional(),

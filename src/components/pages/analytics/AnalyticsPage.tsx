@@ -21,8 +21,6 @@ import { QueryWrapper } from "@/components/query-wrapper";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
-import { useGetAllTherapist } from "@/data/therapist/therapist";
-import { therapistSplits } from "@/lib/earnings";
 import type { EnquiryType } from "@/type/schema";
 
 import { deriveAnalytics, deriveMoM } from "./analytics-metrics";
@@ -115,11 +113,7 @@ const AnalyticsPage = () => {
     () => (enq.data ?? []) as EnquiryType[],
     [enq.data],
   );
-  const { data: therapists = [] } = useGetAllTherapist();
-  const a = React.useMemo(
-    () => deriveAnalytics(records, therapistSplits(therapists as any[])),
-    [records, therapists],
-  );
+  const a = React.useMemo(() => deriveAnalytics(records), [records]);
   const mom = React.useMemo(() => deriveMoM(records), [records]);
 
   // Analytics is a back-office view; therapists get their own dashboard.
@@ -324,7 +318,7 @@ const AnalyticsPage = () => {
                 />
               </MetricCardsRow>
 
-              <Panel title="Earnings breakdown by therapist" hint="Collected revenue and therapist vs company split">
+              <Panel title="Earnings breakdown by therapist" hint="Sessions done and paid for, split between therapist and company">
                 {a.therapistEarningsBreakdown.length === 0 ? (
                   <Empty>No therapist earnings recorded yet.</Empty>
                 ) : (

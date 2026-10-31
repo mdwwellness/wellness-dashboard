@@ -5,11 +5,12 @@ import { fetchWithAuth } from "@/lib/fetchwithauth";
 import type { ApiResponse } from "@/type/api";
 import type { slotBookingZodType } from "@/type/schema";
 
+/** The server prices the add-on from the catalogue (backend addonCataloguePrice); no price is sent. */
 export type AddRecommendationInput = {
   serviceId: string;
-  serviceName: string;
   category?: string;
-  quotedPrice: number;
+  /** The therapist's discount on the spot; on unless unticked. */
+  applyDiscount: boolean;
   sessions?: number;
   slot?: { date: string; time: string };
   durationMin?: number;

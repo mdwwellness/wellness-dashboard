@@ -1052,7 +1052,7 @@ IDM's browser extension takes PDF downloads for itself and hands the page an emp
 ### 47. An Offer's "Who Absorbs the Discount" Setting Does Nothing
 
 **Severity:** Medium (money)
-**Status:** Open (found 2026-10-29, parked)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
 **Category:** Offers / therapist earnings
 **Affected Pages:** Services → Offers (the setting), Earnings and a therapist's Earnings tab (where it should count)
 
@@ -1063,7 +1063,260 @@ When a Super Admin creates an offer, they choose who absorbs the discount: the c
 `src/lib/earnings.ts` splits revenue as `paymentAmount ?? quotedPrice`, which is the price after the discount. So the therapist's cut always shrinks with the discount, even when the offer says the company absorbs it.
 
 #### Fix and guard
-Not fixed. First decide what "company absorbs" means: should the therapist's cut be worked out on the pre-discount price? Then the server should send the split, so the dashboard doesn't recompute it. Add a test for each choice.
+Not fixed. Decided 2026-10-30: follow the setting. With "company", the therapist's cut is worked out on the pre-discount price. With "therapist", the discount comes out of their cut (never below ₹0). The server should send the split, so the dashboard doesn't recompute it. Add a test for each choice.
+
+---
+
+> **#48 to #58 come from the 2026-10-30 payout audit.** Twenty agents read the therapist / company split from 10 angles, and each finding was checked by a second agent trying to refute it. The arithmetic itself is sound: `splitRevenue` (`src/lib/earnings.ts:86-88`) was brute-forced over 20,001 amounts × every split from 0 to 100 in 0.1 steps, and therapist + company always equals the amount. The bugs are in **which amount** gets split, **when**, and **who can change it**. A shared cause behind #49 to #54: the server stores only the split %, and the dashboard works out every cut itself from `paymentAmount ?? quotedPrice` (CLAUDE.md rule: the server should own a number like this). Two findings were refuted: an offer on a course leaving follow-up prices high (follow-ups never count as paid), and the package de-dupe hiding the money row (nothing writes `packageServiceId` on those rows).
+>
+> **Payout rules decided by the owner (2026-10-30), for the fixes of #47, #49, #50 and #57:**
+> 1. **Courses and packages are earned per session.** Each completed session earns its share of the price (price ÷ sessions), split at the % of the therapist who did that session.
+> 2. **An add-on is earned by the therapist who did it**, at their own %. If it was done in the same visit, that's the visit's therapist.
+> 3. **The offer's "who absorbs the discount" setting is followed.** With "company", the therapist is paid on the pre-discount price. With "therapist", the discount comes out of the therapist's share, never below ₹0.
+> 4. **A session counts as earned once it's done and its share is paid.** If it's done but not paid, it is pending.
+>
+> **How it was fixed (2026-10-30, not yet shipped).** The "Not fixed" notes in #47 to #58 describe the state before this fix.
+>
+> **Backend**
+> - **Payouts are worked out on the server.** `lib/payouts.ts` works out every row's payout, per therapist. It follows the rules above, with an earned, pending and upcoming bucket, and each bucket has its own discount and amount due. `GET /api/appointments` and `GET /api/therapist/:id` send it as `payout`.
+> - **Payouts are marked paid on the server.** `POST /api/appointments/:id/payout` (Admin or Super Admin) records the amount in an append-only `therapistPayouts` ledger and locks the split it was paid at. An older row's "paid" tick goes into that ledger at the amount the old page paid.
+> - **Each session records who did it.** `completeSession` stamps `doctorId` and `splitPercent` on every `sessionNotes` entry. Reassigning a therapist stamps older notes, and is refused on a finished visit.
+> - **Client writes are locked down.**
+>   - One server-owned field list (`stripServerOwned` in `lib/lockedFields.ts`) covers both the booking create and the update.
+>   - The update refuses `$` and dotted keys, and keeps the booking's shape fixed.
+>   - History is append-only.
+>   - A therapist can't set "completed" by hand.
+> - **Offers keep "paid in full" correct.** Applying or removing an offer updates it.
+> - **Add-ons are priced from the catalogue.** The add-on payment check now rounds each session the same way the payout does.
+> - **Split percentages stay with Admin and Super Admin.** They are hidden from every other role, in therapist reads and booking rows alike.
+>
+> **Dashboard**
+> - Earnings, a therapist's Earnings tab and Analytics only display the server's figures.
+> - The Earnings page reads every row, including each course session.
+>
+> **Guards**
+> - `lib/payouts.test.ts` (30 tests).
+> - New cases in `visitOtp.test.ts`, `bookingOfferController.test.ts` and `lockedFields.test.ts`, with a parity note in `service-pricing.test.ts`.
+> - The dashboard's `earnings.test.ts` and `analytics-metrics.test.ts`.
+> - A second 8-agent review of the fix found 16 problems in it, and each one was fixed before shipping.
+>
+> **Known gaps**
+> - **Reassigned packages on the therapist's own page:** a therapist's own Earnings page lists bookings by their current therapist. A package that changed hands after they did sessions on it shows those sessions in Admin's Earnings and in the therapist's tab, but not on their own Earnings page.
+> - **Legacy "recommended" rows:** these are now counted on every page. Whether they double-count add-ons that also sit on their booking couldn't be checked against the database.
+> - **Revenue figures:** Analytics' "Revenue this month", trend and service mix still count only fully paid rows.
+
+### 48. Any Signed-in User Can Write Any Booking Field Through `$set` (a Therapist Can Raise Their Own Split)
+
+**Severity:** Critical (money, live)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Backend / security / payouts
+**Affected Pages:** none directly; any client calling `PUT /api/appointments/:id`
+
+#### Description
+`updateAppointment` removes the money fields from the body (`therapistSplitPercent`, `paymentAmount`, `payments`, discounts). Wrapping them in an operator gets past that: a therapist sending `{"$set":{"therapistSplitPercent":100}}` for their own booking takes the whole fee, and an office user can `$inc` `paymentAmount`. Checked against the real Mongoose without a database: the body `{name, $set:{therapistSplitPercent:100}, $inc:{paymentAmount:5000}}` casts to exactly that update. Separately, `therapistPaid` / `therapistPaidAt` are not stripped at all, so a therapist can un-mark a payout they were paid and get paid again. `activityLog` is also taken from the body.
+
+#### Cause
+`controllers/appointmentController.ts:802` copies `req.body` and deletes a deny-list of top-level keys. `findByIdAndUpdate(id, updateData)` (`:1039`) then honours `$set`, `$inc`, `$unset` and dotted paths, which the deny-list never sees. `lib/lockedFields.ts` has the same blind spot. No server code reads `therapistPaid`; it is written only through this generic PUT.
+
+#### Fix and guard
+Not fixed. Smallest fix: refuse (400) any body key that starts with `$` or contains `.`, add `therapistPaid` / `therapistPaidAt` to the stripped keys (letting only Admin / Super Admin set them), and build `activityLog` from the stored copy only. Better: switch to an allow-list. Test: a therapist PUT with `$set.therapistSplitPercent` gets a 400, and the stored split is unchanged.
+
+---
+
+### 49. A Course Pays Its Whole Price to Session 1's Therapist, and Follow-ups Show Money That Doesn't Exist
+
+**Severity:** High (money)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Earnings / courses
+**Affected Pages:** Earnings, a therapist's Earnings tab, Analytics
+
+#### Description
+Take a 5-session course for ₹5,000, fully paid. Therapist A (60%) does session 1 and therapist B does sessions 2 to 5. Earnings credits A with ₹3,000 the moment session 1 completes, and B earns ₹0. Each follow-up row also adds ₹1,000: "upcoming" while scheduled, "pending" once done. So after session 1 the course shows ₹4,000 more than was ever charged, and after session 5 a fully paid course still shows ₹4,000 pending. "Avg per session" is skewed too.
+
+#### Cause
+Follow-ups get `quotedPrice: price / totalSessions` "for tracking" (`lib/bookingService.ts:446`), but every payment lands on session 1's row (`moneyRowFor`, `lib/payments.ts`). `earnings.ts:101` reads `paymentAmount ?? quotedPrice` on every row, so it doesn't know follow-ups carry no money of their own. The backend's own `payableLedger` already zeroes follow-ups (`lib/bookingMoney.ts`).
+
+#### Fix and guard
+Not fixed. Needs a business decision: is a course earned per session (each session's share, split at that row's therapist and %), or all at once? Either way, follow-up rows must not count their tracking price.
+
+---
+
+### 50. Add-on Money Never Reaches the Therapist's or the Company's Share
+
+**Severity:** High (money)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Earnings / add-ons
+**Affected Pages:** Earnings, a therapist's Earnings tab, Analytics
+
+#### Description
+A ₹1,000 booking with a ₹2,000 add-on, both paid, at 60%: Earnings shows revenue ₹1,000, therapist ₹600, company ₹400. The ₹2,000 that was collected and invoiced appears nowhere. Add-on visit rows count as completed sessions but earn ₹0.
+
+#### Cause
+Add-on payments go to `recommendedServices.$.paidAmount` only (`lib/payments.ts`) and never to `paymentAmount`. `earnings.ts` and `analytics-metrics.ts` never read `recommendedServices`. `createAddonVisits` (`lib/addonVisits.ts`) gives the visit row no price.
+
+#### Fix and guard
+Not fixed. Decide who earns an add-on (the booking's therapist, or the one who did the add-on visit), then add each add-on's paid amount (`addonPaid` in `bookingMoney.ts`) to the split in one shared helper.
+
+---
+
+### 51. Part-paid and Pay-per-session Bookings Earn Nothing, and "Pending" Shows the Money Already Paid
+
+**Severity:** High (money)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Earnings / payments
+**Affected Pages:** Earnings, a therapist's Earnings tab, Analytics
+
+#### Description
+A course paid session by session (allowed since #26): ₹9,000, ₹1,000 paid, session 1 done. Earnings shows revenue ₹0, therapist payout ₹0, and the ₹1,000 already collected is listed as pending. The ₹8,000 still owed is shown nowhere. The therapist's cut only appears when the last rupee is paid. Analytics' "pending" adds `quotedPrice` and ignores what was part-paid.
+
+#### Cause
+`paymentReceived` turns true only at full payment (`lib/payments.ts:253`), and `computeEarningsSummary` treats every row as either fully paid or fully pending (`earnings.ts:150-158`).
+
+#### Fix and guard
+Not fixed. Split what was actually paid, and take "pending" from the ledger's `due` (`bookingMoney.ts`), not from `paymentAmount`.
+
+---
+
+### 52. Analytics Owes Therapists for Visits That Haven't Happened
+
+**Severity:** High (money display)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Analytics / earnings
+**Affected Pages:** Analytics ("Therapist Payouts", "Company Earnings", "Payout Owed")
+
+#### Description
+A ₹4,000 course paid upfront with no session done, at 60%: Analytics shows ₹2,400 payout owed. Earnings shows ₹0 for the same booking (#36 made Earnings count completed visits only). The two pages disagree on the same data.
+
+#### Cause
+`analytics-metrics.ts:28` `isPaid` has no status check, and the payout loop (`:166-178`) splits every paid row. `earnings.ts:53` `isEarned` requires `completed`. Each page has its own rule.
+
+#### Fix and guard
+Not fixed. Use `isEarned` in the analytics payout loop (one rule, one place). Add a test where a paid, scheduled booking adds ₹0 to "Payout Owed".
+
+---
+
+### 53. A Therapist Without a Split at Completion Never Gets One Locked, So a Later Change Rewrites Paid-out Earnings
+
+**Severity:** Medium (money)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Earnings / split lock
+**Affected Pages:** Earnings, a therapist's Earnings tab, Analytics
+
+#### Description
+A therapist added by Staff starts with no split (by design). Their ₹1,000 visit completes and nothing is locked. An admin then sets 50%, the visit shows ₹500, and the admin marks it paid. Later the admin changes the split to 60%: the same paid visit now shows ₹600 "paid", although ₹500 was paid out.
+
+#### Cause
+`lockedSplitFields` returns nothing when the therapist's split is null (`lib/therapistSplit.ts:29-32`), and `splitFor` (`earnings.ts:80-82`) then uses the therapist's current %, on every render.
+
+#### Fix and guard
+Not fixed. Lock the split when the payout is marked paid (and when a split is first set, for completed bookings that have none), or block completion while the assigned therapist has no split.
+
+---
+
+### 54. "Paid to Therapist" Is One Tick, But the Amount Behind It Keeps Moving
+
+**Severity:** High (money)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Earnings / payouts
+**Affected Pages:** Earnings (Mark Paid)
+
+#### Description
+Marking a payout paid stores only `therapistPaid: true` and a date, not the amount. The cut is worked out again on every render, so it moves after a later payment, an offer change (#55) or a split change (#53). The row still says "Paid" while the therapist is owed the difference, and nothing records what was actually paid. The Mark Paid button also shows on rows whose customer hasn't paid.
+
+#### Cause
+`earnings-page.tsx` (`handleToggleTherapistPaid`) sends only the flag and date through the generic booking PUT. The model (`appointmentsBookingModel.ts`) has no amount field.
+
+#### Fix and guard
+Not fixed. Store the amount paid out (and lock the split) when marking paid, show any difference as still owed, and make marking a server action that only Admin / Super Admin can use (see #48).
+
+---
+
+### 55. Applying or Removing an Offer Doesn't Update "Paid in Full"
+
+**Severity:** High (money)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Offers / payments / earnings
+**Affected Pages:** Billing tab, Earnings, invoices, pay link
+
+#### Description
+- **Price lowered to exactly what was paid:** the invoice says PAID, but the booking stays `paymentReceived: false`. Earnings lists it as pending forever, and the therapist's cut never counts.
+- **Offer removed after full payment:** `quotedPrice` goes back up, but `paymentReceived` stays true. The invoice reopens with a balance due, Earnings calls it paid and splits the lower amount, and the pay link disagrees with both.
+
+#### Cause
+`applyOffer` / `removeOffer` (`controllers/bookingOfferController.ts`) `$set` the price and discount fields but never recompute `paymentReceived`. Only `recordPayment` (`lib/payments.ts:253`) writes it. `offerMoney` allows a final price equal to what was already paid (`lib/offers.ts:207`).
+
+#### Fix and guard
+Not fixed. After either change, set `paymentReceived = paymentAmount >= new price` in the same update. Consider refusing to remove an offer from a fully paid line.
+
+---
+
+### 56. Reassigning a Therapist Keeps the Previous Therapist's Split
+
+**Severity:** Medium (money)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Earnings / split lock
+**Affected Pages:** Visit tab (assign therapist), Earnings
+
+#### Description
+The split is locked at the first completed session. A one-row package goes back to "scheduled" after that session, so it can still be reassigned. The new therapist is then paid at the old therapist's %, and inherits their "Paid" tick.
+
+#### Cause
+`lockedSplitFields` never replaces a locked split (`therapistSplit.ts:29`), and the update path doesn't stop a reassignment after the lock (`appointmentController.ts`).
+
+#### Fix and guard
+Not fixed. Clear or re-lock the split (and `therapistPaid`) when `doctorId` changes, or refuse reassignment once a split is locked.
+
+---
+
+### 57. A One-row Package Earns Nothing Until Its Last Session
+
+**Severity:** Medium (money display)
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Earnings / packages
+**Affected Pages:** Earnings, a therapist's Earnings tab
+
+#### Description
+A 5-session package booked as one row stays "scheduled" until session 5 (`appointmentController.ts:713`). After 4 sessions it shows ₹0 earned, and the whole payout lands at the end, with whoever is assigned then (see #56).
+
+#### Cause
+`isEarned` needs `status === "completed"`, and a one-row package only reaches that status at its last session.
+
+#### Fix and guard
+Not fixed. This is the same decision as #49: is a package earned per session?
+
+---
+
+### 58. Split %, and Add-on Prices From the Browser (Lower-risk Findings)
+
+**Severity:** Low to Medium
+**Status:** Fixed 2026-10-30, not yet shipped (backend lib/payouts.ts + dashboard; see the payout audit note above #48)
+**Category:** Backend / authz / rounding
+
+#### Description
+- **Split % visible to the wrong roles (Medium):** therapists' split % is sent to Therapist, Staff and Customer Care (`DoctorController.ts` `getDoctors` / `getDoctorByUserId`), although the code says only Admin / Super Admin may see it. It is hidden only on screen.
+- **Add-on price from the browser (Low):** an add-on's price is taken from the client on `POST /appointments/:id/recommendations` (any role, therapist included) and never checked against the catalogue. That price is then invoiced and split.
+- **Decimal split % rounding (Low):** a decimal split can lose ₹1 to float error. For example, ₹250 at 64.6% gives 161.4999…, which rounds to ₹161 instead of ₹162. Fix: round `revenue * split` in paise, or allow whole-number splits only.
+
+#### Fix and guard
+Not fixed. Strip `splitPercent` from doctor reads for other roles, take add-on prices from the Service record, and round in paise.
+
+---
+
+### 59. Add-ons Attached While Booking Keep the Browser's Price
+
+**Severity:** Medium (money)
+**Status:** Open (found 2026-10-30 by the payout fix review)
+**Category:** Backend / bookings / add-ons
+**Affected Pages:** New appointment (add-ons attached at booking)
+
+#### Description
+#58 makes an add-on recommended on a visit use the catalogue price. But the booking form can also attach add-ons when the booking is created (`appointmentbookingform.tsx`, `payload.recommendedServices`), and `createBooking` stores them as sent, already "confirmed", with the price the browser worked out.
+
+#### Cause
+`createBooking` (`lib/bookingService.ts`) copies `recommendedServices` from the request into the new booking. Only the visit-time endpoint prices add-ons on the server.
+
+#### Fix and guard
+Not fixed. Price each attached add-on with `addonCataloguePrice` in `createBooking` (the booking form would send `applyDiscount` per add-on), and add a test that a sent price is ignored.
 
 ---
 
@@ -1117,4 +1370,16 @@ Not fixed. First decide what "company absorbs" means: should the therapist's cut
 | 44 | Visit code hash sent to the browser (a therapist could recover the code) | High | Open |
 | 45 | Login did nothing on a phone through ngrok, and sent the password in the address | High | Fixed |
 | 46 | Invoice download said "try logging in again" when IDM took the PDF | Low | Fixed |
-| 47 | An offer's "who absorbs the discount" setting does nothing | Medium | Open |
+| 47 | An offer's "who absorbs the discount" setting does nothing | Medium | Fixed (not shipped) |
+| 48 | Any signed-in user can write any booking field through `$set` (a therapist can raise their own split) | Critical | Fixed (not shipped) |
+| 49 | A course pays its whole price to session 1's therapist; follow-ups show money that doesn't exist | High | Fixed (not shipped) |
+| 50 | Add-on money never reaches the therapist's or the company's share | High | Fixed (not shipped) |
+| 51 | Part-paid / pay-per-session bookings earn nothing; "pending" shows money already paid | High | Fixed (not shipped) |
+| 52 | Analytics owes therapists for visits that haven't happened | High | Fixed (not shipped) |
+| 53 | No split at completion means none is locked; a later change rewrites paid-out earnings | Medium | Fixed (not shipped) |
+| 54 | "Paid to therapist" is one tick, but the amount behind it keeps moving | High | Fixed (not shipped) |
+| 55 | Applying or removing an offer doesn't update "paid in full" | High | Fixed (not shipped) |
+| 56 | Reassigning a therapist keeps the previous therapist's split | Medium | Fixed (not shipped) |
+| 57 | A one-row package earns nothing until its last session | Medium | Fixed (not shipped) |
+| 58 | Split % shown to other roles; add-on price from the browser; decimal-split rounding | Low-Medium | Fixed (not shipped) |
+| 59 | Add-ons attached while booking keep the browser's price | Medium | Open |
